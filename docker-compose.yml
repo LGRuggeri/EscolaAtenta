@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: postgres_escolar
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: A3952b
+      POSTGRES_DB: escola_atenta_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_escolar
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@escola.com
+      PGADMIN_DEFAULT_PASSWORD: A3952b
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
