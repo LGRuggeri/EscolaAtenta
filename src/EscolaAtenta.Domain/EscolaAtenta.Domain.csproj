@@ -6,4 +6,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!--
+      MediatR.Contracts: Apenas as interfaces INotification e IRequest.
+      O Domain conhece apenas o contrato, não a implementação do MediatR.
+      Isso mantém o Domain sem dependência de infraestrutura de mensageria.
+    -->
+    <PackageReference Include="MediatR.Contracts" Version="2.*" />
+  </ItemGroup>
+
 </Project>

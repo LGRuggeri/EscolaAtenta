@@ -1,77 +1,69 @@
+/* ── Layout Principal ─────────────────────────────────────────── */
 .page {
     position: relative;
     display: flex;
-    flex-direction: column;
-}
-
-main {
-    flex: 1;
+    flex-direction: row;
+    min-height: 100vh;
 }
 
 .sidebar {
-    background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
+    width: 260px;
+    min-height: 100vh;
+    background-color: var(--cor-fundo-sidebar);
+    border-right: 1px solid var(--cor-borda);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
 }
 
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    /* Evita overflow em flex containers */
+    background-color: var(--cor-fundo);
+}
+
+/* ── Top Row ──────────────────────────────────────────────────── */
 .top-row {
-    background-color: #f7f7f7;
-    border-bottom: 1px solid #d6d5d5;
-    justify-content: flex-end;
-    height: 3.5rem;
+    background-color: var(--cor-fundo-card);
+    border-bottom: 1px solid var(--cor-borda);
+    padding: 0.6rem 1.5rem;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    min-height: 48px;
 }
 
-    .top-row ::deep a, .top-row ::deep .btn-link {
-        white-space: nowrap;
-        margin-left: 1.5rem;
-        text-decoration: none;
-    }
-
-    .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {
-        text-decoration: underline;
-    }
-
-    .top-row ::deep a:first-child {
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-@media (max-width: 640.98px) {
-    .top-row {
-        justify-content: space-between;
-    }
-
-    .top-row ::deep a, .top-row ::deep .btn-link {
-        margin-left: 0;
-    }
+/* ── Content Area ─────────────────────────────────────────────── */
+.content {
+    flex: 1;
+    padding: 1.5rem;
 }
 
-@media (min-width: 641px) {
+/* ── Responsividade ───────────────────────────────────────────── */
+@media (max-width: 767.98px) {
     .page {
-        flex-direction: row;
+        flex-direction: column;
     }
 
     .sidebar {
-        width: 250px;
-        height: 100vh;
-        position: sticky;
-        top: 0;
+        width: 100%;
+        min-height: auto;
+        height: auto;
+        position: relative;
     }
 
-    .top-row {
-        position: sticky;
-        top: 0;
-        z-index: 1;
+    .content {
+        padding: 1rem;
     }
+}
 
-    .top-row.auth ::deep a:first-child {
-        flex: 1;
-        text-align: right;
-        width: 0;
-    }
-
-    .top-row, article {
-        padding-left: 2rem !important;
-        padding-right: 1.5rem !important;
+@media (min-width: 768px) {
+    .page {
+        flex-direction: row;
     }
 }

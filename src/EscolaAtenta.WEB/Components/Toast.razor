@@ -1,0 +1,77 @@
+@* Componente Toast para exibir notificacoes ao usuario 
+   Usa o servico IToastService para receber mensagens e exibi-las visualmente
+   Paleta de cores: areia branca claro (#faf8f3) + dourado (#c9a227) *@
+
+@using EscolaAtenta.WEB.Services
+@inject IToastService ToastService
+@implements IDisposable
+
+@if (toasts.Any())
+{
+    <div class="toast-container">
+        @foreach (var toast in toasts)
+        {
+            <div class="toast-item toast-@toast.Type.ToString().ToLower()">
+                <div class="toast-icon">
+                    @switch (toast.Type)
+                    {
+                        case ToastType.Success:
+                            <span>&#10003;</span> @* Checkmark *@
+                            break;
+                        case ToastType.Error:
+                            <span>&#10007;</span> @* X mark *@
+                            break;
+                        case ToastType.Warning:
+                            <span>&#9888;</span> @* Warning symbol *@
+                            break;
+                        default:
+                            <span>&#8505;</span> @* Info symbol *@
+                            break;
+                    }
+                </div>
+                <div class="toast-message">@toast.Message</div>
+                <button class="toast-close" @onclick="() => RemoveToast(toast.Id)">&times;</button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    // Lista de mensagens ativas no momento
+    private List<ToastMessage> toasts = new();
+    
+    // Tempo em ms que cada toast permanece visivel
+    private const int AutoRemoveDelay = 5000;
+
+    protected override void OnInitialized()
+    {
+        // Inscreve-se no evento de novas mensagens do servico
+        ToastService.OnShow += OnToastReceived;
+    }
+
+    private void OnToastReceived(ToastMessage message)
+    {
+        // Adiciona a nova mensagem eNotifica o Blazor para re-renderizar
+        toasts.Add(message);
+        StateHasChanged();
+
+        // Agenda remocao automatica apos delay
+        _ = Task.Delay(AutoRemoveDelay).ContinueWith(_ => RemoveToast(message.Id));
+    }
+
+    private void RemoveToast(string id)
+    {
+        var toast = toasts.FirstOrDefault(t => t.Id == id);
+        if (toast != null)
+        {
+            toasts.Remove(toast);
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        // Cancela a inscricao quando o componente e destruido
+        ToastService.OnShow -= OnToastReceived;
+    }
+}

@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>b3141a98-abfa-4ece-8b59-4b9dec5ca2bc</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,6 +13,25 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <!--
+      Serilog: Logging estruturado para produção.
+      Serilog.AspNetCore inclui o sink de Console e integração com ILogger do ASP.NET Core.
+    -->
+    <PackageReference Include="Serilog.AspNetCore" Version="8.*" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.*" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.*" />
+    <PackageReference Include="Serilog.Enrichers.Thread" Version="4.*" />
+    <!--
+      Health Checks: Monitoramento da saúde do banco de dados PostgreSQL.
+      Expõe endpoint /health para load balancers e orquestradores (K8s, Docker).
+    -->
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.*" />
+    <!--
+      JWT Bearer: Autenticação e validação de tokens JWT.
+      Microsoft.AspNetCore.Authentication.JwtBearer inclui o handler de autenticação.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.12" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.1" />
   </ItemGroup>
 
   <ItemGroup>

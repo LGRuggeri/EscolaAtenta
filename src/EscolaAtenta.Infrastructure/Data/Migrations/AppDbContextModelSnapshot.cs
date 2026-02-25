@@ -34,14 +34,40 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                     b.Property<DateTimeOffset>("DataAlerta")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset?>("DataAtualizacao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("DataCriacao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("DataResolucao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Descricao")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ObservacaoResolucao")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<bool>("Resolvido")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("UsuarioAtualizacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UsuarioCriacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("AlunoId");
+                    b.HasIndex("AlunoId", "Resolvido");
 
                     b.ToTable("AlertasEvasao", (string)null);
                 });
@@ -51,6 +77,20 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTimeOffset?>("DataAtualizacao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("DataCriacao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("DataExclusao")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Matricula")
                         .IsRequired()
@@ -65,10 +105,25 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                     b.Property<Guid>("TurmaId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("UsuarioAtualizacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UsuarioCriacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UsuarioExclusao")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.HasKey("Id");
 
+                    b.HasIndex("Ativo");
+
                     b.HasIndex("Matricula")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"Ativo\" = true");
 
                     b.HasIndex("TurmaId");
 
@@ -81,6 +136,12 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DataAtualizacao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("DataCriacao")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("DataHora")
                         .HasColumnType("timestamp with time zone");
 
@@ -90,9 +151,23 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                     b.Property<Guid>("TurmaId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("UsuarioAtualizacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UsuarioCriacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("TurmaId");
+                    b.HasIndex("TurmaId", "DataHora");
 
                     b.ToTable("Chamadas", (string)null);
                 });
@@ -109,8 +184,28 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                     b.Property<Guid>("ChamadaId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DataAtualizacao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("DataCriacao")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
+
+                    b.Property<string>("UsuarioAtualizacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UsuarioCriacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
@@ -131,6 +226,20 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                     b.Property<int>("AnoLetivo")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTimeOffset?>("DataAtualizacao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("DataCriacao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("DataExclusao")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -141,7 +250,21 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("UsuarioAtualizacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UsuarioCriacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UsuarioExclusao")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("Ativo");
 
                     b.ToTable("Turmas", (string)null);
                 });

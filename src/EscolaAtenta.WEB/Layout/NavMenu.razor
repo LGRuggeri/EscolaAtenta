@@ -1,27 +1,75 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">EscolaAtenta.WEB</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
+﻿@* NavMenu — EscolaAtenta
+   Tema: Areia Branca Claro + Dourado
+   Sem temas escuros conforme diretriz de design. *@
+
+
+@inject NavigationManager Navigation
+@inject JwtAuthenticationStateProvider AuthStateProvider
+
+<div class="sidebar-header">
+    <div class="container-fluid d-flex align-items-center justify-content-between">
+        <a class="sidebar-brand" href="">
+            <span class="sidebar-brand-icon">🏫</span>
+            <span class="sidebar-brand-text">EscolaAtenta</span>
+        </a>
+        <button title="Menu de navegação" class="navbar-toggler d-md-none" @onclick="ToggleNavMenu">
+            <span class="toggler-icon">☰</span>
         </button>
     </div>
 </div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
+<AuthorizeView>
+    <Authorized>
+        <div class="user-info">
+            <span class="user-icon">👤</span>
+            <span class="user-name">@GetUserEmail(context)</span>
+            <button class="btn-logout" @onclick="LogoutAsync" title="Sair">
+                🚪
+            </button>
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+<div class="@NavMenuCssClass nav-scrollable">
+    <nav class="nav flex-column py-2">
+        <div class="nav-section-title">Principal</div>
+
+        <div class="nav-item">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+                <span class="nav-icon">🏠</span>
+                <span>Início</span>
             </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+
+        <div class="nav-section-title">Gestão Escolar</div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="turmas">
+                <span class="nav-icon">🏛️</span>
+                <span>Turmas</span>
             </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="alunos">
+                <span class="nav-icon">👨‍🎓</span>
+                <span>Alunos</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="chamadas">
+                <span class="nav-icon">📋</span>
+                <span>Chamadas</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-section-title">Monitoramento</div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="alertas">
+                <span class="nav-icon">⚠️</span>
+                <span>Alertas de Evasão</span>
             </NavLink>
         </div>
     </nav>
@@ -35,5 +83,20 @@
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
+    }
+
+    private string GetUserEmail(AuthenticationState context)
+    {
+        // Tenta obter o email dos claims do JWT
+        var emailClaim = context?.User?.FindFirst("email") 
+            ?? context?.User?.FindFirst(System.Security.Claims.ClaimTypes.Email);
+        
+        return emailClaim?.Value ?? context?.User?.Identity?.Name ?? "Usuário";
+    }
+
+    private async Task LogoutAsync()
+    {
+        await AuthStateProvider.MarkUserAsLoggedOut();
+        Navigation.NavigateTo("/login", forceLoad: true);
     }
 }

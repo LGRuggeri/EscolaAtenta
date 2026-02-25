@@ -1,19 +1,40 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <ItemGroup>
-    <ProjectReference Include="..\EscolaAtenta.Domain\EscolaAtenta.Domain.csproj" />
-    <ProjectReference Include="..\EscolaAtenta.Application\EscolaAtenta.Application.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.*" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.*" />
-  </ItemGroup>
-
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Infrastructure depende apenas do Domain — não da Application.
+      A referência circular Infrastructure <-> Application foi eliminada.
+      Os Handlers da Application referenciam Infrastructure diretamente.
+    -->
+    <ProjectReference Include="..\EscolaAtenta.Domain\EscolaAtenta.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.*" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.*" />
+    <!--
+      MediatR: Necessário para o AppDbContext despachar Domain Events via IMediator.
+    -->
+    <PackageReference Include="MediatR" Version="12.*" />
+    <!--
+      Microsoft.AspNetCore.Http.Abstractions: Para IHttpContextAccessor no CurrentUserService.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.*" />
+    <!--
+      BCrypt: Para hash de senhas seguro (usado pelo IAuthService).
+      Alternativa: PBKDF2 ou Argon2. BCrypt e amplamente utilizado e seguro.
+    -->
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <!--
+      JWT: Para geracao e validacao de tokens JWT.
+    -->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.1" />
+  </ItemGroup>
 
 </Project>

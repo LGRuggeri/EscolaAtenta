@@ -1,0 +1,121 @@
+@page "/login"
+@inject NavigationManager Navigation
+@inject IToastService ToastService
+@inject ApiService ApiService
+@inject JwtAuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Login - EscolaAtenta</PageTitle>
+
+<div class="login-page">
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>EscolaAtenta</h1>
+                <p>Controle de Presença Escolar</p>
+            </div>
+
+            <EditForm Model="@_loginModel" OnValidSubmit="@HandleLoginAsync" FormName="LoginForm">
+                <DataAnnotationsValidator />
+
+                <div class="form-group">
+                    <label for="email">E-mail</label>
+                    <InputText 
+                        id="email" 
+                        @bind-Value="_loginModel.Email" 
+                        class="form-input"
+                        placeholder="seu.email@escola.edu.br"
+                        disabled="@_isLoading" />
+                    <ValidationMessage For="@(() => _loginModel.Email)" class="validation-message" />
+                </div>
+
+                <div class="form-group">
+                    <label for="senha">Senha</label>
+                    <InputText 
+                        id="senha" 
+                        type="password"
+                        @bind-Value="_loginModel.Senha" 
+                        class="form-input"
+                        placeholder="••••••••"
+                        disabled="@_isLoading" />
+                    <ValidationMessage For="@(() => _loginModel.Senha)" class="validation-message" />
+                </div>
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="error-message">
+                        @_errorMessage
+                    </div>
+                }
+
+                <button type="submit" class="btn-primary" disabled="@_isLoading">
+                    @if (_isLoading)
+                    {
+                        <span class="spinner"></span>
+                        <span>Entrando...</span>
+                    }
+                    else
+                    {
+                        <span>Entrar</span>
+                    }
+                </button>
+            </EditForm>
+
+            <div class="login-footer">
+                <small>Sistema desenvolvido para controle de presença escolar</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginModel _loginModel = new();
+    private bool _isLoading;
+    private string? _errorMessage;
+
+    private async Task HandleLoginAsync()
+    {
+        _errorMessage = null;
+        _isLoading = true;
+
+        try
+        {
+            var result = await ApiService.LoginAsync(_loginModel.Email, _loginModel.Senha);
+
+            if (result != null)
+            {
+                // Salvar token no localStorage e marcar usuario como autenticado
+                await AuthStateProvider.MarkUserAsAuthenticated(result.Token);
+                
+                ToastService.ShowSuccess("Bem-vindo ao EscolaAtenta!");
+                
+                // Redirecionar para a pagina inicial
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            else
+            {
+                _errorMessage = "E-mail ou senha incorretos.";
+                ToastService.ShowError("Falha no login. Verifique suas credenciais.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Ocorreu um erro ao tentar fazer login.";
+            ToastService.ShowError("Erro de conexão. Tente novamente mais tarde.");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private class LoginModel
+    {
+        [Required(ErrorMessage = "E-mail é obrigatório")]
+        [EmailAddress(ErrorMessage = "E-mail inválido")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Senha é obrigatória")]
+        [MinLength(6, ErrorMessage = "Senha deve ter pelo menos 6 caracteres")]
+        public string Senha { get; set; } = string.Empty;
+    }
+}
