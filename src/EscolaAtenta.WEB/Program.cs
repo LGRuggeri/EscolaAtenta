@@ -14,7 +14,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 // ── Configurações ───────────────────────────────────────────────────────────
 // Lê a configuração do appsettings.json
 var appSettings = builder.Configuration.GetSection("ApiSettings");
-var apiBaseUrl = appSettings.GetValue<string>("BaseUrl") ?? "http://localhost:5000";
+var apiBaseUrl = appSettings.GetValue<string>("BaseUrl") ?? "http://localhost:5114";
 
 // ── Autenticação JWT ──────────────────────────────────────────────────────────
 // Registra o AuthenticationStateProvider customizado que lê o JWT do localStorage
@@ -29,24 +29,35 @@ builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
 builder.Services.AddScoped<IToastService, ToastService>();
 
 // ── HttpClient para a API ───────────────────────────────────────────────────
-// Configura o HttpClient com a URL da API e o handler de erros global
-builder.Services.AddScoped(sp => 
+// Pipeline: AuthTokenHandler → GlobalErrorHandlingHandler → HttpClientHandler
+// O AuthTokenHandler injeta o Bearer JWT em toda requisição
+// O GlobalErrorHandlingHandler trata erros (4xx/5xx) exibindo Toast
+
+builder.Services.AddScoped<AuthTokenHandler>();
+builder.Services.AddScoped<GlobalErrorHandlingHandler>();
+
+builder.Services.AddScoped(sp =>
 {
-    var toastService = sp.GetRequiredService<IToastService>();
-    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-    var httpClient = new HttpClient 
+    var authHandler = sp.GetRequiredService<AuthTokenHandler>();
+    var errorHandler = sp.GetRequiredService<GlobalErrorHandlingHandler>();
+    
+    // Montar pipeline: AuthToken → ErrorHandling → Network
+    authHandler.InnerHandler = errorHandler;
+    errorHandler.InnerHandler = new HttpClientHandler();
+    
+    var httpClient = new HttpClient(authHandler)
     { 
         BaseAddress = new Uri(apiBaseUrl) 
     };
     
-    // Adiciona o handler de tratamento de erros global
-    var delegatingHandler = new GlobalErrorHandlingHandler(toastService, loggerFactory.CreateLogger<GlobalErrorHandlingHandler>());
     httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-    
     return httpClient;
 });
 
 // Registra o ApiService para comunicação com o backend
 builder.Services.AddScoped<ApiService>();
+
+// Registra o DashboardService para consumo da API de Dashboard
+builder.Services.AddScoped<DashboardService>();
 
 await builder.Build().RunAsync();

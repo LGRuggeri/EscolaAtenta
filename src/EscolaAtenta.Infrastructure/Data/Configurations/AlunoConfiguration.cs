@@ -33,6 +33,15 @@ public class AlunoConfiguration : IEntityTypeConfiguration<Aluno>
         builder.Property(a => a.DataExclusao);
         builder.Property(a => a.UsuarioExclusao).HasMaxLength(200);
 
+        // ── Controle de Faltas (Novas propriedades) ───────────────────────────────
+        builder.Property(a => a.FaltasConsecutivasAtuais)
+               .IsRequired()
+               .HasDefaultValue(0);
+
+        builder.Property(a => a.TotalFaltas)
+               .IsRequired()
+               .HasDefaultValue(0);
+
         // ── Auditoria ──────────────────────────────────────────────────────────
         builder.Property(a => a.DataCriacao).IsRequired();
         builder.Property(a => a.DataAtualizacao);

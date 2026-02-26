@@ -9,6 +9,7 @@
 
 using EscolaAtenta.Application.Auth;
 using EscolaAtenta.Domain.Exceptions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 
@@ -31,6 +32,7 @@ public class AuthController : ControllerBase
     /// Login de usuario - retorna JWT token se bem-sucedido.
     /// </summary>
     [HttpPost("login")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

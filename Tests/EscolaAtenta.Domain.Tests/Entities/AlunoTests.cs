@@ -75,10 +75,12 @@ public class AlunoTests
     {
         // Arrange
         var aluno = CriarAlunoValido();
-        const int limite = 5;
 
-        // Act — total de faltas igual ao limite
-        aluno.VerificarLimiteFaltas(totalFaltas: 5, limiteConfigurado: limite);
+        // Act — total de faltas consecutivas igual ao limite (3)
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
+        aluno.VerificarLimiteFaltas();
 
         // Assert
         aluno.DomainEvents.Should().HaveCount(1);
@@ -86,8 +88,8 @@ public class AlunoTests
 
         var evento = (LimiteFaltasAtingidoEvent)aluno.DomainEvents.First();
         evento.AlunoId.Should().Be(AlunoId);
-        evento.TotalFaltas.Should().Be(5);
-        evento.LimiteConfigurado.Should().Be(5);
+        evento.TotalFaltas.Should().Be(3);
+        evento.LimiteConfigurado.Should().Be(3);
         evento.NomeAluno.Should().Be("João da Silva");
     }
 
@@ -97,8 +99,10 @@ public class AlunoTests
         // Arrange
         var aluno = CriarAlunoValido();
 
-        // Act — total de faltas abaixo do limite
-        aluno.VerificarLimiteFaltas(totalFaltas: 3, limiteConfigurado: 5);
+        // Act — apenas 2 faltas consecutivas
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
+        aluno.VerificarLimiteFaltas();
 
         // Assert
         aluno.DomainEvents.Should().BeEmpty();
@@ -107,42 +111,20 @@ public class AlunoTests
     [Fact]
     public void VerificarLimiteFaltas_QuandoAcimaDoLimite_NaoDeveDispararDomainEvent()
     {
-        // Arrange — aluno já passou do limite (alerta já foi gerado anteriormente)
+        // Arrange
         var aluno = CriarAlunoValido();
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
+        aluno.VerificarLimiteFaltas();
+        aluno.ClearDomainEvents();
 
-        // Act — total de faltas acima do limite (não dispara novamente)
-        aluno.VerificarLimiteFaltas(totalFaltas: 7, limiteConfigurado: 5);
+        // Act — atinge 4 faltas
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
+        aluno.VerificarLimiteFaltas();
 
-        // Assert — evento só é disparado quando atinge exatamente o limite
+        // Assert — evento só é disparado quando atinge exatamente o limite (3)
         aluno.DomainEvents.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void VerificarLimiteFaltas_ComTotalNegativo_DeveLancarDomainException()
-    {
-        // Arrange
-        var aluno = CriarAlunoValido();
-
-        // Act
-        var acao = () => aluno.VerificarLimiteFaltas(totalFaltas: -1, limiteConfigurado: 5);
-
-        // Assert
-        acao.Should().Throw<DomainException>()
-            .WithMessage("*negativo*");
-    }
-
-    [Fact]
-    public void VerificarLimiteFaltas_ComLimiteZero_DeveLancarDomainException()
-    {
-        // Arrange
-        var aluno = CriarAlunoValido();
-
-        // Act
-        var acao = () => aluno.VerificarLimiteFaltas(totalFaltas: 3, limiteConfigurado: 0);
-
-        // Assert
-        acao.Should().Throw<DomainException>()
-            .WithMessage("*maior que zero*");
     }
 
     // ── Testes de Soft Delete ──────────────────────────────────────────────────

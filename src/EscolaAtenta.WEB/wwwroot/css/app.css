@@ -7,54 +7,62 @@
    ============================================================ */
 
 :root {
-    /* ── Paleta Principal ─────────────────────────────────────── */
-    --cor-fundo: #faf8f3;
-    /* Areia branca — fundo principal */
+    /* ── Paleta Principal (Cívico-Militar) ───────────────────────── */
+    --cor-fundo: #ffffff;
+    /* Fundo branco limpo solicitado */
     --cor-fundo-card: #ffffff;
     /* Branco puro — cards e painéis */
-    --cor-fundo-sidebar: #f5f0e8;
-    /* Areia levemente mais escura — sidebar */
-    --cor-fundo-hover: #f0ead8;
-    /* Hover em itens de menu */
+    --cor-fundo-sidebar: #f8f9fa;
+    /* Cinza muito claro para diferenciar o menu lateral do fundo */
+    --cor-fundo-hover: #e9ecef;
+    /* Hover em itens de listagem e menu */
 
-    /* ── Dourado ──────────────────────────────────────────────── */
-    --cor-dourado: #c9a227;
-    /* Dourado principal */
-    --cor-dourado-escuro: #a07d1a;
-    /* Dourado escuro — hover, bordas ativas */
-    --cor-dourado-claro: #e8c96a;
-    /* Dourado claro — destaques suaves */
-    --cor-dourado-fundo: #fdf6e3;
-    /* Fundo dourado muito suave */
+    /* ── Azul Marinho (Cor Primária) ────────────────────────────── */
+    --cor-primaria: #101933;
+    /* Azul marinho profundo */
+    --cor-primaria-escuro: #0a1022;
+    /* Azul mais escuro para hover */
+    --cor-primaria-claro: #1c2a55;
+    /* Azul um pouco mais claro */
+    --cor-primaria-fundo: #f0f2f8;
+    /* Fundo azul muito suave (ex: cabeçalhos de tabela) */
+
+    /* ── Verde Cívico (Cor Secundária / Sucesso) ────────────────── */
+    --cor-verde: #589d28;
+    /* Verde Cívico */
+    --cor-verde-escuro: #457a1f;
+    /* Verde para hover em botões */
+    --cor-verde-fundo: #f2f8ef;
+    /* Fundo verde suave */
 
     /* ── Texto ────────────────────────────────────────────────── */
-    --cor-texto-principal: #2c2416;
-    /* Marrom escuro — texto principal */
-    --cor-texto-secundario: #6b5a3e;
-    /* Marrom médio — texto secundário */
-    --cor-texto-desabilitado: #b8a88a;
-    /* Texto desabilitado */
+    --cor-texto-principal: #212529;
+    /* Quase preto, excelente contraste no branco */
+    --cor-texto-secundario: #495057;
+    /* Cinza escuro — texto secundário */
+    --cor-texto-desabilitado: #adb5bd;
+    /* Cinza claro — texto desabilitado */
     --cor-texto-inverso: #ffffff;
-    /* Texto sobre fundos escuros */
+    /* Texto sobre fundos escuros (Azul/Verde) */
 
     /* ── Bordas ───────────────────────────────────────────────── */
-    --cor-borda: #e0d5c0;
-    /* Borda padrão */
-    --cor-borda-foco: #c9a227;
-    /* Borda em foco — dourado */
+    --cor-borda: #dee2e6;
+    /* Borda neutra suave */
+    --cor-borda-foco: #101933;
+    /* Borda em foco usa o Azul Marinho */
 
     /* ── Status ───────────────────────────────────────────────── */
-    --cor-sucesso: #2d7a4f;
-    --cor-sucesso-fundo: #e8f5ee;
-    --cor-erro: #c0392b;
-    --cor-erro-fundo: #fdf0ee;
-    --cor-aviso: #c9a227;
-    --cor-aviso-fundo: #fdf6e3;
-    --cor-info: #2980b9;
-    --cor-info-fundo: #eaf4fb;
+    --cor-sucesso: var(--cor-verde);
+    --cor-sucesso-fundo: var(--cor-verde-fundo);
+    --cor-erro: #dc3545;
+    --cor-erro-fundo: #fdf0f1;
+    --cor-aviso: #ffc107;
+    --cor-aviso-fundo: #fff9e6;
+    --cor-info: #0dcaf0;
+    --cor-info-fundo: #e7fafd;
 
     /* ── Tipografia ───────────────────────────────────────────── */
-    --fonte-principal: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    --fonte-principal: 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
     --tamanho-fonte-base: 15px;
     --peso-normal: 400;
     --peso-medio: 500;
@@ -63,8 +71,9 @@
     /* ── Espaçamento e Bordas ─────────────────────────────────── */
     --raio-borda: 8px;
     --raio-borda-pequeno: 4px;
-    --sombra-card: 0 2px 8px rgba(44, 36, 22, 0.08);
-    --sombra-card-hover: 0 4px 16px rgba(44, 36, 22, 0.12);
+    --sombra-card: 0 2px 8px rgba(16, 25, 51, 0.08);
+    /* Sombra usa o tom azulado */
+    --sombra-card-hover: 0 4px 16px rgba(16, 25, 51, 0.12);
     --transicao: all 0.2s ease-in-out;
 }
 
@@ -105,22 +114,22 @@ h1:focus {
 /* ── Links ────────────────────────────────────────────────────── */
 a,
 .btn-link {
-    color: var(--cor-dourado-escuro);
+    color: var(--cor-primaria-escuro);
     text-decoration: none;
     transition: var(--transicao);
 }
 
 a:hover,
 .btn-link:hover {
-    color: var(--cor-dourado);
+    color: var(--cor-primaria);
     text-decoration: underline;
 }
 
 /* ── Botões ───────────────────────────────────────────────────── */
 .btn-primary {
     color: var(--cor-texto-inverso);
-    background-color: var(--cor-dourado);
-    border-color: var(--cor-dourado);
+    background-color: var(--cor-primaria);
+    border-color: var(--cor-primaria);
     font-weight: var(--peso-medio);
     border-radius: var(--raio-borda-pequeno);
     transition: var(--transicao);
@@ -128,8 +137,8 @@ a:hover,
 
 .btn-primary:hover,
 .btn-primary:focus {
-    background-color: var(--cor-dourado-escuro);
-    border-color: var(--cor-dourado-escuro);
+    background-color: var(--cor-primaria-escuro);
+    border-color: var(--cor-primaria-escuro);
     color: var(--cor-texto-inverso);
 }
 
@@ -142,7 +151,7 @@ a:hover,
 
 .btn-secondary:hover {
     background-color: var(--cor-fundo-hover);
-    border-color: var(--cor-dourado);
+    border-color: var(--cor-primaria);
 }
 
 /* ── Focus Rings ──────────────────────────────────────────────── */
@@ -151,7 +160,7 @@ a:hover,
 .btn-link.nav-link:focus,
 .form-control:focus,
 .form-check-input:focus {
-    box-shadow: 0 0 0 0.15rem rgba(201, 162, 39, 0.35);
+    box-shadow: 0 0 0 0.15rem rgba(16, 25, 51, 0.35);
     border-color: var(--cor-borda-foco);
     outline: none;
 }
@@ -210,8 +219,8 @@ a:hover,
 }
 
 .card-header {
-    background-color: var(--cor-dourado-fundo);
-    border-bottom: 2px solid var(--cor-dourado-claro);
+    background-color: var(--cor-primaria-fundo);
+    border-bottom: 2px solid var(--cor-primaria-claro);
     font-weight: var(--peso-negrito);
     color: var(--cor-texto-principal);
     border-radius: var(--raio-borda) var(--raio-borda) 0 0;
@@ -223,14 +232,14 @@ a:hover,
 }
 
 .table thead th {
-    background-color: var(--cor-dourado-fundo);
-    border-bottom: 2px solid var(--cor-dourado-claro);
+    background-color: var(--cor-primaria-fundo);
+    border-bottom: 2px solid var(--cor-primaria-claro);
     color: var(--cor-texto-principal);
     font-weight: var(--peso-negrito);
 }
 
 .table-striped>tbody>tr:nth-of-type(odd)>* {
-    background-color: rgba(201, 162, 39, 0.04);
+    background-color: rgba(16, 25, 51, 0.04);
 }
 
 .table-hover>tbody>tr:hover>* {
@@ -367,7 +376,7 @@ a:hover,
 }
 
 .loading-progress circle:last-child {
-    stroke: var(--cor-dourado);
+    stroke: var(--cor-primaria);
     stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
     transition: stroke-dasharray 0.05s ease-in-out;
 }
@@ -386,8 +395,8 @@ a:hover,
 
 /* ── Código ───────────────────────────────────────────────────── */
 code {
-    color: var(--cor-dourado-escuro);
-    background-color: var(--cor-dourado-fundo);
+    color: var(--cor-primaria-escuro);
+    background-color: var(--cor-primaria-fundo);
     padding: 0.1rem 0.3rem;
     border-radius: var(--raio-borda-pequeno);
     font-size: 0.9em;
@@ -554,7 +563,7 @@ code {
 }
 
 .login-header h1 {
-    color: var(--cor-dourado-escuro);
+    color: var(--cor-primaria-escuro);
     font-size: 1.75rem;
     font-weight: var(--peso-negrito);
     margin-bottom: 0.25rem;
@@ -592,7 +601,7 @@ code {
 .login-card .form-input:focus {
     outline: none;
     border-color: var(--cor-borda-foco);
-    box-shadow: 0 0 0 0.2rem rgba(201, 162, 39, 0.2);
+    box-shadow: 0 0 0 0.2rem rgba(16, 25, 51, 0.2);
 }
 
 .login-card .form-input::placeholder {
@@ -603,6 +612,39 @@ code {
     background-color: var(--cor-fundo-hover);
     cursor: not-allowed;
     opacity: 0.7;
+}
+
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.password-input-wrapper .form-input {
+    padding-right: 2.5rem;
+}
+
+.btn-toggle-password {
+    position: absolute;
+    right: 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--cor-texto-secundario);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    transition: color 0.2s;
+}
+
+.btn-toggle-password:hover {
+    color: var(--cor-primaria-escuro);
+}
+
+.btn-toggle-password:focus {
+    outline: none;
 }
 
 .login-card .validation-message {
@@ -685,7 +727,7 @@ code {
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
-    background-color: var(--cor-dourado-fundo);
+    background-color: var(--cor-primaria-fundo);
     border-bottom: 1px solid var(--cor-borda);
     font-size: 0.9rem;
 }
@@ -716,4 +758,199 @@ code {
 .btn-logout:hover {
     background-color: var(--cor-fundo-hover);
     transform: scale(1.1);
+}
+
+/* ============================================================
+   DASHBOARD DA DIRETORIA
+   ============================================================ */
+.dashboard-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+.dashboard-header {
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-header h1 {
+    color: var(--cor-primaria-escuro);
+    margin-bottom: 0.25rem;
+}
+
+.dashboard-header p {
+    color: var(--cor-texto-secundario);
+    margin: 0;
+}
+
+/* Filtro por Turma */
+.filtro-turma {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background-color: var(--cor-fundo-card);
+    border-radius: var(--raio-borda);
+    border: 1px solid var(--cor-borda);
+}
+
+.filtro-turma label {
+    font-weight: var(--peso-medio);
+    color: var(--cor-texto-secundario);
+    white-space: nowrap;
+}
+
+.filtro-turma .form-select {
+    flex: 1;
+    max-width: 300px;
+}
+
+/* Cards de Resumo */
+.resumo-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.resumo-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    border-radius: var(--raio-borda);
+    border-left: 4px solid;
+}
+
+.resumo-card.card-aviso {
+    background-color: #fffbe6;
+    border-left-color: #ffc107;
+}
+
+.resumo-card.card-atencao {
+    background-color: #fff3e0;
+    border-left-color: #ff9800;
+}
+
+.resumo-card.card-critico {
+    background-color: #ffebee;
+    border-left-color: #f44336;
+}
+
+.resumo-icon {
+    font-size: 2rem;
+}
+
+.resumo-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.resumo-numero {
+    font-size: 1.75rem;
+    font-weight: var(--peso-negrito);
+    color: var(--cor-texto-principal);
+    line-height: 1.2;
+}
+
+.resumo-label {
+    font-size: 0.85rem;
+    color: var(--cor-texto-secundario);
+}
+
+/* Tabela de Alunos */
+.table-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--cor-primaria-fundo);
+    border-bottom: 2px solid var(--cor-primaria-claro);
+    padding: 1rem 1.25rem;
+}
+
+.table-card .card-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.badge-total {
+    background-color: var(--cor-fundo-card);
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    color: var(--cor-texto-secundario);
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.aluno-nome {
+    font-weight: var(--peso-medio);
+}
+
+/* Status Badges */
+.badge-status {
+    display: inline-block;
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: var(--peso-medio);
+}
+
+.badge-normal {
+    background-color: var(--cor-sucesso-fundo);
+    color: var(--cor-sucesso);
+}
+
+.badge-aviso {
+    background-color: #fffbe6;
+    color: #b78900;
+    border: 1px solid #ffc107;
+}
+
+.badge-atencao {
+    background-color: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ff9800;
+}
+
+.badge-critico {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #f44336;
+}
+
+/* Row Highlights */
+.row-aviso {
+    background-color: rgba(255, 193, 7, 0.08);
+}
+
+.row-atencao {
+    background-color: rgba(255, 152, 0, 0.08);
+}
+
+.row-critico {
+    background-color: rgba(244, 67, 54, 0.08);
+}
+
+/* Empty and Loading States */
+.empty-state,
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    color: var(--cor-texto-secundario);
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.loading-state {
+    gap: 1rem;
 }

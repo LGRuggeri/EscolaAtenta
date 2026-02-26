@@ -1,0 +1,243 @@
+@page "/alunos"
+@attribute [Authorize]
+@inject ApiService Api
+@inject IToastService Toast
+@inject NavigationManager Nav
+
+<PageTitle>Alunos - EscolaAtenta</PageTitle>
+
+<div class="d-flex align-items-center justify-content-between mb-4 mt-2">
+    <div class="d-flex align-items-center gap-3">
+        <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar" title="Voltar ao Início">
+            ← Voltar
+        </button>
+        <div>
+            <h1 class="h3 mb-1" style="color: var(--cor-primaria); font-weight: var(--peso-negrito);">Alunos</h1>
+            <p class="text-secondary mb-0">Gestão de Alunos por Turma.</p>
+        </div>
+    </div>
+    <button class="btn btn-primary" style="background-color: var(--cor-verde); border-color: var(--cor-verde-escuro);" @onclick="() => isModalOpen = true" disabled="@(turmaSelecionadaId == null)">
+        ➕ Novo Aluno
+    </button>
+</div>
+
+@if (isLoadingTurmas)
+{
+    <div class="text-center my-3">
+        <div class="spinner-border spinner-border-sm" style="color: var(--cor-primaria);" role="status"></div>
+        <span class="ms-2">Carregando turmas...</span>
+    </div>
+}
+else
+{
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: var(--raio-borda);">
+        <div class="card-body">
+            <label class="form-label fw-bold" style="color: var(--cor-primaria);">Selecione a Turma/Série para visualizar os alunos:</label>
+            <select class="form-select form-select-lg" @onchange="OnTurmaChanged">
+                <option value="">-- Selecione uma Turma --</option>
+                @foreach (var turma in turmas)
+                {
+                    <option value="@turma.Id">@turma.Nome (@turma.Turno)</option>
+                }
+            </select>
+        </div>
+    </div>
+}
+
+@if (turmaSelecionadaId != null)
+{
+    @if (isLoadingAlunos)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border" style="color: var(--cor-primaria);" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2 text-secondary">Buscando alunos da turma...</p>
+        </div>
+    }
+    else if (!alunos.Any())
+    {
+        <div class="alert alert-info" style="background-color: var(--cor-info-fundo); border-color: var(--cor-info);">
+            Nenhum aluno cadastrado nesta turma. Clique em "Novo Aluno" para adicionar.
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm" style="border-radius: var(--raio-borda);">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0">
+                    <thead style="background-color: var(--cor-primaria-fundo);">
+                        <tr>
+                            <th class="ps-4">Nome do Aluno</th>
+                            <th>Faltas Totais</th>
+                            <th>Faltas Consecutivas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var aluno in alunos)
+                        {
+                            <tr>
+                                <td class="ps-4 fw-bold" style="color: var(--cor-primaria);">@aluno.Nome</td>
+                                <td>@aluno.TotalFaltas</td>
+                                <td>
+                                    @if (aluno.FaltasConsecutivasAtuais >= 3)
+                                    {
+                                        <span class="badge" style="background-color: var(--cor-erro-fundo); color: var(--cor-erro); border: 1px solid var(--cor-erro);">@aluno.FaltasConsecutivasAtuais (Alerta)</span>
+                                    }
+                                    else if (aluno.FaltasConsecutivasAtuais > 0)
+                                    {
+                                        <span class="badge" style="background-color: var(--cor-aviso-fundo); color: var(--cor-aviso); border: 1px solid var(--cor-aviso);">@aluno.FaltasConsecutivasAtuais</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">0</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}
+
+@if (isModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(16, 25, 51, 0.4); backdrop-filter: blur(2px);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow" style="border-radius: var(--raio-borda);">
+                <div class="modal-header" style="background-color: var(--cor-primaria-fundo); border-radius: var(--raio-borda) var(--raio-borda) 0 0;">
+                    <h5 class="modal-title fw-bold" style="color: var(--cor-primaria);">✨ Novo Aluno</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <EditForm Model="@novoAluno" OnValidSubmit="SalvarAluno" class="modal-body p-4">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="alert alert-danger mb-3 p-2" />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary">Nome do Aluno</label>
+                        <InputText @bind-Value="novoAluno.Nome" class="form-control" placeholder="João da Silva" />
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <button type="button" class="btn btn-secondary px-4" @onclick="CloseModal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary px-4" disabled="@isSaving">
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Salvando...</span>
+                            }
+                            else
+                            {
+                                <span>Matricular Aluno</span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private void Voltar() => Nav.NavigateTo("/");
+
+    private bool isLoadingTurmas = true;
+    private bool isLoadingAlunos = false;
+    private bool isSaving = false;
+    private bool isModalOpen = false;
+    
+    private List<TurmaDto> turmas = new();
+    private List<AlunoDto> alunos = new();
+    
+    private Guid? turmaSelecionadaId;
+    
+    private NovoAlunoModel novoAluno = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarTurmas();
+    }
+
+    private async Task CarregarTurmas()
+    {
+        isLoadingTurmas = true;
+        try
+        {
+            var result = await Api.GetTurmasAsync();
+            turmas = result.ToList();
+        }
+        finally
+        {
+            isLoadingTurmas = false;
+        }
+    }
+
+    private async Task OnTurmaChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        if (string.IsNullOrEmpty(value))
+        {
+            turmaSelecionadaId = null;
+            alunos.Clear();
+            return;
+        }
+
+        if (Guid.TryParse(value, out var turmaId))
+        {
+            turmaSelecionadaId = turmaId;
+            await CarregarAlunos(turmaId);
+        }
+    }
+
+    private async Task CarregarAlunos(Guid turmaId)
+    {
+        isLoadingAlunos = true;
+        try
+        {
+            var result = await Api.GetAlunosPorTurmaAsync(turmaId);
+            alunos = result.ToList();
+        }
+        finally
+        {
+            isLoadingAlunos = false;
+        }
+    }
+
+    private void CloseModal()
+    {
+        isModalOpen = false;
+        novoAluno = new();
+    }
+
+    private async Task SalvarAluno()
+    {
+        if (turmaSelecionadaId == null) return;
+
+        isSaving = true;
+        try
+        {
+            var request = new CriarAlunoRequest(novoAluno.Nome, null, turmaSelecionadaId.Value);
+            var result = await Api.CriarAlunoAsync(request);
+            
+            if (result != null)
+            {
+                Toast.ShowSuccess("Aluno matriculado com sucesso!");
+                CloseModal();
+                await CarregarAlunos(turmaSelecionadaId.Value);
+            }
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private class NovoAlunoModel
+    {
+        [Required(ErrorMessage = "O nome do aluno é obrigatório.")]
+        [StringLength(100, ErrorMessage = "O nome deve ter no máximo 100 caracteres.")]
+        public string Nome { get; set; } = "";
+    }
+}

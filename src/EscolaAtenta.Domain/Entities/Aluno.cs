@@ -1,6 +1,7 @@
 using EscolaAtenta.Domain.Common;
 using EscolaAtenta.Domain.Events;
 using EscolaAtenta.Domain.Exceptions;
+using EscolaAtenta.Domain.Enums;
 
 namespace EscolaAtenta.Domain.Entities;
 
@@ -12,6 +13,11 @@ namespace EscolaAtenta.Domain.Entities;
 /// 2. Um aluno deve estar associado a uma turma válida.
 /// 3. Alunos não podem ser excluídos fisicamente (ISoftDeletable).
 /// 4. A verificação de limite de faltas dispara Domain Event para geração de alerta.
+/// 
+/// Novas Regras de Negócio (Pivot):
+/// - O sistema é operado por um Monitor que passa de sala em sala.
+/// - O foco é alertar a Diretoria sobre faltas consecutivas.
+/// - Alerta de evasão é gerado APENAS quando FaltasConsecutivasAtuais == 3.
 /// 
 /// Decisão sobre Soft Delete: Alunos são dados históricos críticos.
 /// Mesmo após desligamento, seus registros de presença devem ser preservados
@@ -28,24 +34,37 @@ public class Aluno : EntityBase, ISoftDeletable
     /// <summary>
     /// Cria um novo aluno validando todas as invariantes.
     /// </summary>
-    public Aluno(Guid id, string nome, string matricula, Guid turmaId)
+    public Aluno(Guid id, string nome, string? matricula, Guid turmaId)
         : base(id)
     {
         ValidarNome(nome);
-        ValidarMatricula(matricula);
 
         if (turmaId == Guid.Empty)
             throw new DomainException("O aluno deve estar associado a uma turma válida.");
 
         Nome = nome;
-        Matricula = matricula;
+        Matricula = matricula?.Trim() ?? string.Empty;
         TurmaId = turmaId;
         Ativo = true; // Todo aluno nasce ativo
+        FaltasConsecutivasAtuais = 0; // Inicializa contadores de falta
+        TotalFaltas = 0;
     }
 
     public string Nome { get; private set; } = string.Empty;
     public string Matricula { get; private set; } = string.Empty;
     public Guid TurmaId { get; private set; }
+
+    // ── Controle de Faltas (Novas propriedades) ───────────────────────────────
+    /// <summary>
+    /// Número de faltas consecutivas atuais.
+    /// Zera quando o aluno comparece (Presente).
+    /// </summary>
+    public int FaltasConsecutivasAtuais { get; private set; }
+
+    /// <summary>
+    /// Total de faltas acumuladas na história do aluno.
+    /// </summary>
+    public int TotalFaltas { get; private set; }
 
     // ── ISoftDeletable ─────────────────────────────────────────────────────────
     public bool Ativo { get; private set; }
@@ -66,12 +85,11 @@ public class Aluno : EntityBase, ISoftDeletable
     /// <summary>
     /// Atualiza os dados cadastrais do aluno.
     /// </summary>
-    public void Atualizar(string nome, string matricula)
+    public void Atualizar(string nome, string? matricula)
     {
         ValidarNome(nome);
-        ValidarMatricula(matricula);
         Nome = nome;
-        Matricula = matricula;
+        Matricula = matricula?.Trim() ?? string.Empty;
     }
 
     /// <summary>
@@ -89,36 +107,82 @@ public class Aluno : EntityBase, ISoftDeletable
     }
 
     /// <summary>
-    /// Verifica se o aluno atingiu o limite de faltas e, em caso positivo,
-    /// dispara o Domain Event LimiteFaltasAtingidoEvent.
+    /// Registra a presença do aluno e atualiza os contadores de falta.
     /// 
-    /// Decisão: A verificação é feita pelo handler após registrar a presença,
-    /// passando o total de faltas já calculado. Isso evita que a entidade
-    /// precise consultar o banco para contar faltas — responsabilidade da
-    /// camada de Application.
+    /// Regras de Negócio:
+    /// - Se Presente: Zera FaltasConsecutivasAtuais (mantém TotalFaltas)
+    /// - Se Falta: Incrementa FaltasConsecutivasAtuais E TotalFaltas
+    /// - Se FaltaJustificada: Zera FaltasConsecutivasAtuais (mantém TotalFaltas)
+    /// 
+    /// Dispara AlertaEvasao APENAS quando FaltasConsecutivasAtuais atinge 3.
     /// </summary>
-    /// <param name="totalFaltas">Total de faltas do aluno na turma atual.</param>
-    /// <param name="limiteConfigurado">Limite de faltas configurado para gerar alerta.</param>
-    public void VerificarLimiteFaltas(int totalFaltas, int limiteConfigurado)
+    /// <param name="status">Status da presença a ser registrado.</param>
+    public void RegistrarPresenca(StatusPresenca status)
     {
-        if (totalFaltas < 0)
-            throw new DomainException("O total de faltas não pode ser negativo.");
+        switch (status)
+        {
+            case StatusPresenca.Presente:
+                // Presente zera a sequência de faltas
+                FaltasConsecutivasAtuais = 0;
+                break;
 
-        if (limiteConfigurado <= 0)
-            throw new DomainException("O limite de faltas deve ser maior que zero.");
+            case StatusPresenca.Falta:
+                // Falta incrementa ambos contadores
+                FaltasConsecutivasAtuais++;
+                TotalFaltas++;
+                break;
 
-        // Dispara evento apenas quando o limite é atingido exatamente,
-        // evitando múltiplos alertas para o mesmo aluno
-        if (totalFaltas == limiteConfigurado)
+            case StatusPresenca.FaltaJustificada:
+                // Falta justificada zera sequência mas conta como falta
+                FaltasConsecutivasAtuais = 0;
+                TotalFaltas++;
+                break;
+
+            case StatusPresenca.Ausente:
+                // Ausente conta como falta sem justificar
+                FaltasConsecutivasAtuais++;
+                TotalFaltas++;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Verifica se o aluno atingiu o limite de faltas consecutivas (3).
+    /// Dispara o Domain Event LimiteFaltasAtingidoEvent APENAS quando
+    /// FaltasConsecutivasAtuais == 3.
+    /// 
+    /// Novas Regras:
+    /// - 1 falta: Indicativo visual apenas
+    /// - 2 faltas: Atenção visual
+    /// - 3+ faltas: Alerta crítico para Diretoria (DISPARA EVENTO)
+    /// </summary>
+    public void VerificarLimiteFaltas()
+    {
+        // Dispara evento APENAS quando atinge exatamente 3 faltas consecutivas
+        if (FaltasConsecutivasAtuais == 3)
         {
             AddDomainEvent(new LimiteFaltasAtingidoEvent(
                 AlunoId: Id,
                 TurmaId: TurmaId,
                 NomeAluno: Nome,
-                TotalFaltas: totalFaltas,
-                LimiteConfigurado: limiteConfigurado
+                TotalFaltas: FaltasConsecutivasAtuais,
+                LimiteConfigurado: 3 // Fixado em 3 conforme nova regra
             ));
         }
+    }
+
+    /// <summary>
+    /// Retorna o nível de alerta baseado nas faltas consecutivas.
+    /// </summary>
+    public NivelAlertaFalta GetNivelAlerta()
+    {
+        return FaltasConsecutivasAtuais switch
+        {
+            0 => NivelAlertaFalta.Nenhum,
+            1 => NivelAlertaFalta.Aviso,
+            2 => NivelAlertaFalta.Atencao,
+            _ => NivelAlertaFalta.Critico
+        };
     }
 
     /// <summary>
@@ -147,12 +211,5 @@ public class Aluno : EntityBase, ISoftDeletable
             throw new DomainException("O nome do aluno não pode ter mais de 200 caracteres.");
     }
 
-    private static void ValidarMatricula(string matricula)
-    {
-        if (string.IsNullOrWhiteSpace(matricula))
-            throw new DomainException("A matrícula do aluno é obrigatória.");
-
-        if (matricula.Length > 50)
-            throw new DomainException("A matrícula não pode ter mais de 50 caracteres.");
-    }
+    // Matrícula é opcional — validação removida por decisão de negócio
 }

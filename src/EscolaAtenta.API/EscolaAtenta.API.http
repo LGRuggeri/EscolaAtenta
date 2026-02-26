@@ -1,6 +1,0 @@
-@EscolaAtenta.API_HostAddress = http://localhost:5114
-
-GET {{EscolaAtenta.API_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

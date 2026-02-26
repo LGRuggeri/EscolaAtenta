@@ -70,9 +70,8 @@ public class AppDbContext : DbContext
                 Email = "admin@escolaatenta.com.br",
                 HashSenha = "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi", // Admin123!
                 Papel = Domain.Enums.PapelUsuario.Administrador,
-                Ativo = true,
-                DataCriacao = DateTimeOffset.UtcNow,
-                DataAtualizacao = DateTimeOffset.UtcNow
+                DataCriacao = DateTimeOffset.Parse("2024-01-01T00:00:00Z"),
+                DataAtualizacao = DateTimeOffset.Parse("2024-01-01T00:00:00Z")
             }
         );
     }

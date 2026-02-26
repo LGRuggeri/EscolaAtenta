@@ -1,0 +1,229 @@
+@page "/alertas"
+@using EscolaAtenta.WEB.Models
+@using EscolaAtenta.WEB.Services
+@inject DashboardService DashboardSvc
+@inject IToastService Toast
+@inject NavigationManager Nav
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<PageTitle>Alertas de Evasão — EscolaAtenta</PageTitle>
+
+<div class="container-fluid px-0">
+
+    <!-- Cabeçalho -->
+    <div class="d-flex align-items-center justify-content-between mb-4 mt-2">
+        <div class="d-flex align-items-center gap-3">
+            <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar" title="Voltar ao Início">
+                ← Voltar
+            </button>
+            <div>
+                <h1 class="h3 mb-1" style="color: var(--cor-primaria); font-weight: var(--peso-negrito);">⚠️ Alertas de Evasão</h1>
+                <p class="text-secondary mb-0">Alunos em risco de evasão escolar por faltas consecutivas.</p>
+            </div>
+        </div>
+        <button class="btn btn-sm btn-outline-primary" @onclick="CarregarDados" disabled="@isLoading" title="Atualizar">
+            @(isLoading ? "⏳ Carregando..." : "🔄 Atualizar")
+        </button>
+    </div>
+
+    <!-- Cards de Resumo -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid var(--cor-aviso, #f59e0b) !important;">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div style="font-size: 2rem;">⚡</div>
+                    <div>
+                        <div class="fw-bold fs-3 text-warning">@TotalAviso</div>
+                        <div class="text-muted small">Aviso (1 falta)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #f97316 !important;">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div style="font-size: 2rem;">🔶</div>
+                    <div>
+                        <div class="fw-bold fs-3" style="color: #f97316;">@TotalAtencao</div>
+                        <div class="text-muted small">Atenção (2 faltas)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid var(--cor-erro, #ef4444) !important;">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div style="font-size: 2rem;">🔴</div>
+                    <div>
+                        <div class="fw-bold fs-3 text-danger">@TotalCritico</div>
+                        <div class="text-muted small">Crítico (3+ faltas)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <span class="fw-bold text-secondary small">FILTRAR POR NÍVEL:</span>
+                <button class="btn btn-sm @(filtroAtivo == "Todos" ? "btn-primary" : "btn-outline-secondary")"
+                        @onclick='() => AplicarFiltro("Todos")'>
+                    Todos (@(todosFaltosos?.Count ?? 0))
+                </button>
+                <button class="btn btn-sm @(filtroAtivo == "Aviso" ? "btn-warning" : "btn-outline-warning")"
+                        @onclick='() => AplicarFiltro("Aviso")'>
+                    ⚡ Aviso (@TotalAviso)
+                </button>
+                <button class="btn btn-sm @(filtroAtivo == "Atencao" ? "text-white" : "btn-outline-secondary")"
+                        style="@(filtroAtivo == "Atencao" ? "background-color: #f97316; border-color: #f97316;" : "border-color: #f97316; color: #f97316;")"
+                        @onclick='() => AplicarFiltro("Atencao")'>
+                    🔶 Atenção (@TotalAtencao)
+                </button>
+                <button class="btn btn-sm @(filtroAtivo == "Critico" ? "btn-danger" : "btn-outline-danger")"
+                        @onclick='() => AplicarFiltro("Critico")'>
+                    🔴 Crítico (@TotalCritico)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom-0 pt-4 pb-2 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold" style="color: var(--cor-primaria);">Alunos em Risco</h5>
+            <span class="badge bg-secondary">@(alunosFiltrados?.Count ?? 0) aluno(s)</span>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="text-center my-5">
+                <div class="spinner-border" style="color: var(--cor-primaria);" role="status">
+                    <span class="visually-hidden">Carregando alertas...</span>
+                </div>
+                <p class="mt-2 text-secondary">Verificando alertas de evasão...</p>
+            </div>
+        }
+        else if (alunosFiltrados == null || !alunosFiltrados.Any())
+        {
+            <div class="alert alert-success m-4" style="background-color: var(--cor-sucesso-fundo); border-color: var(--cor-verde); color: var(--cor-verde-escuro);">
+                <span class="fw-bold">✅ Excelente!</span> Nenhum aluno com alertas de evasão para o filtro selecionado.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead style="background-color: var(--cor-primaria-fundo);">
+                        <tr>
+                            <th class="ps-4">Aluno</th>
+                            <th>Turma</th>
+                            <th class="text-center">Faltas Consecutivas</th>
+                            <th class="text-center">Total Histórico</th>
+                            <th class="text-center">Nível de Risco</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var aluno in alunosFiltrados)
+                        {
+                            <tr class="@GetRowClass(aluno.NivelAlerta)">
+                                <td class="ps-4 fw-bold" style="color: var(--cor-primaria);">@aluno.Nome</td>
+                                <td>@aluno.NomeTurma</td>
+                                <td class="text-center fs-5 fw-bold">@aluno.FaltasConsecutivasAtuais</td>
+                                <td class="text-center">@aluno.TotalFaltas</td>
+                                <td class="text-center">
+                                    <span class="@GetBadgeClass(aluno.NivelAlerta)">
+                                        @GetStatusText(aluno.NivelAlerta)
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+</div>
+
+@code {
+    private void Voltar() => Nav.NavigateTo("/");
+
+    private IReadOnlyList<AlunoComFaltasDto>? todosFaltosos;
+    private List<AlunoComFaltasDto>? alunosFiltrados;
+    private bool isLoading = true;
+    private string filtroAtivo = "Todos";
+
+    private int TotalAviso   => todosFaltosos?.Count(a => a.NivelAlerta == "Aviso")   ?? 0;
+    private int TotalAtencao => todosFaltosos?.Count(a => a.NivelAlerta == "Atencao") ?? 0;
+    private int TotalCritico => todosFaltosos?.Count(a => a.NivelAlerta == "Critico") ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarDados();
+    }
+
+    private async Task CarregarDados()
+    {
+        isLoading = true;
+        try
+        {
+            todosFaltosos = await DashboardSvc.GetAlunosComFaltasAsync();
+            // Exclui alunos sem nenhuma falta (NivelAlerta == "Nenhum")
+            todosFaltosos = todosFaltosos?
+                .Where(a => a.NivelAlerta != "Nenhum")
+                .OrderByDescending(a => a.FaltasConsecutivasAtuais)
+                .ToList()
+                .AsReadOnly();
+            AplicarFiltro(filtroAtivo);
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Erro ao carregar alertas: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void AplicarFiltro(string nivel)
+    {
+        filtroAtivo = nivel;
+        alunosFiltrados = (nivel == "Todos"
+            ? todosFaltosos
+            : todosFaltosos?.Where(a => a.NivelAlerta == nivel))
+            ?.ToList();
+    }
+
+    private static string GetBadgeClass(string nivel) => nivel switch
+    {
+        "Critico" => "badge text-white",
+        "Atencao" => "badge text-white",
+        "Aviso"   => "badge text-dark",
+        _         => "badge bg-secondary"
+    } + (nivel switch
+    {
+        "Critico" => " bg-danger",
+        "Atencao" => " text-bg-warning",
+        "Aviso"   => " bg-warning",
+        _         => ""
+    });
+
+    private static string GetStatusText(string nivel) => nivel switch
+    {
+        "Critico" => "🔴 Evasão Crítica",
+        "Atencao" => "🔶 Atenção",
+        "Aviso"   => "⚡ Aviso",
+        _         => nivel
+    };
+
+    private static string GetRowClass(string nivel) => nivel switch
+    {
+        "Critico" => "table-danger",
+        "Atencao" => "table-warning",
+        "Aviso"   => "table-light",
+        _         => ""
+    };
+}

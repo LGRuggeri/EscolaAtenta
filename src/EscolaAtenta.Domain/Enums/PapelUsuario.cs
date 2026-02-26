@@ -1,12 +1,25 @@
-// Roles/Papeis do sistema - segue o principio de menor privilegio
-// Administrador: acesso total ao sistema
-// Professor: acesso a turmas e chamadas
-// Coordenador: acesso a relatorios e gestao de turmas
+// Roles/Papeis do sistema - Simplified RBAC
+// 
+// Novo Modelo de Negócio (Pivot):
+// - Monitor: Operador que passa de sala em sala, lança chamadas no diário
+// - Diretoria: Recebe alertas de evasão, visualiza relatórios e dashboard
+// - Administrador: Gestão técnica do sistema
 namespace EscolaAtenta.Domain.Enums;
 
 public enum PapelUsuario
 {
-    Professor = 1,
-    Coordenador = 2,
+    /// <summary>
+    /// Operador que passa de sala em sala, lança chamadas no diário.
+    /// </summary>
+    Monitor = 1,
+
+    /// <summary>
+    /// Recebe alertas de evasão, visualiza relatórios e dashboard.
+    /// </summary>
+    Diretoria = 2,
+
+    /// <summary>
+    /// Gestão técnica do sistema.
+    /// </summary>
     Administrador = 3
 }

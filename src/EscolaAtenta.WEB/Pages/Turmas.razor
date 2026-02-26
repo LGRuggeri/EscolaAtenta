@@ -1,0 +1,190 @@
+@page "/turmas"
+@attribute [Authorize]
+@inject ApiService Api
+@inject IToastService Toast
+@inject NavigationManager Nav
+
+<PageTitle>Turmas - EscolaAtenta</PageTitle>
+
+<div class="d-flex align-items-center justify-content-between mb-4 mt-2">
+    <div class="d-flex align-items-center gap-3">
+        <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar" title="Voltar ao Início">
+            ← Voltar
+        </button>
+        <div>
+            <h1 class="h3 mb-1" style="color: var(--cor-primaria); font-weight: var(--peso-negrito);">Séries e Turmas</h1>
+            <p class="text-secondary mb-0">Gestão das Séries e turmas escolares.</p>
+        </div>
+    </div>
+    <button class="btn btn-primary" style="background-color: var(--cor-verde); border-color: var(--cor-verde-escuro);" @onclick="() => isModalOpen = true">
+        ➕ Nova Turma
+    </button>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center my-5">
+        <div class="spinner-border" style="color: var(--cor-primaria);" role="status">
+            <span class="visually-hidden">Carregando...</span>
+        </div>
+        <p class="mt-2 text-secondary">Buscando turmas...</p>
+    </div>
+}
+else if (!turmas.Any())
+{
+    <div class="alert alert-info" style="background-color: var(--cor-info-fundo); border-color: var(--cor-info);">
+        Nenhuma turma cadastrada. Clique em "Nova Turma" para começar a organizar as salas.
+    </div>
+}
+else
+{
+    <div class="card border-0 shadow-sm" style="border-radius: var(--raio-borda);">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead style="background-color: var(--cor-primaria-fundo);">
+                    <tr>
+                        <th class="ps-4">Nome / Série</th>
+                        <th>Turno</th>
+                        <th>Ano Letivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var turma in turmas)
+                    {
+                        <tr>
+                            <td class="ps-4 fw-bold" style="color: var(--cor-primaria);">@turma.Nome</td>
+                            <td><span class="badge bg-light text-dark border">@turma.Turno</span></td>
+                            <td>@turma.AnoLetivo</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (isModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(16, 25, 51, 0.4); backdrop-filter: blur(2px);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow" style="border-radius: var(--raio-borda);">
+                <div class="modal-header" style="background-color: var(--cor-primaria-fundo); border-radius: var(--raio-borda) var(--raio-borda) 0 0;">
+                    <h5 class="modal-title fw-bold" style="color: var(--cor-primaria);">✨ Nova Turma</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <EditForm Model="@novaTurma" OnValidSubmit="SalvarTurma" class="modal-body p-4">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="alert alert-danger mb-3 p-2" />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary">Nome da Turma / Série</label>
+                        <InputText @bind-Value="novaTurma.Nome" class="form-control" placeholder="Ex: 8ª Série A" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary">Turno</label>
+                        <InputSelect @bind-Value="novaTurma.Turno" class="form-select">
+                            <option value="">Selecione o turno...</option>
+                            <option value="Matutino">Matutino</option>
+                            <option value="Vespertino">Vespertino</option>
+                            <option value="Noturno">Noturno</option>
+                            <option value="Integral">Integral</option>
+                        </InputSelect>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary">Ano Letivo</label>
+                        <InputNumber @bind-Value="novaTurma.AnoLetivo" class="form-control" />
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <button type="button" class="btn btn-secondary px-4" @onclick="CloseModal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary px-4" disabled="@isSaving">
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Salvando...</span>
+                            }
+                            else
+                            {
+                                <span>Salvar Turma</span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private void Voltar() => Nav.NavigateTo("/");
+
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool isModalOpen = false;
+    private List<TurmaDto> turmas = new();
+    
+    // Usando uma classe auxiliar para o form com validacoes (Data Annotations)
+    private NovaTurmaModel novaTurma = new() { AnoLetivo = DateTime.Now.Year };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarTurmas();
+    }
+
+    private async Task CarregarTurmas()
+    {
+        isLoading = true;
+        try
+        {
+            var result = await Api.GetTurmasAsync();
+            turmas = result.ToList();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void CloseModal()
+    {
+        isModalOpen = false;
+        novaTurma = new() { AnoLetivo = DateTime.Now.Year };
+    }
+
+    private async Task SalvarTurma()
+    {
+        isSaving = true;
+        try
+        {
+            var request = new CriarTurmaRequest(novaTurma.Nome, novaTurma.Turno, novaTurma.AnoLetivo);
+            var result = await Api.CriarTurmaAsync(request);
+            
+            if (result != null)
+            {
+                Toast.ShowSuccess("Turma criada com sucesso!");
+                CloseModal();
+                await CarregarTurmas();
+            }
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private class NovaTurmaModel
+    {
+        [Required(ErrorMessage = "O nome da turma é obrigatório.")]
+        [StringLength(100, ErrorMessage = "O nome deve ter no máximo 100 caracteres.")]
+        public string Nome { get; set; } = "";
+
+        [Required(ErrorMessage = "O turno é obrigatório.")]
+        public string Turno { get; set; } = "";
+
+        [Required(ErrorMessage = "O ano letivo é obrigatório.")]
+        [Range(2000, 2100, ErrorMessage = "Ano letivo inválido.")]
+        public int AnoLetivo { get; set; }
+    }
+}

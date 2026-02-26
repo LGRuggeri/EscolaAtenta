@@ -18,5 +18,10 @@ public enum StatusPresenca
     /// Falta com justificativa oficial apresentada.
     /// A contagem para evasão é configurável por política da escola.
     /// </summary>
-    Justificada = 2
+    FaltaJustificada = 2,
+
+    /// <summary>
+    /// Ausente sem justificativa (similar à falta)
+    /// </summary>
+    Ausente = 3
 }

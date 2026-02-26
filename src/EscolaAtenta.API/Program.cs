@@ -178,12 +178,10 @@ try
     // HTTPS Redirection — força HTTPS em produção
     app.UseHttpsRedirection();
 
-    // Autenticação deve vir ANTES de Authorization
-    app.UseAuthentication();
-
-    // CORS deve vir ANTES de UseAuthorization
+    // CORS deve vir ANTES de Authentication e Authorization
     app.UseCors("EscolaAtentaPolicy");
 
+    app.UseAuthentication();
     app.UseAuthorization();
 
     app.MapControllers();
