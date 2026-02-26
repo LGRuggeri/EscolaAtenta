@@ -16,7 +16,7 @@ namespace EscolaAtenta.Domain.Entities;
 /// 
 /// Novas Regras de Negócio (Pivot):
 /// - O sistema é operado por um Monitor que passa de sala em sala.
-/// - O foco é alertar a Diretoria sobre faltas consecutivas.
+/// - O foco é alertar a Supervisão sobre faltas consecutivas.
 /// - Alerta de evasão é gerado APENAS quando FaltasConsecutivasAtuais == 3.
 /// 
 /// Decisão sobre Soft Delete: Alunos são dados históricos críticos.
@@ -154,7 +154,7 @@ public class Aluno : EntityBase, ISoftDeletable
     /// Novas Regras:
     /// - 1 falta: Indicativo visual apenas
     /// - 2 faltas: Atenção visual
-    /// - 3+ faltas: Alerta crítico para Diretoria (DISPARA EVENTO)
+    /// - 3+ faltas: Alerta crítico para Supervisão (DISPARA EVENTO)
     /// </summary>
     public void VerificarLimiteFaltas()
     {

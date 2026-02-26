@@ -101,10 +101,11 @@ try
 
     // ── Serviços de Infraestrutura ─────────────────────────────────────────────
     builder.Services.AddHttpContextAccessor();
-    builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     
-    // Servico de autenticacao - BCrypt + JWT
+    // Serviços de infraestrutura customizados
+    builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddScoped<IAuthService, AuthService>();
+    builder.Services.AddScoped<DatabaseSeeder>();
 
     // ── Controllers ────────────────────────────────────────────────────────────
     builder.Services.AddControllers();
@@ -192,6 +193,13 @@ try
     {
         Predicate = check => check.Tags.Contains("ready")
     });
+
+    // ── Seed de Banco de Dados ──────────────────────────────────────────────────
+    using (var scope = app.Services.CreateScope())
+    {
+        var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+        await seeder.SeedAsync();
+    }
 
     Log.Information("EscolaAtenta API iniciada com sucesso.");
     app.Run();

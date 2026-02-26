@@ -135,4 +135,33 @@ public class ApiService
             return null;
         }
     }
+
+    // --- Usuários ---
+    public async Task<UsuarioCriadoResponse?> CriarUsuarioAsync(CriarUsuarioRequest request)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/v1/usuarios", request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                _toastService.ShowSuccess("Usuário criado com sucesso!");
+                return await response.Content.ReadFromJsonAsync<UsuarioCriadoResponse>();
+            }
+            
+            // Tenta ler mensagem de erro da API (BadRequest)
+            var errorResponse = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+            var detalheErro = errorResponse != null && errorResponse.TryGetValue("detail", out var detail) 
+                ? detail 
+                : "Verifique os dados informados.";
+                
+            _toastService.ShowError($"Erro ao criar usuário: {detalheErro}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _toastService.ShowError($"Erro de comunicação: {ex.Message}");
+            return null;
+        }
+    }
 }

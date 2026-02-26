@@ -79,6 +79,19 @@
                 <span>Alertas de Evasão</span>
             </NavLink>
         </div>
+
+        <AuthorizeView Roles="Administrador">
+            <Authorized>
+                <div class="nav-section-title">Administração</div>
+                
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="usuarios">
+                        <span class="nav-icon">🛡️</span>
+                        <span>Gestão de Usuários</span>
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
     </nav>
 </div>
 
@@ -97,6 +110,9 @@
         // Tenta obter o email dos claims do JWT
         var emailClaim = context?.User?.FindFirst("email") 
             ?? context?.User?.FindFirst(System.Security.Claims.ClaimTypes.Email);
+            
+        var role = context?.User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "SEM_ROLE";
+        Console.WriteLine($"[DIAGNOSTICO] Usuário logado: {emailClaim?.Value}. Role detectada: {role}");
         
         return emailClaim?.Value ?? context?.User?.Identity?.Name ?? "Usuário";
     }

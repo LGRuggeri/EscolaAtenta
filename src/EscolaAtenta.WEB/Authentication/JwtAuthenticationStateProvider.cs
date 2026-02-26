@@ -46,8 +46,18 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
         }
 
         var claims = ParseClaimsFromJwt(token);
-        var identity = new ClaimsIdentity(claims, "jwt");
+        
+        // Garante que a ClaimsIdentity use o padrao oficial da Microsoft para Roles
+        // E mapeia a claim "email" (que existe no payload do JWT) para ser o Name
+        // Se o Name for nulo, a policy interna TheAuthorizarizationCore do Blazor ignora as Roles por segurança.
+        var identity = new ClaimsIdentity(claims, "jwt", "email", ClaimTypes.Role);
         var user = new ClaimsPrincipal(identity);
+
+        // [DIAGNOSTICO]: Validando C# Internals exatamente 
+        var claimsDiagnosticos = claims.Select(c => $"{c.Type}: {c.Value}").ToArray();
+        Console.WriteLine($"[AUTH-STATE] JWT Parser OK. IsAuthenticated: {identity.IsAuthenticated}, Name: {identity.Name}");
+        Console.WriteLine($"[AUTH-STATE] IsInRole(Administrador): {user.IsInRole("Administrador")}");
+        foreach (var c in claimsDiagnosticos) { Console.WriteLine($"[CLAIM] {c}"); }
 
         return new AuthenticationState(user);
     }
@@ -96,15 +106,139 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
     /// </summary>
     private static IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
     {
-        var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
-        
-        // Tenta ler o token - se falhar, retorna claims vazios
-        if (!handler.CanReadToken(jwt))
-        {
-            return Enumerable.Empty<Claim>();
-        }
+        var claims = new List<Claim>();
+        var payload = jwt.Split('.')[1];
+        var jsonBytes = ParseBase64WithoutPadding(payload);
+        var keyValuePairs = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
 
-        var token = handler.ReadJwtToken(jwt);
-        return token.Claims;
+        if (keyValuePairs != null)
+        {
+            var possiveisChavesRole = new[] { "role", "papel", ClaimTypes.Role, "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" };
+            var roleEncontrada = false;
+
+            foreach (var chaveDesc in possiveisChavesRole)
+            {
+                if (keyValuePairs.TryGetValue(chaveDesc, out object? rolesObj) && rolesObj != null)
+                {
+                    if (rolesObj is System.Text.Json.JsonElement element)
+                    {
+                        if (element.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            foreach (var item in element.EnumerateArray())
+                            {
+                                var parsedRole = item.GetString();
+                                if (!string.IsNullOrWhiteSpace(parsedRole))
+                                {
+                                    claims.Add(new Claim(ClaimTypes.Role, parsedRole));
+                                    roleEncontrada = true;
+                                }
+                            }
+                        }
+                        else if (element.ValueKind == System.Text.Json.JsonValueKind.String)
+                        {
+                            var valorRole = element.GetString();
+                            if (!string.IsNullOrWhiteSpace(valorRole))
+                            {
+                                // Blazor WASM pode ter strings com escape de array stringificado
+                                if (valorRole.Trim().StartsWith("["))
+                                {
+                                    try
+                                    {
+                                        var parsedRoles = System.Text.Json.JsonSerializer.Deserialize<string[]>(valorRole);
+                                        if (parsedRoles != null)
+                                        {
+                                            foreach (var parsedRole in parsedRoles)
+                                            {
+                                                claims.Add(new Claim(ClaimTypes.Role, parsedRole));
+                                                roleEncontrada = true;
+                                            }
+                                        }
+                                    }
+                                    catch 
+                                    {
+                                        // Fallback se não for um JSON array stringificado
+                                        claims.Add(new Claim(ClaimTypes.Role, valorRole));
+                                        roleEncontrada = true;
+                                    }
+                                }
+                                else
+                                {
+                                    claims.Add(new Claim(ClaimTypes.Role, valorRole));
+                                    roleEncontrada = true;
+                                }
+                            }
+                        }
+                        keyValuePairs.Remove(chaveDesc);
+                    }
+                    else
+                    {
+                        // Fallback pre-JsonElement ou outro tipo
+                        var valorRole = rolesObj.ToString();
+                        if (!string.IsNullOrWhiteSpace(valorRole))
+                        {
+                            if (valorRole.Trim().StartsWith("["))
+                            {
+                                try
+                                {
+                                    var parsedRoles = System.Text.Json.JsonSerializer.Deserialize<string[]>(valorRole);
+                                    if (parsedRoles != null)
+                                    {
+                                        foreach (var parsedRole in parsedRoles)
+                                        {
+                                            claims.Add(new Claim(ClaimTypes.Role, parsedRole));
+                                            roleEncontrada = true;
+                                        }
+                                    }
+                                }
+                                catch
+                                {
+                                    claims.Add(new Claim(ClaimTypes.Role, valorRole));
+                                    roleEncontrada = true;
+                                }
+                            }
+                            else
+                            {
+                                claims.Add(new Claim(ClaimTypes.Role, valorRole));
+                                roleEncontrada = true;
+                            }
+                            keyValuePairs.Remove(chaveDesc);
+                        }
+                    }
+                }
+            }
+
+            foreach (var kvp in keyValuePairs)
+            {
+                if (kvp.Key == "papel") continue; 
+                
+                string claimValue = string.Empty;
+                if (kvp.Value is System.Text.Json.JsonElement elementProp)
+                {
+                    claimValue = elementProp.ValueKind == System.Text.Json.JsonValueKind.String ? 
+                        elementProp.GetString() ?? "" : 
+                        elementProp.GetRawText();
+                }
+                else
+                {
+                    claimValue = kvp.Value?.ToString() ?? "";
+                }
+                
+                // Ignorar claims vazias para manter o token limpo
+                if(!string.IsNullOrEmpty(claimValue))
+                    claims.Add(new Claim(kvp.Key, claimValue));
+            }
+        }
+        
+        return claims;
+    }
+
+    private static byte[] ParseBase64WithoutPadding(string base64)
+    {
+        switch (base64.Length % 4)
+        {
+            case 2: base64 += "=="; break;
+            case 3: base64 += "="; break;
+        }
+        return Convert.FromBase64String(base64.Replace('-', '+').Replace('_', '/'));
     }
 }

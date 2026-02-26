@@ -61,19 +61,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Usuario>()
                     .HasQueryFilter(u => u.Ativo);
 
-        // ── Seed de Dados Iniciais ───────────────────────────────────────────────
-        // Usuário administrador inicial para primeiro acesso ao sistema
-        // Senha: Admin123! (hash BCrypt com cost 10)
-        modelBuilder.Entity<Usuario>().HasData(
-            new {
-                Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                Email = "admin@escolaatenta.com.br",
-                HashSenha = "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi", // Admin123!
-                Papel = Domain.Enums.PapelUsuario.Administrador,
-                DataCriacao = DateTimeOffset.Parse("2024-01-01T00:00:00Z"),
-                DataAtualizacao = DateTimeOffset.Parse("2024-01-01T00:00:00Z")
-            }
-        );
+        // A inicialização do Administrador e a senha forte são gerenciadas agora pelo DatabaseSeeder
+        // durante o pipeline de startup em Program.cs para garantir senhas aleatórias e seguras.
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-// Controller do Dashboard da Diretoria
+// Controller do Dashboard da Supervisao
 // Fornece endpoints para visualização de alunos com faltas
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +8,7 @@ using EscolaAtenta.Application.Alunos.Queries;
 namespace EscolaAtenta.API.Controllers;
 
 /// <summary>
-/// Controller para Dashboard da Diretoria.
+/// Controller para Dashboard da Supervisao.
 /// </summary>
 [ApiController]
 [Route("api/v1/[controller]")]

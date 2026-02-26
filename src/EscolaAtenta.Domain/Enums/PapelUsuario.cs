@@ -14,9 +14,9 @@ public enum PapelUsuario
     Monitor = 1,
 
     /// <summary>
-    /// Recebe alertas de evasão, visualiza relatórios e dashboard.
+    /// Recebe alertas de evasão, visualiza relatórios e dashboard. (Somente leitura)
     /// </summary>
-    Diretoria = 2,
+    Supervisao = 2,
 
     /// <summary>
     /// Gestão técnica do sistema.

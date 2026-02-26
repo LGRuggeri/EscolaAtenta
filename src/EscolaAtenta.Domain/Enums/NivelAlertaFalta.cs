@@ -1,5 +1,5 @@
 // Enum para níveis de alerta de falta
-// Usado no Dashboard da Diretoria para indicadores visuais
+// Usado no Dashboard da Supervisao para indicadores visuais
 namespace EscolaAtenta.Domain.Enums;
 
 /// <summary>
@@ -23,7 +23,7 @@ public enum NivelAlertaFalta
     Atencao = 2,
 
     /// <summary>
-    /// 3+ faltas consecutivas - alerta crítico para a Diretoria.
+    /// 3+ faltas consecutivas - alerta crítico para a Supervisão.
 /// </summary>
     Critico = 3
 }

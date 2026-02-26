@@ -28,3 +28,14 @@ public record AlunoComFaltasDto(
     int TotalFaltas,
     string NivelAlerta
 );
+
+// --- Usuários ---
+public enum PapelUsuarioDto
+{
+    Monitor = 1,
+    Supervisao = 2,
+    Administrador = 3
+}
+
+public record CriarUsuarioRequest(string Nome, string Email, PapelUsuarioDto Papel);
+public record UsuarioCriadoResponse(Guid Id, string Email, string SenhaInicial);
