@@ -17,13 +17,8 @@ public class AlunoConfiguration : IEntityTypeConfiguration<Aluno>
                .HasMaxLength(200);
 
         builder.Property(a => a.Matricula)
-               .IsRequired()
+               .IsRequired(false)
                .HasMaxLength(50);
-
-        // Matrícula deve ser única entre alunos ativos
-        builder.HasIndex(a => a.Matricula)
-               .IsUnique()
-               .HasFilter("\"Ativo\" = true");
 
         // ── Soft Delete ────────────────────────────────────────────────────────
         builder.Property(a => a.Ativo)

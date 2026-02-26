@@ -120,31 +120,16 @@ try
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddOpenApi();
 
-    // ── CORS Estrito ───────────────────────────────────────────────────────────
-    // NUNCA use AllowAnyOrigin em produção — é uma vulnerabilidade de segurança.
-    // Origens permitidas são lidas do appsettings.json (seção "Cors:AllowedOrigins").
-    var allowedOrigins = builder.Configuration
-        .GetSection("Cors:AllowedOrigins")
-        .Get<string[]>() ?? [];
-
+    // ── CORS ───────────────────────────────────────────────────────────────────
     builder.Services.AddCors(options =>
     {
-        options.AddPolicy("EscolaAtentaPolicy", policy =>
-        {
-            if (allowedOrigins.Length > 0)
+        options.AddPolicy("AllowAll",
+            corsBuilder =>
             {
-                policy.WithOrigins(allowedOrigins)
-                      .AllowAnyMethod()
-                      .AllowAnyHeader()
-                      .AllowCredentials();
-            }
-            else
-            {
-                // Fallback seguro: bloqueia tudo se não houver origens configuradas
-                Log.Warning("Nenhuma origem CORS configurada. Todas as origens serão bloqueadas.");
-                policy.WithOrigins("https://localhost:0"); // Origem inválida = bloqueia tudo
-            }
-        });
+                corsBuilder.AllowAnyOrigin()
+                           .AllowAnyMethod()
+                           .AllowAnyHeader();
+            });
     });
 
     // ── Health Checks ──────────────────────────────────────────────────────────
@@ -180,7 +165,7 @@ try
     app.UseHttpsRedirection();
 
     // CORS deve vir ANTES de Authentication e Authorization
-    app.UseCors("EscolaAtentaPolicy");
+    app.UseCors("AllowAll");
 
     app.UseAuthentication();
     app.UseAuthorization();

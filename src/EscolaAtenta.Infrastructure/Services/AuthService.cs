@@ -43,14 +43,13 @@ public class AuthService : IAuthService
     public LoginResult GerarToken(Usuario usuario)
     {
         // CLAIMS: informacoes sobre o usuario embeded no token
-        // NUNCA incluir informacoes sensiveis como senha ou CPF
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()), // Subject: ID do usuario
-            new Claim(JwtRegisteredClaimNames.Email, usuario.Email),      // Email
-            new Claim(ClaimTypes.Role, usuario.Papel.ToString()),         // Role para Authorization
-            new Claim("papel", usuario.Papel.ToString()),                 // Claim customizada
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()) // Unique ID do token
+            new Claim(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, usuario.Email),
+            new Claim(ClaimTypes.Role, usuario.Papel.ToString()), // OBRIGATÓRIO: Uso da URI completa nativa
+            new Claim("role", usuario.Papel.ToString()), // Fallback explícito para JS/WASM
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
         // Chave simetrica - em producao, usar RSA ou ECDSA com chave armazenada em vault

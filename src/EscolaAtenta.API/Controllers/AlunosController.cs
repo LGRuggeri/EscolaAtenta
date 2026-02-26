@@ -41,4 +41,19 @@ public class AlunosController : ControllerBase
         var result = await _mediator.Send(new GetAlunosPorTurmaQuery(turmaId), ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Atualiza um Aluno existente.
+    /// </summary>
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> AtualizarAluno([FromRoute] Guid id, [FromBody] AtualizarAlunoCommand command, CancellationToken ct)
+    {
+        if (id != command.Id)
+        {
+            command = command with { Id = id };
+        }
+        await _mediator.Send(command, ct);
+        return NoContent();
+    }
 }

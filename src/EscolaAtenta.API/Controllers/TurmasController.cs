@@ -41,4 +41,19 @@ public class TurmasController : ControllerBase
         var result = await _mediator.Send(new GetTurmasQuery(), ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Atualiza uma Turma existente.
+    /// </summary>
+    [HttpPut("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> AtualizarTurma([FromRoute] Guid id, [FromBody] AtualizarTurmaCommand command, CancellationToken ct)
+    {
+        if (id != command.Id)
+        {
+            command = command with { Id = id };
+        }
+        await _mediator.Send(command, ct);
+        return NoContent();
+    }
 }
