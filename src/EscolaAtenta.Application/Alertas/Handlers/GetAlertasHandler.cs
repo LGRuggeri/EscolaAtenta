@@ -36,7 +36,21 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, IEnumerable<Al
             a.Descricao,
             a.DataAlerta.UtcDateTime,
             a.Resolvido,
-            a.ObservacaoResolucao
+            a.ObservacaoResolucao,
+            a.Nivel switch
+            {
+                EscolaAtenta.Domain.Enums.NivelAlertaFalta.Vermelho => "🚨 Alto Risco de Evasão",
+                EscolaAtenta.Domain.Enums.NivelAlertaFalta.Preto => "🛑 Risco Crítico - Ação Legal",
+                EscolaAtenta.Domain.Enums.NivelAlertaFalta.Intermediario => "⚠️ Alerta Intermediário",
+                EscolaAtenta.Domain.Enums.NivelAlertaFalta.Aviso => "👀 Aviso de Faltas",
+                _ => "Alerta Escolar"
+            },
+            a.Nivel switch
+            {
+                EscolaAtenta.Domain.Enums.NivelAlertaFalta.Vermelho => "O aluno atingiu 3 ausências/atrasos seguidos. Ação: Entrar em contato com os pais ou responsáveis imediatamente.",
+                EscolaAtenta.Domain.Enums.NivelAlertaFalta.Preto => "O aluno atingiu 5 ausências. Ação exigida: Acionar o Conselho Tutelar.",
+                _ => a.Descricao // Fallback para a descricao/motivo original
+            }
         ));
     }
 }

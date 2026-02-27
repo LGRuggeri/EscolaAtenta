@@ -10,5 +10,7 @@ public record AlertaEvasaoDto(
     string Descricao,
     DateTime DataAlerta,
     bool Resolvido,
-    string? ObservacaoResolucao
+    string? ObservacaoResolucao,
+    string TituloAmigavel,
+    string MensagemAcao
 );

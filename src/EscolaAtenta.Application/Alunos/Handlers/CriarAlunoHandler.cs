@@ -39,6 +39,8 @@ public class CriarAlunoHandler : IRequestHandler<CriarAlunoCommand, AlunoDto>
             aluno.Matricula, 
             aluno.TurmaId, 
             aluno.FaltasConsecutivasAtuais, 
-            aluno.TotalFaltas);
+            aluno.FaltasNoTrimestre,
+            aluno.TotalFaltas,
+            aluno.AtrasosNoTrimestre);
     }
 }
