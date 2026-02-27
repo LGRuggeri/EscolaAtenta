@@ -57,7 +57,7 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
             chamada.RegistrarPresenca(aluno.Id, registroDto.Status);
 
             // Atualiza contadores na Entidade Aluno
-            aluno.RegistrarPresenca(registroDto.Status);
+            aluno.RegistrarPresenca(registroDto.Status, chamada.DataHora.UtcDateTime);
 
             // Valida Limite de Faltas - Adiciona Domain Event (AlertaEvasao) caso seja 3 faltas.
             aluno.VerificarLimiteFaltas();
@@ -65,6 +65,31 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
             if (aluno.DomainEvents.Any())
             {
                 alertasGerados++;
+            }
+
+            // ── Verifica Atrasos Reincidentes (Novas Regras de Evasão) ─────────
+            if (registroDto.Status == EscolaAtenta.Domain.Enums.StatusPresenca.Atraso)
+            {
+                if (aluno.AtrasosNoTrimestre == 3)
+                {
+                    var alerta = AlertaEvasao.CriarAlertaAluno(
+                        alunoId: aluno.Id,
+                        nivel: EscolaAtenta.Domain.Enums.NivelAlertaFalta.Vermelho,
+                        motivo: "Aluno atingiu 3 atrasos no trimestre. Comunicar aos pais."
+                    );
+                    _context.AlertasEvasao.Add(alerta);
+                    alertasGerados++;
+                }
+                else if (aluno.AtrasosNoTrimestre == 5)
+                {
+                    var alerta = AlertaEvasao.CriarAlertaAluno(
+                        alunoId: aluno.Id,
+                        nivel: EscolaAtenta.Domain.Enums.NivelAlertaFalta.Preto,
+                        motivo: "Aluno atingiu 5 atrasos no trimestre. Acionar Conselho Tutelar."
+                    );
+                    _context.AlertasEvasao.Add(alerta);
+                    alertasGerados++;
+                }
             }
         }
 

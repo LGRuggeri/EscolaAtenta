@@ -33,7 +33,11 @@ public class AlertaEvasaoConfiguration : IEntityTypeConfiguration<AlertaEvasao>
         builder.Property(ae => ae.UsuarioCriacao).HasMaxLength(200);
         builder.Property(ae => ae.UsuarioAtualizacao).HasMaxLength(200);
 
-        // Índice para busca de alertas não resolvidos por aluno
+        builder.Property(ae => ae.AlunoId).IsRequired(false);
+        builder.Property(ae => ae.TurmaId).IsRequired(false);
+
+        // Índice para busca de alertas não resolvidos por aluno ou turma
         builder.HasIndex(ae => new { ae.AlunoId, ae.Resolvido });
+        builder.HasIndex(ae => new { ae.TurmaId, ae.Resolvido });
     }
 }

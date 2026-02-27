@@ -66,6 +66,11 @@ public class Aluno : EntityBase, ISoftDeletable
     /// </summary>
     public int TotalFaltas { get; private set; }
 
+    // ── Resumo do Trimestre (Novas regras) ─────────────────────────────────────
+    public int AtrasosNoTrimestre { get; private set; }
+    public int FaltasNoTrimestre { get; private set; }
+    public DateTime DataInicioTrimestre { get; private set; } = DateTime.UtcNow;
+
     // ── ISoftDeletable ─────────────────────────────────────────────────────────
     public bool Ativo { get; private set; }
     public DateTimeOffset? DataExclusao { get; private set; }
@@ -106,42 +111,58 @@ public class Aluno : EntityBase, ISoftDeletable
         TurmaId = novaTurmaId;
     }
 
+    public void VerificarEReiniciarCicloTrimestral(DateTime dataAtual)
+    {
+        if ((dataAtual - DataInicioTrimestre).TotalDays >= 90)
+        {
+            AtrasosNoTrimestre = 0;
+            FaltasNoTrimestre = 0;
+            FaltasConsecutivasAtuais = 0; // Limpa o ciclo
+            DataInicioTrimestre = dataAtual;
+        }
+    }
+
+    public void RegistrarAtraso(DateTime dataAtual)
+    {
+        VerificarEReiniciarCicloTrimestral(dataAtual);
+        AtrasosNoTrimestre++;
+    }
+
+    public void RegistrarFalta(DateTime dataAtual)
+    {
+        VerificarEReiniciarCicloTrimestral(dataAtual);
+        FaltasNoTrimestre++;
+        TotalFaltas++;
+        FaltasConsecutivasAtuais++;
+    }
+
+    public void RegistrarPresenca(DateTime dataAtual)
+    {
+        VerificarEReiniciarCicloTrimestral(dataAtual);
+        FaltasConsecutivasAtuais = 0; // Presença quebra a sequência de faltas
+    }
+
     /// <summary>
-    /// Registra a presença do aluno e atualiza os contadores de falta.
-    /// 
-    /// Regras de Negócio:
-    /// - Se Presente: Zera FaltasConsecutivasAtuais (mantém TotalFaltas)
-    /// - Se Falta: Incrementa FaltasConsecutivasAtuais E TotalFaltas
-    /// - Se FaltaJustificada: Zera FaltasConsecutivasAtuais (mantém TotalFaltas)
-    /// 
-    /// Dispara AlertaEvasao APENAS quando FaltasConsecutivasAtuais atinge 3.
+    /// Mantido por compatibilidade com handlers existentes.
+    /// Delega para as novas regras de negócio baseando-se na data atual.
     /// </summary>
-    /// <param name="status">Status da presença a ser registrado.</param>
-    public void RegistrarPresenca(StatusPresenca status)
+    public void RegistrarPresenca(StatusPresenca status, DateTime dataAtual)
     {
         switch (status)
         {
             case StatusPresenca.Presente:
-                // Presente zera a sequência de faltas
-                FaltasConsecutivasAtuais = 0;
+                RegistrarPresenca(dataAtual);
                 break;
-
             case StatusPresenca.Falta:
-                // Falta incrementa ambos contadores
-                FaltasConsecutivasAtuais++;
-                TotalFaltas++;
-                break;
-
-            case StatusPresenca.FaltaJustificada:
-                // Falta justificada zera sequência mas conta como falta
-                FaltasConsecutivasAtuais = 0;
-                TotalFaltas++;
-                break;
-
             case StatusPresenca.Ausente:
-                // Ausente conta como falta sem justificar
-                FaltasConsecutivasAtuais++;
-                TotalFaltas++;
+                RegistrarFalta(dataAtual);
+                break;
+            case StatusPresenca.FaltaJustificada:
+                RegistrarPresenca(dataAtual); // Falta justificada zera consecutivas
+                TotalFaltas++; // Mas conta no total histórico
+                break;
+            case StatusPresenca.Atraso:
+                RegistrarAtraso(dataAtual);
                 break;
         }
     }
@@ -178,10 +199,12 @@ public class Aluno : EntityBase, ISoftDeletable
     {
         return FaltasConsecutivasAtuais switch
         {
-            0 => NivelAlertaFalta.Nenhum,
+            0 => NivelAlertaFalta.Excelencia,
             1 => NivelAlertaFalta.Aviso,
-            2 => NivelAlertaFalta.Atencao,
-            _ => NivelAlertaFalta.Critico
+            2 => NivelAlertaFalta.Intermediario,
+            3 => NivelAlertaFalta.Vermelho,
+            4 => NivelAlertaFalta.Vermelho,
+            _ => NivelAlertaFalta.Preto
         };
     }
 

@@ -63,7 +63,7 @@ public class RegistrarPresencaHandler : IRequestHandler<RegistrarPresencaCommand
 
         // ── Atualiza contadores de falta na entidade Aluno ────────────────────
         // Este método atualiza FaltasConsecutivasAtuais e TotalFaltas conforme a regra
-        aluno.RegistrarPresenca(request.Status);
+        aluno.RegistrarPresenca(request.Status, chamada.DataHora.UtcDateTime);
 
         // ── Verifica limite de faltas consecutivas (APENAS quando atinge 3) ────
         // Dispara Domain Event LimiteFaltasAtingidoEvent se FaltasConsecutivasAtuais == 3
@@ -73,6 +73,31 @@ public class RegistrarPresencaHandler : IRequestHandler<RegistrarPresencaCommand
 
         // Verifica se um evento foi adicionado (indica que alerta será gerado)
         alertaGerado = aluno.DomainEvents.Any();
+
+        // ── Verifica Atrasos Reincidentes (Novas Regras de Evasão) ──────────────
+        if (request.Status == StatusPresenca.Atraso)
+        {
+            if (aluno.AtrasosNoTrimestre == 3)
+            {
+                var alerta = EscolaAtenta.Domain.Entities.AlertaEvasao.CriarAlertaAluno(
+                    alunoId: aluno.Id,
+                    nivel: NivelAlertaFalta.Vermelho,
+                    motivo: "Aluno atingiu 3 atrasos no trimestre. Comunicar aos pais."
+                );
+                _context.AlertasEvasao.Add(alerta);
+                alertaGerado = true;
+            }
+            else if (aluno.AtrasosNoTrimestre == 5)
+            {
+                var alerta = EscolaAtenta.Domain.Entities.AlertaEvasao.CriarAlertaAluno(
+                    alunoId: aluno.Id,
+                    nivel: NivelAlertaFalta.Preto,
+                    motivo: "Aluno atingiu 5 atrasos no trimestre. Acionar Conselho Tutelar."
+                );
+                _context.AlertasEvasao.Add(alerta);
+                alertaGerado = true;
+            }
+        }
 
         // ── Persiste — auditoria e Domain Events são tratados no SaveChangesAsync
         await _context.SaveChangesAsync(cancellationToken);

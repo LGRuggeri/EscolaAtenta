@@ -23,5 +23,10 @@ public enum StatusPresenca
     /// <summary>
     /// Ausente sem justificativa (similar à falta)
     /// </summary>
-    Ausente = 3
+    Ausente = 3,
+
+    /// <summary>
+    /// Atraso do aluno
+    /// </summary>
+    Atraso = 4
 }

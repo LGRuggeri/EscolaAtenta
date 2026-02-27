@@ -1,5 +1,6 @@
 using EscolaAtenta.Domain.Common;
 using EscolaAtenta.Domain.Exceptions;
+using EscolaAtenta.Domain.Enums;
 
 namespace EscolaAtenta.Domain.Entities;
 
@@ -10,35 +11,15 @@ namespace EscolaAtenta.Domain.Entities;
 /// 1. AlunoId é obrigatório e imutável.
 /// 2. Um alerta nasce não resolvido (Resolvido = false).
 /// 3. A resolução é feita via MarcarComoResolvido() com validação.
-/// 
-/// Decisão: AlertaEvasao é criado exclusivamente pelo LimiteFaltasAtingidoHandler
-/// em resposta ao Domain Event LimiteFaltasAtingidoEvent. Isso garante que
-/// alertas só existam quando há uma causa rastreável no domínio.
 /// </summary>
 public class AlertaEvasao : EntityBase
 {
     // Construtor privado para uso exclusivo do EF Core
     private AlertaEvasao() { }
 
-    /// <summary>
-    /// Cria um novo alerta de evasão.
-    /// </summary>
-    public AlertaEvasao(Guid id, Guid alunoId, string descricao)
-        : base(id)
-    {
-        if (alunoId == Guid.Empty)
-            throw new DomainException("O alerta deve estar associado a um aluno válido.");
-
-        if (string.IsNullOrWhiteSpace(descricao))
-            throw new DomainException("A descrição do alerta é obrigatória.");
-
-        AlunoId = alunoId;
-        Descricao = descricao;
-        DataAlerta = DateTimeOffset.UtcNow;
-        Resolvido = false;
-    }
-
-    public Guid AlunoId { get; private set; }
+    public Guid? AlunoId { get; private set; }
+    public Guid? TurmaId { get; private set; }
+    public NivelAlertaFalta Nivel { get; private set; }
     public DateTimeOffset DataAlerta { get; private set; }
 
     /// <summary>
@@ -46,12 +27,37 @@ public class AlertaEvasao : EntityBase
     /// </summary>
     public string Descricao { get; private set; } = string.Empty;
 
+    public static AlertaEvasao CriarAlertaAluno(Guid alunoId, NivelAlertaFalta nivel, string motivo)
+    {
+        return new AlertaEvasao 
+        { 
+            AlunoId = alunoId, 
+            Nivel = nivel, 
+            Descricao = motivo, 
+            DataAlerta = DateTimeOffset.UtcNow, 
+            Resolvido = false 
+        };
+    }
+
+    public static AlertaEvasao CriarAlertaTurma(Guid turmaId, string motivo)
+    {
+        // Nível 0 (Excelência) para a turma
+        return new AlertaEvasao 
+        { 
+            TurmaId = turmaId, 
+            Nivel = NivelAlertaFalta.Excelencia, 
+            Descricao = motivo, 
+            DataAlerta = DateTimeOffset.UtcNow, 
+            Resolvido = true // Já nasce resolvido pois é um badge positivo
+        };
+    }
+
     public bool Resolvido { get; private set; }
     public DateTimeOffset? DataResolucao { get; private set; }
     public string? ObservacaoResolucao { get; private set; }
 
     // ── Navegação ──────────────────────────────────────────────────────────────
-    public virtual Aluno Aluno { get; private set; } = null!;
+    public virtual Aluno? Aluno { get; private set; }
 
     // ── Métodos de Negócio ─────────────────────────────────────────────────────
 

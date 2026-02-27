@@ -7,23 +7,9 @@ namespace EscolaAtenta.Domain.Enums;
 /// </summary>
 public enum NivelAlertaFalta
 {
-    /// <summary>
-    /// Nenhuma falta registrada.
-    /// </summary>
-    Nenhum = 0,
-
-    /// <summary>
-    /// 1 falta consecutivos - aviso leve.
-/// </summary>
-    Aviso = 1,
-
-    /// <summary>
-    /// 2 faltas consecutivas - atenção.
-/// </summary>
-    Atencao = 2,
-
-    /// <summary>
-    /// 3+ faltas consecutivas - alerta crítico para a Supervisão.
-/// </summary>
-    Critico = 3
+    Excelencia = 0, // Turma sem faltas no período
+    Aviso = 1, // Ex: 2 atrasos
+    Intermediario = 2,
+    Vermelho = 3, // Comunicado aos Pais (Ex: 3 atrasos)
+    Preto = 5 // Conselho Tutelar (Ex: 5 atrasos)
 }

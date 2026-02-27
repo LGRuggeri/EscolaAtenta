@@ -59,10 +59,10 @@ public class LimiteFaltasAtingidoHandler : INotificationHandler<LimiteFaltasAtin
                         $"Turma: {notification.TurmaId}. " +
                         $"Data: {notification.OcorridoEm:dd/MM/yyyy HH:mm}.";
 
-        var alerta = new AlertaEvasao(
-            id: Guid.NewGuid(),
+        var alerta = AlertaEvasao.CriarAlertaAluno(
             alunoId: notification.AlunoId,
-            descricao: descricao
+            nivel: EscolaAtenta.Domain.Enums.NivelAlertaFalta.Vermelho,
+            motivo: descricao
         );
 
         _context.AlertasEvasao.Add(alerta);

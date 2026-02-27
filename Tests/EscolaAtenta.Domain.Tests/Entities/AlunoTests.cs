@@ -77,9 +77,9 @@ public class AlunoTests
         var aluno = CriarAlunoValido();
 
         // Act — total de faltas consecutivas igual ao limite (3)
-        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
-        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
-        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta, DateTime.UtcNow);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta, DateTime.UtcNow);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta, DateTime.UtcNow);
         aluno.VerificarLimiteFaltas();
 
         // Assert
@@ -100,8 +100,8 @@ public class AlunoTests
         var aluno = CriarAlunoValido();
 
         // Act — apenas 2 faltas consecutivas
-        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
-        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta, DateTime.UtcNow);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta, DateTime.UtcNow);
         aluno.VerificarLimiteFaltas();
 
         // Assert
@@ -113,14 +113,14 @@ public class AlunoTests
     {
         // Arrange
         var aluno = CriarAlunoValido();
-        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
-        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
-        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta, DateTime.UtcNow);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta, DateTime.UtcNow);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta, DateTime.UtcNow);
         aluno.VerificarLimiteFaltas();
         aluno.ClearDomainEvents();
 
         // Act — atinge 4 faltas
-        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta);
+        aluno.RegistrarPresenca(Domain.Enums.StatusPresenca.Falta, DateTime.UtcNow);
         aluno.VerificarLimiteFaltas();
 
         // Assert — evento só é disparado quando atinge exatamente o limite (3)
