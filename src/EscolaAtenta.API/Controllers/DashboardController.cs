@@ -36,4 +36,19 @@ public class DashboardController : ControllerBase
         var resultados = await _mediator.Send(query);
         return Ok(resultados);
     }
+
+    /// <summary>
+    /// Identifica Turmas com Frequência Perfeita (100% de presença) em um determinado período.
+    /// Exclui qualquer turma que teve registros de Falta ou Atraso no período indicado.
+    /// </summary>
+    [HttpGet("turmas-frequencia-perfeita")]
+    [ProducesResponseType(typeof(IEnumerable<EscolaAtenta.Application.Dashboard.Dtos.TurmaFrequenciaPerfeitaDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetTurmasFrequenciaPerfeita([FromQuery] DateTime dataInicio, [FromQuery] DateTime dataFim)
+    {
+        var query = new EscolaAtenta.Application.Dashboard.Queries.GetTurmasFrequenciaPerfeitaQuery(dataInicio, dataFim);
+        var resultados = await _mediator.Send(query);
+        return Ok(resultados);
+    }
 }

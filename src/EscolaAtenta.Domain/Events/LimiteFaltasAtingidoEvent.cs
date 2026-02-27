@@ -19,7 +19,8 @@ public sealed record LimiteFaltasAtingidoEvent(
     Guid TurmaId,
     string NomeAluno,
     int TotalFaltas,
-    int LimiteConfigurado
+    int LimiteConfigurado,
+    string MotivoExato
 ) : IDomainEvent
 {
     /// <summary>Momento em que o limite foi atingido, sempre em UTC.</summary>

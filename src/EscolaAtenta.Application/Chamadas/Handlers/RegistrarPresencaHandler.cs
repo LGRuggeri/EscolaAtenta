@@ -81,6 +81,7 @@ public class RegistrarPresencaHandler : IRequestHandler<RegistrarPresencaCommand
             {
                 var alerta = EscolaAtenta.Domain.Entities.AlertaEvasao.CriarAlertaAluno(
                     alunoId: aluno.Id,
+                    turmaId: aluno.TurmaId,
                     nivel: NivelAlertaFalta.Vermelho,
                     motivo: "Aluno atingiu 3 atrasos no trimestre. Comunicar aos pais."
                 );
@@ -91,6 +92,7 @@ public class RegistrarPresencaHandler : IRequestHandler<RegistrarPresencaCommand
             {
                 var alerta = EscolaAtenta.Domain.Entities.AlertaEvasao.CriarAlertaAluno(
                     alunoId: aluno.Id,
+                    turmaId: aluno.TurmaId,
                     nivel: NivelAlertaFalta.Preto,
                     motivo: "Aluno atingiu 5 atrasos no trimestre. Acionar Conselho Tutelar."
                 );

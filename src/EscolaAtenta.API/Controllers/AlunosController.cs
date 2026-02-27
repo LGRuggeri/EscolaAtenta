@@ -56,4 +56,15 @@ public class AlunosController : ControllerBase
         await _mediator.Send(command, ct);
         return NoContent();
     }
+
+    /// <summary>
+    /// Retorna o histórico cronológico de presenças, faltas e atrasos de um Aluno.
+    /// </summary>
+    [HttpGet("{id:guid}/historico-presencas")]
+    [ProducesResponseType(typeof(IEnumerable<HistoricoPresencaDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetHistoricoPresencas([FromRoute] Guid id, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetHistoricoPresencasAlunoQuery(id), ct);
+        return Ok(result);
+    }
 }

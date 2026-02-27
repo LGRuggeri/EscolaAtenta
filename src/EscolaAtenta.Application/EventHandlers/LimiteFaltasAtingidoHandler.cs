@@ -54,15 +54,11 @@ public class LimiteFaltasAtingidoHandler : INotificationHandler<LimiteFaltasAtin
         }
 
         // ── Criação do alerta ──────────────────────────────────────────────────
-        var descricao = $"Aluno '{notification.NomeAluno}' atingiu {notification.TotalFaltas} faltas " +
-                        $"(limite configurado: {notification.LimiteConfigurado}). " +
-                        $"Turma: {notification.TurmaId}. " +
-                        $"Data: {notification.OcorridoEm:dd/MM/yyyy HH:mm}.";
-
         var alerta = AlertaEvasao.CriarAlertaAluno(
             alunoId: notification.AlunoId,
+            turmaId: notification.TurmaId,
             nivel: EscolaAtenta.Domain.Enums.NivelAlertaFalta.Vermelho,
-            motivo: descricao
+            motivo: notification.MotivoExato // Immutably persisting the exact domain reason
         );
 
         _context.AlertasEvasao.Add(alerta);

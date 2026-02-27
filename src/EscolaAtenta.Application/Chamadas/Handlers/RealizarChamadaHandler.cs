@@ -74,6 +74,7 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
                 {
                     var alerta = AlertaEvasao.CriarAlertaAluno(
                         alunoId: aluno.Id,
+                        turmaId: aluno.TurmaId,
                         nivel: EscolaAtenta.Domain.Enums.NivelAlertaFalta.Vermelho,
                         motivo: "Aluno atingiu 3 atrasos no trimestre. Comunicar aos pais."
                     );
@@ -84,6 +85,7 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
                 {
                     var alerta = AlertaEvasao.CriarAlertaAluno(
                         alunoId: aluno.Id,
+                        turmaId: aluno.TurmaId,
                         nivel: EscolaAtenta.Domain.Enums.NivelAlertaFalta.Preto,
                         motivo: "Aluno atingiu 5 atrasos no trimestre. Acionar Conselho Tutelar."
                     );

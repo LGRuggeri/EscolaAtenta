@@ -48,13 +48,7 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, IEnumerable<Al
                 EscolaAtenta.Domain.Enums.NivelAlertaFalta.Aviso => "👀 Aviso de Faltas",
                 _ => "Alerta Escolar"
             },
-            a.Nivel switch
-            {
-                // Dynamic interpolation based on standard system rules mapped to 'Nivel'
-                EscolaAtenta.Domain.Enums.NivelAlertaFalta.Vermelho => $"O aluno(a) {a.Aluno?.Nome} acumulou {a.Aluno?.FaltasConsecutivasAtuais} faltas consecutivas ou 3 atrasos. Ação imediata exigida: Contatar família.",
-                EscolaAtenta.Domain.Enums.NivelAlertaFalta.Preto => $"Atenção máxima: {a.Aluno?.Nome} ultrapassou o limite tolerável. Acionar Conselho Tutelar imediatamente.",
-                _ => a.Descricao // Fallback
-            }
+            a.Descricao // Retorna a descrição histórica imutável gravada no banco
         ));
     }
 }

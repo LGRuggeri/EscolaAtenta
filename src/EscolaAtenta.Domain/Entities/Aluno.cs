@@ -187,7 +187,8 @@ public class Aluno : EntityBase, ISoftDeletable
                 TurmaId: TurmaId,
                 NomeAluno: Nome,
                 TotalFaltas: FaltasConsecutivasAtuais,
-                LimiteConfigurado: 3 // Fixado em 3 conforme nova regra
+                LimiteConfigurado: 3, // Fixado em 3 conforme nova regra
+                MotivoExato: $"O aluno atingiu 3 faltas consecutivas."
             ));
         }
     }

@@ -485,3 +485,6 @@ $RECYCLE.BIN/
 
 # Data volume for Postgres container
 postgres_data/
+
+# Exception for our Expo App
+!src/EscolaAtenta.App/

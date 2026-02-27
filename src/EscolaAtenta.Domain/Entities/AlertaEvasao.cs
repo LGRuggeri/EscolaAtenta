@@ -27,11 +27,12 @@ public class AlertaEvasao : EntityBase
     /// </summary>
     public string Descricao { get; private set; } = string.Empty;
 
-    public static AlertaEvasao CriarAlertaAluno(Guid alunoId, NivelAlertaFalta nivel, string motivo)
+    public static AlertaEvasao CriarAlertaAluno(Guid alunoId, Guid turmaId, NivelAlertaFalta nivel, string motivo)
     {
         return new AlertaEvasao 
         { 
             AlunoId = alunoId, 
+            TurmaId = turmaId,
             Nivel = nivel, 
             Descricao = motivo, 
             DataAlerta = DateTimeOffset.UtcNow, 
