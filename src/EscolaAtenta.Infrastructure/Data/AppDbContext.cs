@@ -110,33 +110,35 @@ public class AppDbContext : DbContext
             }
         }
 
-        // ── Coleta de Domain Events antes de salvar ────────────────────────────
-        // Coletamos ANTES do SaveChanges para garantir que os eventos sejam
-        // despachados mesmo que a entidade seja modificada durante o save
-        var entidadesComEventos = ChangeTracker
-            .Entries<EntityBase>()
-            .Where(e => e.Entity.DomainEvents.Count != 0)
-            .Select(e => e.Entity)
-            .ToList();
-
-        var domainEvents = entidadesComEventos
-            .SelectMany(e => e.DomainEvents)
-            .ToList();
-
-        // Limpa os eventos das entidades antes de persistir
-        entidadesComEventos.ForEach(e => e.ClearDomainEvents());
-
-        // ── Persistência ───────────────────────────────────────────────────────
-        var resultado = await base.SaveChangesAsync(cancellationToken);
-
-        // ── Despacho de Domain Events APÓS persistência bem-sucedida ──────────
-        // Decisão: Despachar após o commit garante que os handlers vejam os dados
-        // já persistidos. Trade-off: se um handler falhar, o SaveChanges já foi
-        // commitado. Para maior resiliência, considerar Outbox Pattern no futuro.
-        foreach (var domainEvent in domainEvents)
+        // ── Coleta de Domain Events e Despacho Atômico ────────────────────────────
+        // Despachamos os eventos ANTES do commit, dentro do fluxo da mesma requisição.
+        // Se os handlers alterarem entidades ou adicionarem novas, elas são
+        // processadas na mesma transação banco assegurada pelo SaveChangesAsync.
+        while (true)
         {
-            await _mediator.Publish(domainEvent, cancellationToken);
+            var entidadesComEventos = ChangeTracker
+                .Entries<EntityBase>()
+                .Where(e => e.Entity.DomainEvents.Count != 0)
+                .Select(e => e.Entity)
+                .ToList();
+
+            if (!entidadesComEventos.Any())
+                break;
+
+            var domainEvents = entidadesComEventos
+                .SelectMany(e => e.DomainEvents)
+                .ToList();
+
+            entidadesComEventos.ForEach(e => e.ClearDomainEvents());
+
+            foreach (var domainEvent in domainEvents)
+            {
+                await _mediator.Publish(domainEvent, cancellationToken);
+            }
         }
+
+        // ── Persistência Atômica ───────────────────────────────────────────────────────
+        var resultado = await base.SaveChangesAsync(cancellationToken);
 
         return resultado;
     }

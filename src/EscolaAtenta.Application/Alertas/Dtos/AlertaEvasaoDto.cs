@@ -4,8 +4,8 @@ namespace EscolaAtenta.Application.Alertas.Dtos;
 
 public record AlertaEvasaoDto(
     Guid Id,
-    Guid? AlunoId,
-    Guid? TurmaId,
+    string NomeAluno,
+    string NomeTurma,
     NivelAlertaFalta Nivel,
     string Descricao,
     DateTime DataAlerta,

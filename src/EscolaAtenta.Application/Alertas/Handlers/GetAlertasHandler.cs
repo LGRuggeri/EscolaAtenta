@@ -17,7 +17,10 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, IEnumerable<Al
 
     public async Task<IEnumerable<AlertaEvasaoDto>> Handle(GetAlertasQuery request, CancellationToken cancellationToken)
     {
-        var query = _context.AlertasEvasao.AsQueryable();
+        var query = _context.AlertasEvasao
+            .Include(a => a.Aluno)
+            .Include(a => a.Turma)
+            .AsNoTracking();
 
         if (request.ApenasNaoResolvidos)
         {
@@ -30,8 +33,8 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, IEnumerable<Al
 
         return alertas.Select(a => new AlertaEvasaoDto(
             a.Id,
-            a.AlunoId,
-            a.TurmaId,
+            a.Aluno?.Nome ?? "Desconhecido",
+            a.Turma?.Nome ?? "Turma Não Informada",
             a.Nivel,
             a.Descricao,
             a.DataAlerta.UtcDateTime,
@@ -47,9 +50,10 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, IEnumerable<Al
             },
             a.Nivel switch
             {
-                EscolaAtenta.Domain.Enums.NivelAlertaFalta.Vermelho => "O aluno atingiu 3 ausências/atrasos seguidos. Ação: Entrar em contato com os pais ou responsáveis imediatamente.",
-                EscolaAtenta.Domain.Enums.NivelAlertaFalta.Preto => "O aluno atingiu 5 ausências. Ação exigida: Acionar o Conselho Tutelar.",
-                _ => a.Descricao // Fallback para a descricao/motivo original
+                // Dynamic interpolation based on standard system rules mapped to 'Nivel'
+                EscolaAtenta.Domain.Enums.NivelAlertaFalta.Vermelho => $"O aluno(a) {a.Aluno?.Nome} acumulou {a.Aluno?.FaltasConsecutivasAtuais} faltas consecutivas ou 3 atrasos. Ação imediata exigida: Contatar família.",
+                EscolaAtenta.Domain.Enums.NivelAlertaFalta.Preto => $"Atenção máxima: {a.Aluno?.Nome} ultrapassou o limite tolerável. Acionar Conselho Tutelar imediatamente.",
+                _ => a.Descricao // Fallback
             }
         ));
     }

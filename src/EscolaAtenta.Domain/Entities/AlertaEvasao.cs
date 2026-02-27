@@ -58,6 +58,7 @@ public class AlertaEvasao : EntityBase
 
     // ── Navegação ──────────────────────────────────────────────────────────────
     public virtual Aluno? Aluno { get; private set; }
+    public virtual Turma? Turma { get; private set; }
 
     // ── Métodos de Negócio ─────────────────────────────────────────────────────
 

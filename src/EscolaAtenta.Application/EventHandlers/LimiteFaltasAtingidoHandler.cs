@@ -67,12 +67,12 @@ public class LimiteFaltasAtingidoHandler : INotificationHandler<LimiteFaltasAtin
 
         _context.AlertasEvasao.Add(alerta);
 
-        // Salva o alerta — este SaveChanges não dispara novos Domain Events
-        // pois AlertaEvasao não possui eventos pendentes
-        await _context.SaveChangesAsync(cancellationToken);
+        // Observação: Não chamamos SaveChanges() aqui! O alerta foi apenas 
+        // adicionado ao AppDbContext. Ele será persistido na MESMA transação do 
+        // evento pai via atomicity do `SaveChangesAsync` na camada do Entity Framework.
 
         _logger.LogWarning(
-            "Alerta de evasão criado para o aluno {AlunoId} ({NomeAluno}). " +
+            "Alerta de evasão enfileirado no DbContext para o aluno {AlunoId} ({NomeAluno}). " +
             "Total de faltas: {TotalFaltas}/{LimiteConfigurado}.",
             notification.AlunoId,
             notification.NomeAluno,
