@@ -12,10 +12,49 @@ export enum StatusPresenca {
   Atraso = 4
 }
 
+/**
+ * Enum para níveis de alerta de evasão escolar.
+ * 
+ * IMPORTANTE: O backend serializa este enum como STRING (ex: "Preto"),
+ * não como número (ex: 5). O frontend deve estar preparado para ambos.
+ * 
+ * Valores numéricos (para referência):
+ * - 0: Excelencia
+ * - 1: Aviso  
+ * - 2: Intermediario
+ * - 3: Vermelho (3-4 faltas)
+ * - 5: Preto (5+ faltas) - MÁXIMO
+ */
 export enum NivelAlertaFalta {
   Excelencia = 0,
   Aviso = 1,
   Intermediario = 2,
   Vermelho = 3,
-  Preto = 5
+  // Valor 4 também mapeia para Vermelho (caso especial do backend)
+  Preto = 5  // Conselho Tutelar (5+ atrasos ou falhas)
+}
+
+// Constantes para programação defensiva
+export const NIVEL_MAXIMO_FALTAS = 5;
+export const NIVEL_VERMELHO_THRESHOLD = 3;
+
+/**
+ * Converte uma string do enum para o valor numérico correspondente.
+ * Útil quando o backend envia o enum como string (ex: "Preto" → 5).
+ */
+export function parseNivelAlertaFalta(valor: string | number): NivelAlertaFalta {
+  if (typeof valor === 'number') {
+    return valor as NivelAlertaFalta;
+  }
+
+  // Mapeamento de strings para valores
+  const mapa: Record<string, NivelAlertaFalta> = {
+    'Excelencia': NivelAlertaFalta.Excelencia,
+    'Aviso': NivelAlertaFalta.Aviso,
+    'Intermediario': NivelAlertaFalta.Intermediario,
+    'Vermelho': NivelAlertaFalta.Vermelho,
+    'Preto': NivelAlertaFalta.Preto
+  };
+
+  return mapa[valor] ?? NivelAlertaFalta.Preto; // Fallback para Preto se não reconhecido
 }

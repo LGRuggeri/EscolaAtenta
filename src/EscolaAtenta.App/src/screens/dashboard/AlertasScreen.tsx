@@ -4,7 +4,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppNavigationProp } from '../../navigation/types';
 import { AlertaDto } from '../../types/dtos';
-import { NivelAlertaFalta, PapelUsuario } from '../../types/enums';
+import { NivelAlertaFalta, PapelUsuario, parseNivelAlertaFalta } from '../../types/enums';
 import { alertasService } from '../../services/alertasService';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -74,14 +74,63 @@ export function AlertasScreen() {
         }
     };
 
-    const getBorderColorByNivel = (nivel: NivelAlertaFalta): string => {
-        switch (nivel) {
-            case NivelAlertaFalta.Excelencia: return '#10B981'; // Verde
-            case NivelAlertaFalta.Aviso: return '#FBBF24'; // Amarelo
-            case NivelAlertaFalta.Intermediario: return '#F97316'; // Laranja
-            case NivelAlertaFalta.Vermelho: return '#EF4444'; // Vermelho
-            case NivelAlertaFalta.Preto: return '#111827'; // Preto Profundo (Ação Legal)
-            default: return '#9CA3AF';
+    /**
+     * Programação Defensiva: Retorna a cor da borda baseada no nível de alerta.
+     * 
+     * Regras de negócio:
+     * - 0 (Excelência): Verde #10B981
+     * - 1 (Aviso): Amarelo #FBBF24
+     * - 2 (Intermediário): Laranja #F97316
+     * - 3 (Vermelho): Vermelho #EF4444
+     * - 4+: Preto Profundo #111827 (Ação Legal)
+     * 
+     * Utiliza parseNivelAlertaFalta centralizada para normalização.
+     */
+    const getBorderColorByNivel = (nivel: NivelAlertaFalta | number | string): string => {
+        // Normalização centralizada - DRY
+        const nivelProcessado = parseNivelAlertaFalta(nivel);
+
+        // Regra de negócio: 5+ = Preto Profundo
+        if (nivelProcessado >= 5) {
+            return '#111827';
+        }
+
+        // Mapeamento direto para cores conhecidas
+        switch (nivelProcessado) {
+            case NivelAlertaFalta.Excelencia:
+                return '#10B981';
+            case NivelAlertaFalta.Aviso:
+                return '#FBBF24';
+            case NivelAlertaFalta.Intermediario:
+                return '#F97316';
+            case NivelAlertaFalta.Vermelho:
+                return '#EF4444';
+            default:
+                // Fallback seguro para valores não mapeados
+                return '#111827';
+        }
+    };
+
+    const getTituloAmigavel = (nivel: NivelAlertaFalta | number | string): string => {
+        // Normalização centralizada - DRY
+        const nivelProcessado = parseNivelAlertaFalta(nivel);
+
+        // Regra: 5+ = Preto (Ação Legal)
+        if (nivelProcessado >= 5) {
+            return '🛑 Risco Crítico - Ação Legal';
+        }
+
+        switch (nivelProcessado) {
+            case NivelAlertaFalta.Excelencia:
+                return '🏆 Excelência em Frequência';
+            case NivelAlertaFalta.Aviso:
+                return '👀 Aviso de Faltas';
+            case NivelAlertaFalta.Intermediario:
+                return '⚠️ Alerta Intermediário';
+            case NivelAlertaFalta.Vermelho:
+                return '🚨 Alto Risco de Evasão';
+            default:
+                return 'Alerta Escolar';
         }
     };
 
@@ -92,6 +141,8 @@ export function AlertasScreen() {
 
     const renderItem = ({ item }: { item: AlertaDto }) => {
         const borderColor = getBorderColorByNivel(item.nivel);
+        // Fallback defensivo: usa tituloAmigavel do backend ou gera título seguro
+        const tituloExibicao = item.tituloAmigavel || getTituloAmigavel(item.nivel);
 
         return (
             <TouchableOpacity
@@ -100,7 +151,7 @@ export function AlertasScreen() {
             >
                 <View style={styles.cardHeader}>
                     <Text style={[styles.cardTitle, { color: borderColor }]}>
-                        {item.tituloAmigavel || `Alerta ${NivelAlertaFalta[item.nivel]}`}
+                        {tituloExibicao}
                     </Text>
                     <Text style={styles.cardDate}>{formatData(item.dataAlerta)}</Text>
                 </View>

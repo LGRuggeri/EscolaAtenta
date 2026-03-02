@@ -194,18 +194,12 @@ public class Aluno : EntityBase, ISoftDeletable
 
     /// <summary>
     /// Retorna o nível de alerta baseado nas faltas consecutivas.
+    /// Utiliza a extensão do enum para garantir consistência e limites.
     /// </summary>
     public NivelAlertaFalta GetNivelAlerta()
     {
-        return FaltasConsecutivasAtuais switch
-        {
-            0 => NivelAlertaFalta.Excelencia,
-            1 => NivelAlertaFalta.Aviso,
-            2 => NivelAlertaFalta.Intermediario,
-            3 => NivelAlertaFalta.Vermelho,
-            4 => NivelAlertaFalta.Vermelho,
-            _ => NivelAlertaFalta.Preto
-        };
+        // Usa a factory method do enum que garante o limite máximo (Preto = 5)
+        return NivelAlertaFaltaExtensions.DeFaltasConsecutivas(FaltasConsecutivasAtuais);
     }
 
     /// <summary>

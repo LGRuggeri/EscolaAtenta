@@ -108,7 +108,14 @@ try
     builder.Services.AddScoped<DatabaseSeeder>();
 
     // ── Controllers ────────────────────────────────────────────────────────────
-    builder.Services.AddControllers();
+    // Configuração JSON: Enums serializados como strings para evitar quebra de contrato
+    // com clientes descentralizados (mobile) quando novos valores são adicionados ao enum.
+    builder.Services.AddControllers()
+        .AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+            options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        });
 
     // ── Problem Details RFC 7807 ───────────────────────────────────────────────
     // Habilita o formato padrão de erros da API conforme RFC 7807.

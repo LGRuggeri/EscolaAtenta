@@ -27,13 +27,25 @@ public class AlertaEvasao : EntityBase
     /// </summary>
     public string Descricao { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// Cria um alerta de evasão para um aluno específico.
+    /// </summary>
+    /// <param name="alunoId">ID do aluno</param>
+    /// <param name="turmaId">ID da turma</param>
+    /// <param name="nivel">Nível de severidade do alerta</param>
+    /// <param name="motivo">Descrição do motivo do alerta</param>
+    /// <returns>Nova instância de AlertaEvasao</returns>
     public static AlertaEvasao CriarAlertaAluno(Guid alunoId, Guid turmaId, NivelAlertaFalta nivel, string motivo)
     {
+        // Invariante de Domínio: O nível nunca pode ultrapassar Preto (5)
+        // Garante que valores acima do máximo sejam truncados para Preto
+        var nivelValidado = NivelAlertaFaltaExtensions.GarantirLimiteMaximo(nivel);
+
         return new AlertaEvasao 
         { 
             AlunoId = alunoId, 
             TurmaId = turmaId,
-            Nivel = nivel, 
+            Nivel = nivelValidado, 
             Descricao = motivo, 
             DataAlerta = DateTimeOffset.UtcNow, 
             Resolvido = false 
