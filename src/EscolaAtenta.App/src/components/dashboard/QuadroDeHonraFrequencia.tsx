@@ -30,8 +30,8 @@ export function QuadroDeHonraFrequencia() {
 
             const data = await dashboardService.obterTurmasFrequenciaPerfeita(dataInicio, dataFim);
             setTurmas(data);
-        } catch (error) {
-            console.error('Erro ao buscar turmas para o Quadro de Honra.', error);
+        } catch (error: any) {
+            console.error('Erro ao buscar turmas para o Quadro de Honra.', error.response?.data || error.message);
         } finally {
             setLoading(false);
         }

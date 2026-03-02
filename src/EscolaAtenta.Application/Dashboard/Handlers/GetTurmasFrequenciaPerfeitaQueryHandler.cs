@@ -22,24 +22,40 @@ public class GetTurmasFrequenciaPerfeitaQueryHandler : IRequestHandler<GetTurmas
 
     public async Task<IEnumerable<TurmaFrequenciaPerfeitaDto>> Handle(GetTurmasFrequenciaPerfeitaQuery request, CancellationToken cancellationToken)
     {
-        var turmasPerfeitas = await _context.Turmas
+        // Buscamos apenas os IDs e Nomes das Turmas que satisfazem as regras
+        var turmasValidas = await _context.Turmas
             .AsNoTracking()
             // Regra 1: Deve ter pelo menos uma chamada no período
             .Where(t => t.Chamadas.Any(c => c.DataHora >= request.DataInicio && c.DataHora <= request.DataFim))
             // Regra 2: Não pode conter NENHUMA falta ou atraso injustificado nesse período
             .Where(t => !t.Chamadas
-                .Where(c => c.DataHora >= request.DataInicio && c.DataHora <= request.DataFim)
-                .SelectMany(c => c.RegistrosPresenca)
-                .Any(rp => rp.Status == StatusPresenca.Falta || rp.Status == StatusPresenca.Atraso))
+                .Any(c => c.DataHora >= request.DataInicio && c.DataHora <= request.DataFim &&
+                     c.RegistrosPresenca.Any(rp => rp.Status == StatusPresenca.Falta || rp.Status == StatusPresenca.Atraso)))
+            .Select(t => new { t.Id, t.Nome })
+            .ToListAsync(cancellationToken);
+
+        if (!turmasValidas.Any())
+            return Enumerable.Empty<TurmaFrequenciaPerfeitaDto>();
+
+        var turmaIds = turmasValidas.Select(t => t.Id).ToList();
+
+        // Count das aulas ministradas por turma no período
+        var contagemChamadas = await _context.Chamadas
+            .AsNoTracking()
+            .Where(c => turmaIds.Contains(c.TurmaId) && c.DataHora >= request.DataInicio && c.DataHora <= request.DataFim)
+            .GroupBy(c => c.TurmaId)
+            .Select(g => new { TurmaId = g.Key, Quantidade = g.Count() })
+            .ToDictionaryAsync(g => g.TurmaId, g => g.Quantidade, cancellationToken);
+
+        var turmasPerfeitas = turmasValidas
             .Select(t => new TurmaFrequenciaPerfeitaDto(
                 t.Id,
                 t.Nome,
-                t.Chamadas.Count(c => c.DataHora >= request.DataInicio && c.DataHora <= request.DataFim)
+                contagemChamadas.ContainsKey(t.Id) ? contagemChamadas[t.Id] : 0
             ))
-            // Ordenamos por turmas que tiveram mais aulas ministradas primeiro, depois nome
             .OrderByDescending(t => t.QuantidadeAulasMinistradas)
             .ThenBy(t => t.NomeTurma)
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         return turmasPerfeitas;
     }

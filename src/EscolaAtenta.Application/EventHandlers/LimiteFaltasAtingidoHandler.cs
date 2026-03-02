@@ -32,33 +32,18 @@ public class LimiteFaltasAtingidoHandler : INotificationHandler<LimiteFaltasAtin
         _logger = logger;
     }
 
-    public async Task Handle(
+    public Task Handle(
         LimiteFaltasAtingidoEvent notification,
         CancellationToken cancellationToken)
     {
-        // ── Verificação de idempotência ────────────────────────────────────────
-        // Evita criar múltiplos alertas para o mesmo aluno se o evento for
-        // disparado mais de uma vez (ex: retry após falha parcial)
-        var alertaExistente = await _context.AlertasEvasao
-            .AnyAsync(ae =>
-                ae.AlunoId == notification.AlunoId &&
-                !ae.Resolvido,
-                cancellationToken);
-
-        if (alertaExistente)
-        {
-            _logger.LogInformation(
-                "Alerta de evasão já existe para o aluno {AlunoId}. Ignorando evento duplicado.",
-                notification.AlunoId);
-            return;
-        }
-
         // ── Criação do alerta ──────────────────────────────────────────────────
+        // Diferente do passado, hoje um Aluno pode progredir na escala de risco de faltas
+        // Se já tiver alertas não resolvidos, eles continuam para ser sanados pela Supervisão do nível de gravidade.
         var alerta = AlertaEvasao.CriarAlertaAluno(
             alunoId: notification.AlunoId,
             turmaId: notification.TurmaId,
-            nivel: EscolaAtenta.Domain.Enums.NivelAlertaFalta.Vermelho,
-            motivo: notification.MotivoExato // Immutably persisting the exact domain reason
+            nivel: notification.Nivel, // Lendo a severidade real injetada pelo Domínio
+            motivo: notification.MotivoExato // Mantém a string suja imutável a título de auditoria
         );
 
         _context.AlertasEvasao.Add(alerta);
@@ -74,5 +59,7 @@ public class LimiteFaltasAtingidoHandler : INotificationHandler<LimiteFaltasAtin
             notification.NomeAluno,
             notification.TotalFaltas,
             notification.LimiteConfigurado);
+
+        return Task.CompletedTask;
     }
 }

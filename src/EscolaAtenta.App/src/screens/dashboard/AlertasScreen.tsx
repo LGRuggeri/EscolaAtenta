@@ -80,8 +80,8 @@ export function AlertasScreen() {
             case NivelAlertaFalta.Aviso: return '#FBBF24'; // Amarelo
             case NivelAlertaFalta.Intermediario: return '#F97316'; // Laranja
             case NivelAlertaFalta.Vermelho: return '#EF4444'; // Vermelho
-            case NivelAlertaFalta.Preto: return '#1F2937'; // Preto/Cinza Escuro
-            default: return '#E5E7EB';
+            case NivelAlertaFalta.Preto: return '#111827'; // Preto Profundo (Ação Legal)
+            default: return '#9CA3AF';
         }
     };
 
@@ -127,7 +127,10 @@ export function AlertasScreen() {
             </View>
 
             {loading ? (
-                <ActivityIndicator size="large" color="#EF4444" style={{ marginTop: 50 }} />
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color="#c9a227" />
+                    <Text style={{ marginTop: 12, color: '#6B7280' }}>Buscando situações de risco...</Text>
+                </View>
             ) : (
                 <FlatList
                     data={alertas}
@@ -150,7 +153,7 @@ export function AlertasScreen() {
                         <Text style={styles.modalTitle}>Resolver Alerta</Text>
 
                         {alertaSelecionado && (
-                            <View style={styles.modalAlertaInfo}>
+                            <View style={[styles.modalAlertaInfo, { borderLeftColor: getBorderColorByNivel(alertaSelecionado.nivel) }]}>
                                 <Text style={styles.modalAlertaDesc}>{alertaSelecionado.mensagemAcao || alertaSelecionado.descricao}</Text>
                             </View>
                         )}

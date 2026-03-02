@@ -20,7 +20,8 @@ public sealed record LimiteFaltasAtingidoEvent(
     string NomeAluno,
     int TotalFaltas,
     int LimiteConfigurado,
-    string MotivoExato
+    string MotivoExato,
+    EscolaAtenta.Domain.Enums.NivelAlertaFalta Nivel
 ) : IDomainEvent
 {
     /// <summary>Momento em que o limite foi atingido, sempre em UTC.</summary>

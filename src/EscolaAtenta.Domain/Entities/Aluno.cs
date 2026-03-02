@@ -167,28 +167,27 @@ public class Aluno : EntityBase, ISoftDeletable
         }
     }
 
-    /// <summary>
-    /// Verifica se o aluno atingiu o limite de faltas consecutivas (3).
-    /// Dispara o Domain Event LimiteFaltasAtingidoEvent APENAS quando
-    /// FaltasConsecutivasAtuais == 3.
-    /// 
-    /// Novas Regras:
-    /// - 1 falta: Indicativo visual apenas
-    /// - 2 faltas: Atenção visual
-    /// - 3+ faltas: Alerta crítico para Supervisão (DISPARA EVENTO)
-    /// </summary>
     public void VerificarLimiteFaltas()
     {
-        // Dispara evento APENAS quando atinge exatamente 3 faltas consecutivas
-        if (FaltasConsecutivasAtuais == 3)
+        // Conforme a nova regra, gerar alertas com severidades crescentes:
+        // 1 - Aviso (Amarelo)
+        // 2 - Intermediário (Laranja -> Conversa com o aluno)
+        // 3 - Vermelho (Conversa com os pais)
+        // 5 - Preto (Conselho Tutelar)
+
+        if (FaltasConsecutivasAtuais == 1 || FaltasConsecutivasAtuais == 2 || 
+            FaltasConsecutivasAtuais == 3 || FaltasConsecutivasAtuais == 5)
         {
+            var nivelAlerta = GetNivelAlerta();
+            
             AddDomainEvent(new LimiteFaltasAtingidoEvent(
                 AlunoId: Id,
                 TurmaId: TurmaId,
                 NomeAluno: Nome,
                 TotalFaltas: FaltasConsecutivasAtuais,
-                LimiteConfigurado: 3, // Fixado em 3 conforme nova regra
-                MotivoExato: $"O aluno atingiu 3 faltas consecutivas."
+                LimiteConfigurado: 5, // Teto configurado do conselho tutelar
+                MotivoExato: $"O aluno alcançou {FaltasConsecutivasAtuais} falhas consecutivas.",
+                Nivel: nivelAlerta
             ));
         }
     }
