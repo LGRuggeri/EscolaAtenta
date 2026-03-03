@@ -49,6 +49,21 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
             query = query.Where(a => !a.Resolvido);
         }
 
+        if (request.Tipo != TipoAlerta.Evasao && request.Nivel.HasValue)
+        {
+            request.Nivel = null;
+        }
+
+        if (request.Tipo.HasValue)
+        {
+            query = query.Where(a => a.Tipo == request.Tipo.Value);
+        }
+
+        if (request.Nivel.HasValue)
+        {
+            query = query.Where(a => a.Nivel == request.Nivel.Value);
+        }
+
         // ── COUNT total — query separada sem Skip/Take ────────────────────────
         // O EF Core emite SELECT COUNT(*) FROM AlertasEvasao WHERE ...
         // Precedendo o SELECT de dados. Isso é necessário para o Front-end

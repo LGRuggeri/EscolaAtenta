@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -127,6 +127,14 @@ export function AlertasScreen() {
     const [currentPage, setCurrentPage] = useState(1);
     const [hasNextPage, setHasNextPage] = useState(false);
     const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>('TODOS');
+    const [subFiltroNivel, setSubFiltroNivel] = useState<NivelAlertaFalta | null>(null);
+
+    // Limpa o subfiltro se sair da aba Faltas
+    useEffect(() => {
+        if (filtroAtivo !== 'FALTAS') {
+            setSubFiltroNivel(null);
+        }
+    }, [filtroAtivo]);
 
     // Ref para evitar chamadas duplicadas em onEndReached (React Native pode disparar twice)
     const isFetchingRef = useRef(false);
@@ -153,11 +161,22 @@ export function AlertasScreen() {
     }), [alertas]);
 
     // ── Carregamento inicial (página 1) ───────────────────────────────────────
-    async function carregarAlertas() {
+    const carregarAlertas = useCallback(async () => {
         try {
             setLoading(true);
             isFetchingRef.current = true;
-            const resultado = await alertasService.obterPaginados({ pageNumber: 1, pageSize: PAGE_SIZE });
+
+            const params: import('../../services/alertasService').GetAlertasParams = {
+                pageNumber: 1,
+                pageSize: PAGE_SIZE
+            };
+
+            if (subFiltroNivel !== null && filtroAtivo === 'FALTAS') {
+                params.tipo = TipoAlerta.Evasao;
+                params.nivel = subFiltroNivel;
+            }
+
+            const resultado = await alertasService.obterPaginados(params);
             setAlertas(resultado.items);
             setCurrentPage(1);
             setHasNextPage(resultado.hasNextPage);
@@ -168,7 +187,7 @@ export function AlertasScreen() {
             setLoading(false);
             isFetchingRef.current = false;
         }
-    }
+    }, [subFiltroNivel, filtroAtivo]);
 
     // ── Carregamento da próxima página (Infinite Scroll) ─────────────────────
     const carregarProximaPagina = useCallback(async () => {
@@ -179,10 +198,18 @@ export function AlertasScreen() {
             isFetchingRef.current = true;
             setLoadingMore(true);
             const nextPage = currentPage + 1;
-            const resultado = await alertasService.obterPaginados({
+
+            const params: import('../../services/alertasService').GetAlertasParams = {
                 pageNumber: nextPage,
-                pageSize: PAGE_SIZE,
-            });
+                pageSize: PAGE_SIZE
+            };
+
+            if (subFiltroNivel !== null && filtroAtivo === 'FALTAS') {
+                params.tipo = TipoAlerta.Evasao;
+                params.nivel = subFiltroNivel;
+            }
+
+            const resultado = await alertasService.obterPaginados(params);
 
             // Concatena ao final — não substitui a lista (Infinite Scroll acumulativo)
             setAlertas(prev => [...prev, ...resultado.items]);
@@ -195,13 +222,13 @@ export function AlertasScreen() {
             setLoadingMore(false);
             isFetchingRef.current = false;
         }
-    }, [hasNextPage, currentPage, loading]);
+    }, [hasNextPage, currentPage, loading, subFiltroNivel, filtroAtivo]);
 
-    // Recarrega sempre que a tela ganha foco (ex: ao voltar de outra tela)
+    // Recarrega sempre que a tela ganha foco ou os filtros de API mudarem
     useFocusEffect(
         useCallback(() => {
             carregarAlertas();
-        }, [])
+        }, [carregarAlertas])
     );
 
     // ── Modal ─────────────────────────────────────────────────────────────────
@@ -328,11 +355,57 @@ export function AlertasScreen() {
         </View>
     );
 
+    // ── Subfiltro de Nível (Pílulas) ───────────────────────────────────────────
+    const FILTROS_NIVEL = [
+        { key: NivelAlertaFalta.Aviso, label: 'Amarelo', color: '#FBBF24', textColor: '#92400E' },
+        { key: NivelAlertaFalta.Intermediario, label: 'Laranja', color: '#F97316', textColor: '#FFF' },
+        { key: NivelAlertaFalta.Vermelho, label: 'Vermelho', color: '#EF4444', textColor: '#FFF' },
+        { key: NivelAlertaFalta.Preto, label: 'Preto', color: '#111827', textColor: '#FFF' },
+    ];
+
+    const renderSubfiltroNivel = () => {
+        if (filtroAtivo !== 'FALTAS') return null;
+
+        return (
+            <View style={styles.subfiltroContainer} accessibilityRole="tablist">
+                {FILTROS_NIVEL.map((item) => {
+                    const isActive = subFiltroNivel === item.key;
+                    return (
+                        <Pressable
+                            key={item.key}
+                            style={[
+                                styles.subfiltroTab,
+                                { backgroundColor: isActive ? item.color : COLORS.white },
+                                isActive && styles.subfiltroTabActiveObj
+                            ]}
+                            onPress={() => setSubFiltroNivel(isActive ? null : item.key)}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: isActive }}
+                        >
+                            <Text style={[
+                                styles.subfiltroTabText,
+                                { color: isActive ? item.textColor : COLORS.textMuted },
+                                isActive && styles.subfiltroTabTextActiveObj
+                            ]}>
+                                {item.label}
+                            </Text>
+                        </Pressable>
+                    );
+                })}
+            </View>
+        );
+    };
+
     // ── Empty State contextual por filtro ─────────────────────────────────────
     const renderListaVazia = () => {
         const mensagens: Record<FiltroAtivo, { icon: string; texto: string }> = {
             TODOS: { icon: '✅', texto: 'Nenhuma situação de risco detectada.' },
-            FALTAS: { icon: '📗', texto: 'Nenhum alerta de falta pendente.' },
+            FALTAS: {
+                icon: subFiltroNivel !== null ? '🔍' : '📗',
+                texto: subFiltroNivel !== null
+                    ? `Nenhum alerta ${FILTROS_NIVEL.find(f => f.key === subFiltroNivel)?.label.toLowerCase()} encontrado.`
+                    : 'Nenhum alerta de falta pendente.'
+            },
             ATRASOS: { icon: '🕐', texto: 'Nenhum alerta de atraso pendente.' },
         };
         const { icon, texto } = mensagens[filtroAtivo];
@@ -358,6 +431,7 @@ export function AlertasScreen() {
 
             {/* Segmented Control */}
             {!loading && renderSegmentedControl()}
+            {!loading && renderSubfiltroNivel()}
 
             {/* Lista com Infinite Scroll */}
             {loading ? (
@@ -501,6 +575,26 @@ const styles = StyleSheet.create({
     backButton: {},
     backButtonText: { fontSize: 16, color: COLORS.textSecondary, fontWeight: '600' },
     headerTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.textPrimary },
+
+    // ── Subfiltro (Pílulas) ──────────────────────────────────────────────────
+    subfiltroContainer: {
+        flexDirection: 'row', paddingHorizontal: 16, marginBottom: 12, gap: 8,
+        justifyContent: 'center',
+    },
+    subfiltroTab: {
+        paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16,
+        borderWidth: 1, borderColor: COLORS.border,
+        elevation: 0,
+    },
+    subfiltroTabActiveObj: {
+        borderColor: 'transparent',
+    },
+    subfiltroTabText: {
+        fontSize: 12, fontWeight: '700',
+    },
+    subfiltroTabTextActiveObj: {
+        fontWeight: 'bold',
+    },
 
     // ── Segmented Control ────────────────────────────────────────────────────
     segmentedContainer: {

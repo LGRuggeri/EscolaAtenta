@@ -1,5 +1,6 @@
 using EscolaAtenta.Application.Alertas.Dtos;
 using EscolaAtenta.Application.Common;
+using EscolaAtenta.Domain.Enums;
 using MediatR;
 
 namespace EscolaAtenta.Application.Alertas.Queries;
@@ -20,4 +21,8 @@ public record GetAlertasQuery(
     bool ApenasNaoResolvidos = true,
     int PageNumber = 1,
     int PageSize = 20
-) : IRequest<PagedResult<AlertaEvasaoDto>>;
+) : IRequest<PagedResult<AlertaEvasaoDto>>
+{
+    public TipoAlerta? Tipo { get; set; }
+    public NivelAlertaFalta? Nivel { get; set; }
+}

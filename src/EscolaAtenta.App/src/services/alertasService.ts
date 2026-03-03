@@ -17,6 +17,8 @@ export interface GetAlertasParams {
     apenasNaoResolvidos?: boolean;
     pageNumber?: number;
     pageSize?: number;
+    tipo?: import('../types/enums').TipoAlerta;
+    nivel?: import('../types/enums').NivelAlertaFalta;
 }
 
 // ── Service ────────────────────────────────────────────────────────────────────
@@ -28,6 +30,8 @@ export const alertasService = {
      * @param params.apenasNaoResolvidos - Filtra apenas alertas pendentes (default=true)
      * @param params.pageNumber - Página a buscar, 1-indexed (default=1)
      * @param params.pageSize - Itens por página (default=20, máx=100 limitado pelo backend)
+     * @param params.tipo - Filtra pelo TipoAlerta
+     * @param params.nivel - Subfiltro opcional. Efetivo apenas quando o tipo no BD for 'Evasao/Falta'
      *
      * Retorna PagedResult<AlertaDto> com hasNextPage para suporte a Infinite Scroll.
      */
@@ -36,10 +40,12 @@ export const alertasService = {
             apenasNaoResolvidos = true,
             pageNumber = 1,
             pageSize = 20,
+            tipo,
+            nivel,
         } = params;
 
         const response = await api.get<PagedResult<AlertaDto>>('/alertas', {
-            params: { apenasNaoResolvidos, pageNumber, pageSize },
+            params: { apenasNaoResolvidos, pageNumber, pageSize, tipo, nivel },
         });
         return response.data;
     },

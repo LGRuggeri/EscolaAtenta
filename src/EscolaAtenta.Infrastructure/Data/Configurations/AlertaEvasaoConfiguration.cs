@@ -49,5 +49,8 @@ public class AlertaEvasaoConfiguration : IEntityTypeConfiguration<AlertaEvasao>
         // Índice para busca de alertas não resolvidos por aluno ou turma
         builder.HasIndex(ae => new { ae.AlunoId, ae.Resolvido });
         builder.HasIndex(ae => new { ae.TurmaId, ae.Resolvido });
+        
+        // Índice composto para busca no dashboard mitigando gargalo
+        builder.HasIndex(a => new { a.Resolvido, a.Tipo, a.Nivel });
     }
 }
