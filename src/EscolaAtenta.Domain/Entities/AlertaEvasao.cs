@@ -5,12 +5,17 @@ using EscolaAtenta.Domain.Enums;
 namespace EscolaAtenta.Domain.Entities;
 
 /// <summary>
-/// Representa um alerta de risco de evasão escolar gerado para um aluno.
-/// 
+/// Representa um alerta de risco escolar gerado para um aluno (evasão ou atraso).
+///
+/// Decisão de design: O nome da classe permanece AlertaEvasao para evitar uma
+/// refatoração massiva do banco. O campo Tipo (TipoAlerta enum) discrimina
+/// a origem do alerta na UI sem criar nova tabela.
+///
 /// Invariantes protegidas:
 /// 1. AlunoId é obrigatório e imutável.
 /// 2. Um alerta nasce não resolvido (Resolvido = false).
 /// 3. A resolução é feita via MarcarComoResolvido() com validação.
+/// 4. A escalada de nível é feita via AtualizarNivel() — sem criar novo alerta.
 /// </summary>
 public class AlertaEvasao : EntityBase
 {
@@ -20,6 +25,12 @@ public class AlertaEvasao : EntityBase
     public Guid? AlunoId { get; private set; }
     public Guid? TurmaId { get; private set; }
     public NivelAlertaFalta Nivel { get; private set; }
+
+    /// <summary>
+    /// Classifica a origem do alerta: Evasao (faltas) ou Atraso.
+    /// Default = Evasao (1) para compatibilidade com registros pré-existentes.
+    /// </summary>
+    public TipoAlerta Tipo { get; private set; } = TipoAlerta.Evasao;
     public DateTimeOffset DataAlerta { get; private set; }
 
     /// <summary>
@@ -52,6 +63,24 @@ public class AlertaEvasao : EntityBase
         };
     }
 
+    /// <summary>
+    /// Cria um alerta originado por atrasos consecutivos excessivos no trimestre.
+    /// </summary>
+    public static AlertaEvasao CriarAlertaAtraso(Guid alunoId, Guid turmaId, NivelAlertaFalta nivel, string motivo)
+    {
+        var nivelValidado = NivelAlertaFaltaExtensions.GarantirLimiteMaximo(nivel);
+        return new AlertaEvasao
+        {
+            AlunoId = alunoId,
+            TurmaId = turmaId,
+            Nivel = nivelValidado,
+            Descricao = motivo,
+            DataAlerta = DateTimeOffset.UtcNow,
+            Resolvido = false,
+            Tipo = TipoAlerta.Atraso
+        };
+    }
+
     public static AlertaEvasao CriarAlertaTurma(Guid turmaId, string motivo)
     {
         // Nível 0 (Excelência) para a turma
@@ -74,6 +103,21 @@ public class AlertaEvasao : EntityBase
     public virtual Turma? Turma { get; private set; }
 
     // ── Métodos de Negócio ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Atualiza o nível de severidade de um alerta já existente (escalada).
+    /// Utilizado pelo Handler quando o aluno agrava sua situação antes da
+    /// supervisão tratar o alerta anterior. Evita duplicatas no dashboard.
+    /// </summary>
+    public void AtualizarNivel(NivelAlertaFalta novoNivel, string novoMotivo)
+    {
+        if (Resolvido)
+            throw new DomainException("Não é possível escalar um alerta já resolvido.");
+
+        Nivel = NivelAlertaFaltaExtensions.GarantirLimiteMaximo(novoNivel);
+        Descricao = novoMotivo;
+        DataAlerta = DateTimeOffset.UtcNow; // Atualiza timestamp para ordenação correta
+    }
 
     /// <summary>
     /// Marca o alerta como resolvido, registrando a observação da resolução.

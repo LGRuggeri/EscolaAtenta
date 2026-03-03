@@ -1,4 +1,4 @@
-import { PapelUsuario, NivelAlertaFalta } from './enums';
+import { PapelUsuario, NivelAlertaFalta, TipoAlerta } from './enums';
 
 export interface UsuarioLogado {
     id: string;
@@ -55,6 +55,8 @@ export interface AlertaDto {
     observacaoResolucao?: string;
     tituloAmigavel: string;
     mensagemAcao: string;
+    /** Discriminador de tipo enviado pelo backend. Usar TipoAlerta enum — não comparar strings diretamente. */
+    tipo: TipoAlerta;
 }
 
 export interface HistoricoPresencaDto {

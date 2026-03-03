@@ -18,12 +18,14 @@ namespace EscolaAtenta.Application.Chamadas.Handlers;
 /// 3. Delega o registro ao método de negócio Chamada.RegistrarPresenca().
 /// 4. Chama o método Aluno.RegistrarPresenca() para atualizar contadores:
 ///    - Se Presente: Zera FaltasConsecutivasAtuais
-///    - Se Falta: Incrementa FaltasConsecutivasAtuais E TotalFaltas
+///    - Se Falta: Incrementa FaltasConsecutivasAtuais E TotalFaltas.
+///      O Domínio chama VerificarLimiteFaltas() automaticamente.
 ///    - Se FaltaJustificada: Zera FaltasConsecutivasAtuais mas conta no TotalFaltas
-/// 5. Chama Aluno.VerificarLimiteFaltas() que dispara AlertaEvasao APENAS quando FaltasConsecutivasAtuais == 3
-/// 6. Persiste via SaveChangesAsync — que automaticamente:
+///    - Se Atraso: Incrementa AtrasosNoTrimestre.
+///      O Domínio chama VerificarLimiteAtrasos() automaticamente.
+/// 5. Persiste via SaveChangesAsync — que automaticamente:
 ///    a. Preenche campos de auditoria.
-///    b. Despacha Domain Events (LimiteFaltasAtingidoEvent se aplicável).
+///    b. Despacha Domain Events (LimiteFaltasAtingidoEvent ou LimiteAtrasosAtingidoEvent).
 /// </summary>
 public class RegistrarPresencaHandler : IRequestHandler<RegistrarPresencaCommand, RegistrarPresencaResult>
 {
@@ -62,44 +64,13 @@ public class RegistrarPresencaHandler : IRequestHandler<RegistrarPresencaCommand
             ?? throw new DomainException($"Aluno '{request.AlunoId}' não encontrado.");
 
         // ── Atualiza contadores de falta na entidade Aluno ────────────────────
-        // Este método atualiza FaltasConsecutivasAtuais e TotalFaltas conforme a regra
+        // RegistrarPresenca() delega internamente para RegistrarFalta(), RegistrarAtraso() etc.
+        // Cada um desses métodos chama VerificarLimiteFaltas() ou VerificarLimiteAtrasos()
+        // automaticamente. O Domínio é auto-suficiente — nenhuma checagem extra é necessária aqui.
         aluno.RegistrarPresenca(request.Status, chamada.DataHora.UtcDateTime);
 
-        // ── Verifica limite de faltas consecutivas (APENAS quando atinge 3) ────
-        // Dispara Domain Event LimiteFaltasAtingidoEvent se FaltasConsecutivasAtuais == 3
-        var alertaGerado = false;
-        
-        aluno.VerificarLimiteFaltas();
-
-        // Verifica se um evento foi adicionado (indica que alerta será gerado)
-        alertaGerado = aluno.DomainEvents.Any();
-
-        // ── Verifica Atrasos Reincidentes (Novas Regras de Evasão) ──────────────
-        if (request.Status == StatusPresenca.Atraso)
-        {
-            if (aluno.AtrasosNoTrimestre == 3)
-            {
-                var alerta = EscolaAtenta.Domain.Entities.AlertaEvasao.CriarAlertaAluno(
-                    alunoId: aluno.Id,
-                    turmaId: aluno.TurmaId,
-                    nivel: NivelAlertaFalta.Vermelho,
-                    motivo: "Aluno atingiu 3 atrasos no trimestre. Comunicar aos pais."
-                );
-                _context.AlertasEvasao.Add(alerta);
-                alertaGerado = true;
-            }
-            else if (aluno.AtrasosNoTrimestre == 5)
-            {
-                var alerta = EscolaAtenta.Domain.Entities.AlertaEvasao.CriarAlertaAluno(
-                    alunoId: aluno.Id,
-                    turmaId: aluno.TurmaId,
-                    nivel: NivelAlertaFalta.Preto,
-                    motivo: "Aluno atingiu 5 atrasos no trimestre. Acionar Conselho Tutelar."
-                );
-                _context.AlertasEvasao.Add(alerta);
-                alertaGerado = true;
-            }
-        }
+        // Verifica se um evento de alerta foi adicionado (indica que alerta será gerado)
+        var alertaGerado = aluno.DomainEvents.Any();
 
         // ── Persiste — auditoria e Domain Events são tratados no SaveChangesAsync
         await _context.SaveChangesAsync(cancellationToken);

@@ -56,42 +56,15 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
             // Atribui registro à Entidade Chamada
             chamada.RegistrarPresenca(aluno.Id, registroDto.Status);
 
-            // Atualiza contadores na Entidade Aluno
+            // Atualiza contadores na Entidade Aluno.
+            // O método RegistrarPresenca() delega para RegistrarFalta(), RegistrarAtraso() etc.,
+            // que internamente chamam VerificarLimiteFaltas() e VerificarLimiteAtrasos().
+            // O Domínio é auto-suficiente — não é preciso chamar VerificarLimiteFaltas() aqui.
             aluno.RegistrarPresenca(registroDto.Status, chamada.DataHora.UtcDateTime);
-
-            // Valida Limite de Faltas - Adiciona Domain Event (AlertaEvasao) caso seja 3 faltas.
-            aluno.VerificarLimiteFaltas();
 
             if (aluno.DomainEvents.Any())
             {
                 alertasGerados++;
-            }
-
-            // ── Verifica Atrasos Reincidentes (Novas Regras de Evasão) ─────────
-            if (registroDto.Status == EscolaAtenta.Domain.Enums.StatusPresenca.Atraso)
-            {
-                if (aluno.AtrasosNoTrimestre == 3)
-                {
-                    var alerta = AlertaEvasao.CriarAlertaAluno(
-                        alunoId: aluno.Id,
-                        turmaId: aluno.TurmaId,
-                        nivel: EscolaAtenta.Domain.Enums.NivelAlertaFalta.Vermelho,
-                        motivo: "Aluno atingiu 3 atrasos no trimestre. Comunicar aos pais."
-                    );
-                    _context.AlertasEvasao.Add(alerta);
-                    alertasGerados++;
-                }
-                else if (aluno.AtrasosNoTrimestre == 5)
-                {
-                    var alerta = AlertaEvasao.CriarAlertaAluno(
-                        alunoId: aluno.Id,
-                        turmaId: aluno.TurmaId,
-                        nivel: EscolaAtenta.Domain.Enums.NivelAlertaFalta.Preto,
-                        motivo: "Aluno atingiu 5 atrasos no trimestre. Acionar Conselho Tutelar."
-                    );
-                    _context.AlertasEvasao.Add(alerta);
-                    alertasGerados++;
-                }
             }
         }
 

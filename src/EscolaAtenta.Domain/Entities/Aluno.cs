@@ -126,6 +126,10 @@ public class Aluno : EntityBase, ISoftDeletable
     {
         VerificarEReiniciarCicloTrimestral(dataAtual);
         AtrasosNoTrimestre++;
+
+        // O Domínio se auto-protege: reage à própria mutação imediatamente.
+        // Os Handlers não precisam mais injetar lógica de alerta para atrasos.
+        VerificarLimiteAtrasos();
     }
 
     public void RegistrarFalta(DateTime dataAtual)
@@ -134,6 +138,10 @@ public class Aluno : EntityBase, ISoftDeletable
         FaltasNoTrimestre++;
         TotalFaltas++;
         FaltasConsecutivasAtuais++;
+
+        // O Dominício se auto-protege: reage à própria mutação imediatamente.
+        // Os Handlers não precisam mais chamar VerificarLimiteFaltas() explicitamente.
+        VerificarLimiteFaltas();
     }
 
     public void RegistrarPresenca(DateTime dataAtual)
@@ -174,7 +182,9 @@ public class Aluno : EntityBase, ISoftDeletable
         // 2 - Intermediário (Laranja -> Conversa com o aluno)
         // 3 - Vermelho (Conversa com os pais)
         // 5 - Preto (Conselho Tutelar)
-
+        //
+        // Thresholds explícitos: evita falhas silenciosas por saltos no contador
+        // (ex: edições em lote que pulam de 2 para 4 diretamente).
         if (FaltasConsecutivasAtuais == 1 || FaltasConsecutivasAtuais == 2 || 
             FaltasConsecutivasAtuais == 3 || FaltasConsecutivasAtuais == 5)
         {
@@ -188,6 +198,33 @@ public class Aluno : EntityBase, ISoftDeletable
                 LimiteConfigurado: 5, // Teto configurado do conselho tutelar
                 MotivoExato: $"O aluno alcançou {FaltasConsecutivasAtuais} falhas consecutivas.",
                 Nivel: nivelAlerta
+            ));
+        }
+    }
+
+    /// <summary>
+    /// Verifica se o aluno atingiu um limiar de atrasos no trimestre e dispara
+    /// o Domain Event correspondente para criação do alerta.
+    /// 
+    /// Thresholds explícitos (evita falhas silenciosas por saltos de contador):
+    /// - 3 atrasos → Aviso (comunicar ao aluno)
+    /// - 6 atrasos → Intermediário (comunicar aos pais)
+    /// </summary>
+    public void VerificarLimiteAtrasos()
+    {
+        if (AtrasosNoTrimestre == 3 || AtrasosNoTrimestre == 6)
+        {
+            var nivel = AtrasosNoTrimestre >= 6
+                ? NivelAlertaFalta.Intermediario
+                : NivelAlertaFalta.Aviso;
+
+            AddDomainEvent(new LimiteAtrasosAtingidoEvent(
+                AlunoId: Id,
+                TurmaId: TurmaId,
+                NomeAluno: Nome,
+                TotalAtrasos: AtrasosNoTrimestre,
+                MotivoExato: $"O aluno acumulou {AtrasosNoTrimestre} atrasos no trimestre.",
+                Nivel: nivel
             ));
         }
     }

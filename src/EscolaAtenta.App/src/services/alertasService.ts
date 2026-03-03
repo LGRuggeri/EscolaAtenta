@@ -1,14 +1,59 @@
 import { api } from './api';
 import { AlertaDto } from '../types/dtos';
 
+// ── Tipos de paginação ─────────────────────────────────────────────────────────
+
+export interface PagedResult<T> {
+    items: T[];
+    totalCount: number;
+    pageNumber: number;
+    pageSize: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+}
+
+export interface GetAlertasParams {
+    apenasNaoResolvidos?: boolean;
+    pageNumber?: number;
+    pageSize?: number;
+}
+
+// ── Service ────────────────────────────────────────────────────────────────────
+
 export const alertasService = {
-    obterAtivos: async (): Promise<AlertaDto[]> => {
-        // API C# configurada em `AlertasController.cs` na rota base: /alertas
-        const response = await api.get<AlertaDto[]>('/alertas');
+    /**
+     * Busca alertas paginados do backend.
+     *
+     * @param params.apenasNaoResolvidos - Filtra apenas alertas pendentes (default=true)
+     * @param params.pageNumber - Página a buscar, 1-indexed (default=1)
+     * @param params.pageSize - Itens por página (default=20, máx=100 limitado pelo backend)
+     *
+     * Retorna PagedResult<AlertaDto> com hasNextPage para suporte a Infinite Scroll.
+     */
+    obterPaginados: async (params: GetAlertasParams = {}): Promise<PagedResult<AlertaDto>> => {
+        const {
+            apenasNaoResolvidos = true,
+            pageNumber = 1,
+            pageSize = 20,
+        } = params;
+
+        const response = await api.get<PagedResult<AlertaDto>>('/alertas', {
+            params: { apenasNaoResolvidos, pageNumber, pageSize },
+        });
         return response.data;
+    },
+
+    /**
+     * Compatibilidade: busca a primeira página de alertas ativos.
+     * @deprecated Prefira obterPaginados() para suporte a Infinite Scroll.
+     */
+    obterAtivos: async (): Promise<AlertaDto[]> => {
+        const resultado = await alertasService.obterPaginados({ pageNumber: 1, pageSize: 50 });
+        return resultado.items;
     },
 
     resolver: async (alertaId: string, tratativa: string): Promise<void> => {
         await api.patch(`/alertas/${alertaId}/resolver`, { tratativa });
-    }
+    },
 };
