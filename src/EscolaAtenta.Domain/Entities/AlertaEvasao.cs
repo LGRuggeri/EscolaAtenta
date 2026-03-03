@@ -97,10 +97,13 @@ public class AlertaEvasao : EntityBase
     public bool Resolvido { get; private set; }
     public DateTimeOffset? DataResolucao { get; private set; }
     public string? ObservacaoResolucao { get; private set; }
+    public Guid? ResolvidoPorId { get; private set; }
+    public string? JustificativaResolucao { get; private set; }
 
     // ── Navegação ──────────────────────────────────────────────────────────────
     public virtual Aluno? Aluno { get; private set; }
     public virtual Turma? Turma { get; private set; }
+    public virtual Usuario? ResolvidoPor { get; private set; }
 
     // ── Métodos de Negócio ─────────────────────────────────────────────────────
 
@@ -122,16 +125,18 @@ public class AlertaEvasao : EntityBase
     /// <summary>
     /// Marca o alerta como resolvido, registrando a observação da resolução.
     /// </summary>
-    public void MarcarComoResolvido(string observacao)
+    public void MarcarComoResolvido(Guid usuarioId, string justificativa)
     {
         if (Resolvido)
             throw new DomainException("Este alerta já foi resolvido.");
 
-        if (string.IsNullOrWhiteSpace(observacao))
+        if (string.IsNullOrWhiteSpace(justificativa))
             throw new DomainException("A observação de resolução é obrigatória.");
 
         Resolvido = true;
         DataResolucao = DateTimeOffset.UtcNow;
-        ObservacaoResolucao = observacao;
+        ObservacaoResolucao = justificativa;
+        JustificativaResolucao = justificativa;
+        ResolvidoPorId = usuarioId;
     }
 }

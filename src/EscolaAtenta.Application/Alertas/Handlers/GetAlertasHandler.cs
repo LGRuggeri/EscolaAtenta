@@ -79,8 +79,17 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
         // OrderBy ANTES do Skip/Take é obrigatório (EF Core lança sem ele).
         // Projeção direta no banco — o EF faz o JOIN e traz apenas as colunas
         // necessárias para o DTO. Não carrega entidades Aluno/Turma completas.
+        
+        if (!request.ApenasNaoResolvidos)
+        {
+            query = query.OrderByDescending(a => a.DataResolucao).ThenByDescending(a => a.DataAlerta);
+        }
+        else
+        {
+            query = query.OrderByDescending(a => a.DataAlerta);
+        }
+
         var dbResult = await query
-            .OrderByDescending(a => a.DataAlerta)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .Select(a => new
@@ -96,7 +105,10 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
                 a.DataAlerta,
                 a.Resolvido,
                 a.ObservacaoResolucao,
-                TipoNome = a.Tipo.ToString() // "Evasao" | "Atraso"
+                TipoNome = a.Tipo.ToString(), // "Evasao" | "Atraso"
+                ResolvidoPorNome = a.ResolvidoPor != null ? a.ResolvidoPor.Email : null,
+                a.DataResolucao,
+                a.JustificativaResolucao
             })
             .ToListAsync(cancellationToken);
 
@@ -114,7 +126,10 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
             a.ObservacaoResolucao,
             GetTituloAmigavel(a.Nivel, a.TipoNome),
             FormatarDescricaoLimpa(a.Descricao, a.AlunoNome, a.TurmaNome, a.DataAlerta.LocalDateTime),
-            a.TipoNome
+            a.TipoNome,
+            a.ResolvidoPorNome,
+            a.DataResolucao?.UtcDateTime,
+            a.JustificativaResolucao
         )).ToList();
 
         return PagedResult<AlertaEvasaoDto>.Create(items, totalCount, pageNumber, pageSize);

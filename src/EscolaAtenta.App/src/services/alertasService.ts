@@ -59,7 +59,7 @@ export const alertasService = {
         return resultado.items;
     },
 
-    resolver: async (alertaId: string, tratativa: string): Promise<void> => {
-        await api.patch(`/alertas/${alertaId}/resolver`, { tratativa });
+    resolver: async (alertaId: string, justificativa: string): Promise<void> => {
+        await api.patch(`/alertas/${alertaId}/resolver`, { justificativa });
     },
 };

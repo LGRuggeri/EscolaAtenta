@@ -28,6 +28,14 @@ public class AlertaEvasaoConfiguration : IEntityTypeConfiguration<AlertaEvasao>
         builder.Property(ae => ae.ObservacaoResolucao)
                .HasMaxLength(1000);
 
+        builder.Property(ae => ae.JustificativaResolucao)
+               .HasMaxLength(1500);
+
+        builder.HasOne(ae => ae.ResolvidoPor)
+               .WithMany()
+               .HasForeignKey(ae => ae.ResolvidoPorId)
+               .OnDelete(DeleteBehavior.Restrict);
+
         // ── Auditoria ──────────────────────────────────────────────────────────
         builder.Property(ae => ae.DataCriacao).IsRequired();
         builder.Property(ae => ae.DataAtualizacao);
@@ -52,5 +60,7 @@ public class AlertaEvasaoConfiguration : IEntityTypeConfiguration<AlertaEvasao>
         
         // Índice composto para busca no dashboard mitigando gargalo
         builder.HasIndex(a => new { a.Resolvido, a.Tipo, a.Nivel });
+
+        builder.HasIndex(a => new { a.Resolvido, a.DataResolucao });
     }
 }

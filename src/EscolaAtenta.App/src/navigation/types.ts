@@ -10,6 +10,7 @@ export type RootStackParamList = {
     AlunoForm: { turmaId: string; aluno?: AlunoDto };
     ChamadaOperacao: { turmaId: string; turmaNome: string };
     Alertas: undefined;
+    HistoricoAlertas: undefined;
 };
 
 export type AppNavigationProp = NativeStackNavigationProp<RootStackParamList>;

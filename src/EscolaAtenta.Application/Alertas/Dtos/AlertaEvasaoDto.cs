@@ -20,5 +20,8 @@ public record AlertaEvasaoDto(
     string? ObservacaoResolucao,
     string TituloAmigavel,
     string MensagemAcao,
-    string Tipo // "Evasao" | "Atraso"
+    string Tipo, // "Evasao" | "Atraso"
+    string? ResolvidoPorNome = null,
+    DateTime? DataResolucao = null,
+    string? JustificativaResolucao = null
 );

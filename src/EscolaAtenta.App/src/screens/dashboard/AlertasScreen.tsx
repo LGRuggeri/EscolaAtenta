@@ -426,7 +426,9 @@ export function AlertasScreen() {
                     <Text style={styles.backButtonText}>← Voltar</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Alertas Escolares</Text>
-                <View style={{ width: 60 }} />
+                <TouchableOpacity onPress={() => navigation.navigate('HistoricoAlertas')} style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ fontSize: 14, color: COLORS.gold, fontWeight: 'bold' }}>Auditoria</Text>
+                </TouchableOpacity>
             </View>
 
             {/* Segmented Control */}
@@ -514,6 +516,7 @@ export function AlertasScreen() {
                                     placeholder={getPlaceholderTratativa(alertaSelecionado?.tipo)}
                                     value={tratativa}
                                     onChangeText={setTratativa}
+                                    maxLength={500}
                                     accessibilityLabel="Campo de tratativa do alerta"
                                 />
 

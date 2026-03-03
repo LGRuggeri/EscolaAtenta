@@ -57,6 +57,9 @@ export interface AlertaDto {
     mensagemAcao: string;
     /** Discriminador de tipo enviado pelo backend. Usar TipoAlerta enum — não comparar strings diretamente. */
     tipo: TipoAlerta;
+    resolvidoPorNome?: string;
+    dataResolucao?: string;
+    justificativaResolucao?: string;
 }
 
 export interface HistoricoPresencaDto {

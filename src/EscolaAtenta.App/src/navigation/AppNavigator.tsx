@@ -12,6 +12,7 @@ import { AlunosScreen } from '../screens/gestao/AlunosScreen';
 import { AlunoFormScreen } from '../screens/gestao/AlunoFormScreen';
 import { ChamadaScreen } from '../screens/operacao/ChamadaScreen';
 import { AlertasScreen } from '../screens/dashboard/AlertasScreen';
+import { HistoricoAlertasScreen } from '../screens/dashboard/HistoricoAlertasScreen';
 import { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -39,6 +40,7 @@ export function AppNavigator() {
                     <Stack.Screen name="AlunoForm" component={AlunoFormScreen} />
                     <Stack.Screen name="ChamadaOperacao" component={ChamadaScreen} />
                     <Stack.Screen name="Alertas" component={AlertasScreen} />
+                    <Stack.Screen name="HistoricoAlertas" component={HistoricoAlertasScreen} />
                 </>
             ) : (
                 // Fluxo Deslogado
