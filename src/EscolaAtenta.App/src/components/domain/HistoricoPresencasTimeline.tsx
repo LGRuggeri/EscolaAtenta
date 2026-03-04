@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, FlatList } from 'react-native';
 import { HistoricoPresencaDto } from '../../types/dtos';
 import { alunosService } from '../../services/alunosService';
+import { theme } from '../../theme/colors';
 
 interface HistoricoPresencasTimelineProps {
     alunoId: string;
@@ -30,15 +31,15 @@ export function HistoricoPresencasTimeline({ alunoId }: HistoricoPresencasTimeli
     const getStatusStyle = (status: string) => {
         switch (status) {
             case 'Presente':
-                return { backgroundColor: '#D1FAE5', color: '#065F46', label: 'Presente' };
+                return { backgroundColor: '#D1FAE5', color: theme.colors.secondary, label: 'Presente' };
             case 'Atraso':
                 return { backgroundColor: '#FEF3C7', color: '#92400E', label: 'Atraso' };
             case 'Falta':
-                return { backgroundColor: '#FEE2E2', color: '#991B1B', label: 'Falta' };
+                return { backgroundColor: '#FEE2E2', color: theme.colors.error, label: 'Falta' };
             case 'FaltaJustificada':
-                return { backgroundColor: '#E0E7FF', color: '#3730A3', label: 'Justificada' };
+                return { backgroundColor: '#E0E7FF', color: theme.colors.primary, label: 'Justificada' };
             default:
-                return { backgroundColor: '#F3F4F6', color: '#374151', label: status };
+                return { backgroundColor: theme.colors.background, color: theme.colors.textSecondary, label: status };
         }
     };
 
@@ -61,7 +62,7 @@ export function HistoricoPresencasTimeline({ alunoId }: HistoricoPresencasTimeli
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#D4AF37" />
+                <ActivityIndicator size="small" color={theme.colors.primary} />
                 <Text style={styles.loadingText}>Carregando histórico...</Text>
             </View>
         );
@@ -108,12 +109,12 @@ const styles = StyleSheet.create({
         marginTop: 24,
         paddingTop: 16,
         borderTopWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: theme.colors.border,
     },
     title: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#374151',
+        color: theme.colors.textPrimary,
         marginBottom: 16,
     },
     loadingContainer: {
@@ -124,18 +125,18 @@ const styles = StyleSheet.create({
     },
     loadingText: {
         marginLeft: 8,
-        color: '#6B7280',
+        color: theme.colors.textSecondary,
         fontSize: 14,
     },
     emptyContainer: {
         marginTop: 24,
         padding: 16,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: theme.colors.background,
         borderRadius: 8,
         alignItems: 'center',
     },
     emptyText: {
-        color: '#9CA3AF',
+        color: theme.colors.textSecondary,
         fontSize: 14,
     },
     timelineItem: {
@@ -155,15 +156,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         flex: 1,
-        backgroundColor: '#FFF',
+        backgroundColor: theme.colors.surface,
         padding: 12,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#F3F4F6',
+        borderColor: theme.colors.border,
     },
     dateText: {
         fontSize: 14,
-        color: '#4B5563',
+        color: theme.colors.textPrimary,
     },
     badge: {
         paddingHorizontal: 8,

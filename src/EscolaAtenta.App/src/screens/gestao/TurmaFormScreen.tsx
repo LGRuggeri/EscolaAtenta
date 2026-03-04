@@ -5,6 +5,7 @@ import { turmasService } from '../../services/turmasService';
 import { RootStackParamList } from '../../navigation/types';
 import { TurmaDto } from '../../types/dtos';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { theme } from '../../theme/colors';
 
 type TurmaFormRouteProp = RouteProp<RootStackParamList, 'TurmaForm'>;
 
@@ -97,7 +98,7 @@ export function TurmaFormScreen() {
                     disabled={loading}
                 >
                     {loading ? (
-                        <ActivityIndicator color="#FFF" />
+                        <ActivityIndicator color={theme.colors.surface} />
                     ) : (
                         <Text style={styles.saveButtonText}>Salvar Turma</Text>
                     )}
@@ -108,15 +109,15 @@ export function TurmaFormScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F9F9F9' },
-    header: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingTop: 20, backgroundColor: '#FFF', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    header: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingTop: 20, backgroundColor: theme.colors.surface, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
     backButton: { marginRight: 16 },
-    backButtonText: { fontSize: 16, color: '#D4AF37', fontWeight: '600' },
-    headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#333' },
+    backButtonText: { fontSize: 16, color: theme.colors.primary, fontWeight: '600' },
+    headerTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.textPrimary },
     form: { padding: 20 },
-    label: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 8 },
-    input: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 12, fontSize: 16, marginBottom: 20, color: '#333' },
-    saveButton: { backgroundColor: '#D4AF37', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 12 },
+    label: { fontSize: 14, fontWeight: '600', color: theme.colors.textSecondary, marginBottom: 8 },
+    input: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 12, fontSize: 16, marginBottom: 20, color: theme.colors.textPrimary },
+    saveButton: { backgroundColor: theme.colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 12 },
     saveButtonDisabled: { opacity: 0.7 },
-    saveButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
+    saveButtonText: { color: theme.colors.surface, fontSize: 16, fontWeight: 'bold' }
 });

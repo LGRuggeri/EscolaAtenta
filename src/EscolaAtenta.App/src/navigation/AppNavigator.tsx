@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
+import { theme } from '../theme/colors';
 
 // Telas
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -23,7 +24,7 @@ export function AppNavigator() {
     if (loading) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#D4AF37" />
+                <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
         );
     }

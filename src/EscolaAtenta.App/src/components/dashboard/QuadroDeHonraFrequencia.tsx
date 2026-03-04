@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
 import { TurmaFrequenciaPerfeitaDto } from '../../types/dtos';
 import { dashboardService } from '../../services/dashboardService';
+import { theme } from '../../theme/colors';
 
 export function QuadroDeHonraFrequencia() {
     const [turmas, setTurmas] = useState<TurmaFrequenciaPerfeitaDto[]>([]);
@@ -57,7 +58,7 @@ export function QuadroDeHonraFrequencia() {
 
             {loading ? (
                 <View style={styles.stateContainer}>
-                    <ActivityIndicator size="small" color="#D4AF37" />
+                    <ActivityIndicator size="small" color={theme.colors.primary} />
                     <Text style={styles.stateText}>Analisando frequência...</Text>
                 </View>
             ) : turmas.length === 0 ? (
@@ -92,7 +93,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#333',
+        color: theme.colors.textPrimary,
         marginBottom: 12,
     },
     filterContainer: {
@@ -103,21 +104,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 20,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: theme.colors.background,
         marginRight: 8,
     },
     filterButtonActive: {
-        backgroundColor: '#FAF8F3', // Areia/Branco Claro
+        backgroundColor: theme.colors.surface,
         borderWidth: 1,
-        borderColor: '#D4AF37', // Dourado
+        borderColor: theme.colors.primary,
     },
     filterText: {
         fontSize: 14,
-        color: '#6B7280',
+        color: theme.colors.textSecondary,
         fontWeight: '500',
     },
     filterTextActive: {
-        color: '#C9A227', // Dourado escuro
+        color: theme.colors.primaryDark,
         fontWeight: 'bold',
     },
     cardsScroll: {
@@ -126,32 +127,32 @@ const styles = StyleSheet.create({
     },
     honorCard: {
         width: 160,
-        backgroundColor: '#FFF',
+        backgroundColor: theme.colors.surface,
         borderRadius: 16,
         padding: 16,
         marginRight: 16,
         alignItems: 'center',
         elevation: 4,
-        shadowColor: '#C9A227',
+        shadowColor: theme.colors.primary,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.15,
         shadowRadius: 8,
         borderWidth: 1,
-        borderColor: '#FAF8F3', // Fundo claro leve
+        borderColor: theme.colors.border,
         position: 'relative',
     },
     honorBadge: {
         position: 'absolute',
         top: -8,
         right: -8,
-        backgroundColor: '#D4AF37',
+        backgroundColor: theme.colors.primary,
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 12,
         elevation: 2,
     },
     honorBadgeText: {
-        color: '#FFF',
+        color: theme.colors.surface,
         fontSize: 10,
         fontWeight: 'bold',
     },
@@ -162,34 +163,34 @@ const styles = StyleSheet.create({
     className: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#333',
+        color: theme.colors.textPrimary,
         textAlign: 'center',
         marginBottom: 6,
     },
     classStats: {
         fontSize: 11,
-        color: '#666',
+        color: theme.colors.textSecondary,
         textAlign: 'center',
         fontStyle: 'italic',
     },
     stateContainer: {
         padding: 24,
-        backgroundColor: '#FFF',
+        backgroundColor: theme.colors.surface,
         borderRadius: 12,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: theme.colors.border,
         borderStyle: 'dashed',
     },
     stateText: {
-        color: '#374151',
+        color: theme.colors.textPrimary,
         fontSize: 14,
         fontWeight: '500',
         marginTop: 8,
         textAlign: 'center',
     },
     stateSubText: {
-        color: '#9CA3AF',
+        color: theme.colors.textSecondary,
         fontSize: 12,
         marginTop: 4,
         textAlign: 'center',

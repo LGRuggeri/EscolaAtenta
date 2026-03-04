@@ -5,6 +5,7 @@ import { AppNavigationProp, RootStackParamList } from '../../navigation/types';
 import { AlunoDto } from '../../types/dtos';
 import { alunosService } from '../../services/alunosService';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { theme } from '../../theme/colors';
 
 type AlunosRouteProp = RouteProp<RootStackParamList, 'Alunos'>;
 
@@ -76,7 +77,7 @@ export function AlunosScreen() {
             </View>
 
             {loading ? (
-                <ActivityIndicator size="large" color="#D4AF37" style={{ marginTop: 50 }} />
+                <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 50 }} />
             ) : (
                 <FlatList
                     data={alunos}
@@ -100,24 +101,24 @@ export function AlunosScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F9F9F9' },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, paddingTop: 20, backgroundColor: '#FFF', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, paddingTop: 20, backgroundColor: theme.colors.surface, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
     headerLeft: { flexDirection: 'row', alignItems: 'center' },
     backButton: { marginRight: 12 },
-    backButtonText: { fontSize: 16, color: '#D4AF37', fontWeight: '600' },
-    headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#333' },
-    headerSubtitle: { fontSize: 12, color: '#666' },
-    addButton: { backgroundColor: '#D4AF37', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-    addButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
+    backButtonText: { fontSize: 16, color: theme.colors.primary, fontWeight: '600' },
+    headerTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.textPrimary },
+    headerSubtitle: { fontSize: 12, color: theme.colors.textSecondary },
+    addButton: { backgroundColor: theme.colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+    addButtonText: { color: theme.colors.surface, fontWeight: 'bold', fontSize: 14 },
     listContainer: { padding: 16, paddingBottom: 40 },
-    card: { backgroundColor: '#FFF', padding: 20, borderRadius: 12, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
+    card: { backgroundColor: theme.colors.surface, padding: 20, borderRadius: 12, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-    cardSubtitle: { fontSize: 12, color: '#666', marginTop: 4 },
-    estatisticasContainer: { marginTop: 8, padding: 8, backgroundColor: '#F3F4F6', borderRadius: 8 },
-    statsText: { fontSize: 12, color: '#4B5563', marginBottom: 2 },
-    emptyText: { textAlign: 'center', color: '#888', marginTop: 32, fontSize: 16 },
+    cardTitle: { fontSize: 16, fontWeight: 'bold', color: theme.colors.textPrimary },
+    cardSubtitle: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 4 },
+    estatisticasContainer: { marginTop: 8, padding: 8, backgroundColor: theme.colors.background, borderRadius: 8 },
+    statsText: { fontSize: 12, color: theme.colors.textSecondary, marginBottom: 2 },
+    emptyText: { textAlign: 'center', color: theme.colors.textSecondary, marginTop: 32, fontSize: 16 },
     fabWrapper: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
-    fab: { backgroundColor: '#10B981', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 30, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84, flexDirection: 'row', alignItems: 'center' },
-    fabText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 }
+    fab: { backgroundColor: theme.colors.secondary, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 30, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84, flexDirection: 'row', alignItems: 'center' },
+    fabText: { color: theme.colors.surface, fontWeight: 'bold', fontSize: 16 }
 });

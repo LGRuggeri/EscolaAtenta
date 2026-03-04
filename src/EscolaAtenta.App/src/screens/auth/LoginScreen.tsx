@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
+import { theme } from '../../theme/colors';
 
 export function LoginScreen() {
     const { signIn } = useAuth();
@@ -67,14 +68,14 @@ export function LoginScreen() {
                     <Ionicons
                         name={mostrarSenha ? "eye-off" : "eye"}
                         size={24}
-                        color="#666"
+                        color={theme.colors.textSecondary}
                     />
                 </TouchableOpacity>
             </View>
 
             <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
                 {loading ? (
-                    <ActivityIndicator color="#FFF" />
+                    <ActivityIndicator color={theme.colors.surface} />
                 ) : (
                     <Text style={styles.buttonText}>ENTRAR</Text>
                 )}
@@ -84,16 +85,16 @@ export function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#F9F9F9' },
-    title: { fontSize: 32, fontWeight: 'bold', color: '#D4AF37', textAlign: 'center', marginBottom: 8 },
-    subtitle: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 32 },
-    input: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 16, marginBottom: 16, fontSize: 16 },
+    container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: theme.colors.background },
+    title: { fontSize: 32, fontWeight: 'bold', color: theme.colors.primary, textAlign: 'center', marginBottom: 8 },
+    subtitle: { fontSize: 16, color: theme.colors.textSecondary, textAlign: 'center', marginBottom: 32 },
+    input: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 16, marginBottom: 16, fontSize: 16, color: theme.colors.textPrimary },
     passwordContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFF',
+        backgroundColor: theme.colors.surface,
         borderWidth: 1,
-        borderColor: '#DDD',
+        borderColor: theme.colors.border,
         borderRadius: 8,
         marginBottom: 16,
     },
@@ -101,10 +102,11 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 16,
         fontSize: 16,
+        color: theme.colors.textPrimary
     },
     eyeIcon: {
         padding: 16,
     },
-    button: { backgroundColor: '#D4AF37', padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 8 },
-    buttonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
+    button: { backgroundColor: theme.colors.primary, padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 8 },
+    buttonText: { color: theme.colors.surface, fontSize: 16, fontWeight: 'bold' }
 });

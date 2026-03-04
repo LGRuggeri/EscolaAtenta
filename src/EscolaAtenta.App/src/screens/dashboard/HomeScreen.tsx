@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { AppNavigationProp } from '../../navigation/types';
 import { PapelUsuario } from '../../types/enums';
 import { QuadroDeHonraFrequencia } from '../../components/dashboard/QuadroDeHonraFrequencia';
+import { theme } from '../../theme/colors';
 
 export function HomeScreen() {
     const { user, signOut } = useAuth();
@@ -26,7 +27,7 @@ export function HomeScreen() {
 
                 <TouchableOpacity style={[styles.card, { width: '48%' }]} onPress={() => navigation.navigate('Alertas')}>
                     <Text style={styles.cardIcon}>⚠️</Text>
-                    <Text style={[styles.cardText, { color: '#EF4444' }]}>Alertas</Text>
+                    <Text style={[styles.cardText, { color: theme.colors.error }]}>Alertas</Text>
                 </TouchableOpacity>
             </View>
 
@@ -40,14 +41,14 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F9F9F9', padding: 20, paddingTop: 60, paddingBottom: 20 },
+    container: { flex: 1, backgroundColor: theme.colors.background, padding: 20, paddingTop: 60, paddingBottom: 20 },
     header: { marginBottom: 40 },
-    welcomeTitle: { fontSize: 28, fontWeight: 'bold', color: '#333' },
-    roleText: { fontSize: 16, color: '#D4AF37', fontWeight: 'bold', marginTop: 4 },
+    welcomeTitle: { fontSize: 28, fontWeight: 'bold', color: theme.colors.textPrimary },
+    roleText: { fontSize: 16, color: theme.colors.primary, fontWeight: 'bold', marginTop: 4 },
     grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-    card: { width: '100%', backgroundColor: '#FFF', padding: 24, borderRadius: 16, alignItems: 'center', marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+    card: { width: '100%', backgroundColor: theme.colors.surface, padding: 24, borderRadius: 16, alignItems: 'center', marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
     cardIcon: { fontSize: 32, marginBottom: 12 },
-    cardText: { fontSize: 16, fontWeight: '600', color: '#333' },
-    logoutButton: { marginTop: 'auto', backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E53935', padding: 16, borderRadius: 12, alignItems: 'center' },
-    logoutText: { color: '#E53935', fontWeight: 'bold', fontSize: 16 }
+    cardText: { fontSize: 16, fontWeight: '600', color: theme.colors.textPrimary },
+    logoutButton: { marginTop: 'auto', backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.error, padding: 16, borderRadius: 12, alignItems: 'center' },
+    logoutText: { color: theme.colors.error, fontWeight: 'bold', fontSize: 16 }
 });

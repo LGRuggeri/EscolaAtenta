@@ -1,5 +1,5 @@
 import { api } from './api';
-import { AlertaDto } from '../types/dtos';
+import { AlertaDto, AuditoriaAlertaDto } from '../types/dtos';
 
 // ── Tipos de paginação ─────────────────────────────────────────────────────────
 
@@ -19,6 +19,20 @@ export interface GetAlertasParams {
     pageSize?: number;
     tipo?: import('../types/enums').TipoAlerta;
     nivel?: import('../types/enums').NivelAlertaFalta;
+}
+
+/**
+ * Parâmetros do endpoint de auditoria GET /api/v1/alertas/auditoria.
+ * Todos os filtros são opcionais — ausentes = sem restrição.
+ */
+export interface GetAuditoriaParams {
+    pageNumber?: number;
+    pageSize?: number;
+    nomeAluno?: string;
+    tipo?: import('../types/enums').TipoAlerta;
+    dataInicio?: string; // ISO 8601 — ex: "2026-01-01"
+    dataFim?: string;    // ISO 8601 — ex: "2026-03-04"
+    signal?: AbortSignal;
 }
 
 // ── Service ────────────────────────────────────────────────────────────────────
@@ -62,4 +76,38 @@ export const alertasService = {
     resolver: async (alertaId: string, justificativa: string): Promise<void> => {
         await api.patch(`/alertas/${alertaId}/resolver`, { justificativa });
     },
+
+    /**
+     * Busca auditoria paginada de alertas RESOLVIDOS via endpoint dedicado.
+     *
+     * Endpoint: GET /api/v1/alertas/auditoria
+     * Acesso: Supervisao e Administrador (Monitor recebe 403)
+     *
+     * @param params.nomeAluno - Busca parcial LIKE no nome do aluno
+     * @param params.tipo - "Evasao" | "Atraso"
+     * @param params.dataInicio - Data inicial de resolução (ISO 8601)
+     * @param params.dataFim - Data final de resolução (ISO 8601, inclui o dia inteiro)
+     * @param params.pageNumber - Página 1-indexed (default=1)
+     * @param params.pageSize - Itens por página (default=20, hard cap=100 no backend)
+     */
+    getAuditoriaAlertas: async (
+        params: GetAuditoriaParams = {}
+    ): Promise<PagedResult<AuditoriaAlertaDto>> => {
+        const { pageNumber = 1, pageSize = 20, nomeAluno, tipo, dataInicio, dataFim, signal } = params;
+
+        const response = await api.get<PagedResult<AuditoriaAlertaDto>>('/alertas/auditoria', {
+            signal,
+            params: {
+                pageNumber,
+                pageSize,
+                // Envia apenas filtros com valor — parâmetros undefined são ignorados pelo axios
+                ...(nomeAluno ? { nomeAluno } : {}),
+                ...(tipo ? { tipo } : {}),
+                ...(dataInicio ? { dataInicio } : {}),
+                ...(dataFim ? { dataFim } : {}),
+            },
+        });
+        return response.data;
+    },
 };
+

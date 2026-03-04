@@ -62,5 +62,11 @@ public class AlertaEvasaoConfiguration : IEntityTypeConfiguration<AlertaEvasao>
         builder.HasIndex(a => new { a.Resolvido, a.Tipo, a.Nivel });
 
         builder.HasIndex(a => new { a.Resolvido, a.DataResolucao });
+
+        // Índice composto dedicado à query de Auditoria de Alertas.
+        // Cobre o filtro WHERE Resolvido=true, ORDER BY DataResolucao DESC e o filtro Tipo
+        // sem Full Table Scan conforme a tabela cresce em produção.
+        builder.HasIndex(a => new { a.Resolvido, a.DataResolucao, a.Tipo })
+               .HasDatabaseName("IX_AlertasEvasao_Auditoria");
     }
 }

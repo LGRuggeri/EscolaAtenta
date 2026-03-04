@@ -73,3 +73,23 @@ export interface TurmaFrequenciaPerfeitaDto {
     nomeTurma: string;
     quantidadeAulasMinistradas: number;
 }
+
+/**
+ * DTO do endpoint GET /api/v1/alertas/auditoria.
+ * Representa um alerta já resolvido, com informações de responsabilidade e motivo.
+ *
+ * - tipoAlerta: "Evasao" | "Atraso" (string — não enum numérico)
+ * - nivelAlerta: "Aviso" | "Intermediario" | "Vermelho" | "Preto" (string)
+ * - resolvidoPor: e-mail do usuário que resolveu, ou "Sistema"
+ */
+export interface AuditoriaAlertaDto {
+    id: string;
+    nomeAluno: string;
+    tipoAlerta: string;        // "Evasao" | "Atraso"
+    dataResolucao: string;     // ISO 8601 UTC
+    resolvidoPor: string;      // e-mail ou "Sistema"
+    motivoResolucao: string;
+    nivelAlerta: string;       // "Aviso" | "Intermediario" | "Vermelho" | "Preto"
+    dataAlerta: string;        // ISO 8601 UTC
+}
+

@@ -81,4 +81,46 @@ public class AlertasController : ControllerBase
         if (!result) return NotFound("Alerta não encontrado.");
         return NoContent();
     }
+
+    /// <summary>
+    /// Audit log paginado de alertas já resolvidos.
+    ///
+    /// Filtros opcionais via query string:
+    /// - nomeAluno: busca parcial LIKE (case-insensitive no PostgreSQL)
+    /// - tipo: Evasao | Atraso
+    /// - dataInicio / dataFim: intervalo de DataResolucao (dataFim inclui o dia inteiro)
+    ///
+    /// Paginação: pageNumber (1-indexed, default=1), pageSize (default=20, max=100).
+    ///
+    /// Status codes:
+    /// - 200 OK: sucesso (pode retornar lista vazia com TotalCount=0)
+    /// - 401 Unauthorized: token ausente ou expirado
+    /// - 403 Forbidden: papel Monitor não tem acesso a auditoria
+    /// </summary>
+    [HttpGet("auditoria")]
+    [Authorize(Roles = "Supervisao,Administrador")]
+    public async Task<ActionResult<PagedResult<AuditoriaAlertaDto>>> GetAuditoria(
+        [FromQuery] string? nomeAluno = null,
+        [FromQuery] TipoAlerta? tipo = null,
+        [FromQuery] DateTime? dataInicio = null,
+        [FromQuery] DateTime? dataFim = null,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        _logger.LogInformation(
+            "GET /alertas/auditoria — NomeAluno={NomeAluno} Tipo={Tipo} DataInicio={DataInicio} DataFim={DataFim} Page={PageNumber}/{PageSize}",
+            nomeAluno, tipo, dataInicio, dataFim, pageNumber, pageSize);
+
+        var query = new GetAuditoriaAlertasQuery(pageNumber, pageSize)
+        {
+            NomeAluno  = nomeAluno,
+            Tipo       = tipo,
+            DataInicio = dataInicio,
+            DataFim    = dataFim
+        };
+
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
 }
+

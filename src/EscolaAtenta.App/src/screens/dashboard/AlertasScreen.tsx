@@ -18,6 +18,7 @@ import { AlertaDto } from '../../types/dtos';
 import { NivelAlertaFalta, PapelUsuario, TipoAlerta, parseNivelAlertaFalta } from '../../types/enums';
 import { alertasService } from '../../services/alertasService';
 import { useAuth } from '../../hooks/useAuth';
+import { theme } from '../../theme/colors';
 
 // ── Constantes de Paginação ───────────────────────────────────────────────────
 
@@ -48,16 +49,16 @@ const FILTROS: FiltroTab[] = [
 function getBorderColor(item: AlertaDto): string {
     if (item.tipo === TipoAlerta.Atraso) {
         const nivel = parseNivelAlertaFalta(item.nivel);
-        return nivel >= 2 ? '#6366F1' : '#818CF8';
+        return nivel >= 2 ? theme.colors.primaryDark : theme.colors.border;
     }
     const nivel = parseNivelAlertaFalta(item.nivel);
-    if (nivel >= 5) return '#111827';
+    if (nivel >= 5) return theme.colors.primaryDark;
     switch (nivel) {
-        case NivelAlertaFalta.Excelencia: return '#10B981';
-        case NivelAlertaFalta.Aviso: return '#FBBF24';
-        case NivelAlertaFalta.Intermediario: return '#F97316';
-        case NivelAlertaFalta.Vermelho: return '#EF4444';
-        default: return '#111827';
+        case NivelAlertaFalta.Excelencia: return theme.colors.secondary;
+        case NivelAlertaFalta.Aviso: return theme.colors.secondaryLight;
+        case NivelAlertaFalta.Intermediario: return theme.colors.primary;
+        case NivelAlertaFalta.Vermelho: return theme.colors.error;
+        default: return theme.colors.primary;
     }
 }
 
@@ -313,7 +314,7 @@ export function AlertasScreen() {
         if (!loadingMore) return null;
         return (
             <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color="#c9a227" />
+                <ActivityIndicator size="small" color={COLORS.primary} />
                 <Text style={styles.footerLoaderText}>Carregando mais alertas...</Text>
             </View>
         );
@@ -357,10 +358,10 @@ export function AlertasScreen() {
 
     // ── Subfiltro de Nível (Pílulas) ───────────────────────────────────────────
     const FILTROS_NIVEL = [
-        { key: NivelAlertaFalta.Aviso, label: 'Amarelo', color: '#FBBF24', textColor: '#92400E' },
-        { key: NivelAlertaFalta.Intermediario, label: 'Laranja', color: '#F97316', textColor: '#FFF' },
-        { key: NivelAlertaFalta.Vermelho, label: 'Vermelho', color: '#EF4444', textColor: '#FFF' },
-        { key: NivelAlertaFalta.Preto, label: 'Preto', color: '#111827', textColor: '#FFF' },
+        { key: NivelAlertaFalta.Aviso, label: 'Alerta', color: COLORS.secondaryLight, textColor: COLORS.primaryDark },
+        { key: NivelAlertaFalta.Intermediario, label: 'Intermediário', color: COLORS.primary, textColor: COLORS.surface },
+        { key: NivelAlertaFalta.Vermelho, label: 'Crítico', color: COLORS.error, textColor: COLORS.surface },
+        { key: NivelAlertaFalta.Preto, label: 'Ação Legal', color: COLORS.primaryDark, textColor: COLORS.surface },
     ];
 
     const renderSubfiltroNivel = () => {
@@ -427,7 +428,7 @@ export function AlertasScreen() {
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Alertas Escolares</Text>
                 <TouchableOpacity onPress={() => navigation.navigate('HistoricoAlertas')} style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 14, color: COLORS.gold, fontWeight: 'bold' }}>Auditoria</Text>
+                    <Text style={{ fontSize: 14, color: COLORS.primary, fontWeight: 'bold' }}>Auditoria</Text>
                 </TouchableOpacity>
             </View>
 
@@ -438,7 +439,7 @@ export function AlertasScreen() {
             {/* Lista com Infinite Scroll */}
             {loading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#c9a227" />
+                    <ActivityIndicator size="large" color={COLORS.primary} />
                     <Text style={styles.loadingText}>Buscando situações de risco...</Text>
                 </View>
             ) : (
@@ -535,7 +536,7 @@ export function AlertasScreen() {
                                         accessibilityState={{ disabled: resolvendo, busy: resolvendo }}
                                     >
                                         {resolvendo
-                                            ? <ActivityIndicator color="#FFF" />
+                                            ? <ActivityIndicator color={COLORS.surface} />
                                             : <Text style={styles.modalButtonConfirmText}>Confirmar</Text>
                                         }
                                     </TouchableOpacity>
@@ -552,17 +553,18 @@ export function AlertasScreen() {
 // ── Estilos ────────────────────────────────────────────────────────────────────
 
 const COLORS = {
-    bg: '#F9FAFB',
-    white: '#FFF',
-    gold: '#c9a227',
-    indigo: '#6366F1',
-    indigoLight: '#EEF2FF',
-    red: '#FEE2E2',
-    textPrimary: '#111827',
-    textSecondary: '#374151',
-    textMuted: '#6B7280',
-    border: '#E5E7EB',
-    green: '#10B981',
+    bg: theme.colors.background,
+    white: theme.colors.surface,
+    surface: theme.colors.surface,
+    primary: theme.colors.primary,
+    primaryDark: theme.colors.primaryDark,
+    secondary: theme.colors.secondary,
+    secondaryLight: theme.colors.secondaryLight,
+    textPrimary: theme.colors.textPrimary,
+    textSecondary: theme.colors.textSecondary,
+    border: theme.colors.border,
+    error: theme.colors.error,
+    textMuted: '#6B7280', // Mantido temporário se for diferente de textSecondary, mas deve ser adaptado
 };
 
 const styles = StyleSheet.create({
@@ -611,7 +613,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 8,
         borderRadius: 10, gap: 4,
     },
-    segmentedTabActive: { backgroundColor: COLORS.gold },
+    segmentedTabActive: { backgroundColor: COLORS.primary },
     segmentedTabText: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted },
     segmentedTabTextActive: { color: COLORS.white },
     tabBadge: {
@@ -640,12 +642,12 @@ const styles = StyleSheet.create({
 
     // ── Card ─────────────────────────────────────────────────────────────────
     card: {
-        backgroundColor: COLORS.white, padding: 16, borderRadius: 10,
+        backgroundColor: COLORS.surface, padding: 16, borderRadius: 10,
         marginBottom: 12, borderLeftWidth: 5,
         elevation: 2, shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3,
     },
-    cardAtraso: { backgroundColor: COLORS.indigoLight },
+    cardAtraso: { backgroundColor: COLORS.bg },
     cardHeader: {
         flexDirection: 'row', justifyContent: 'space-between',
         alignItems: 'flex-start', marginBottom: 8, gap: 8,
@@ -666,11 +668,11 @@ const styles = StyleSheet.create({
 
     // ── TipoBadge ────────────────────────────────────────────────────────────
     tipoBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, alignSelf: 'flex-start' },
-    tipoBadgeFalta: { backgroundColor: COLORS.red },
-    tipoBadgeAtraso: { backgroundColor: COLORS.indigoLight },
+    tipoBadgeFalta: { backgroundColor: COLORS.error },
+    tipoBadgeAtraso: { backgroundColor: COLORS.border },
     tipoBadgeText: { fontSize: 11, fontWeight: '700' },
-    tipoBadgeTextFalta: { color: '#B91C1C' },
-    tipoBadgeTextAtraso: { color: COLORS.indigo },
+    tipoBadgeTextFalta: { color: COLORS.surface },
+    tipoBadgeTextAtraso: { color: COLORS.textPrimary },
 
     // ── Resolver Badge ────────────────────────────────────────────────────────
     resolverBadge: { backgroundColor: '#F3F4F6', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16 },
@@ -679,7 +681,7 @@ const styles = StyleSheet.create({
     // ── Empty State ───────────────────────────────────────────────────────────
     emptyContainer: { alignItems: 'center', paddingVertical: 48 },
     emptyIcon: { fontSize: 48, marginBottom: 16 },
-    emptyText: { fontSize: 16, fontWeight: '600', color: COLORS.green, textAlign: 'center' },
+    emptyText: { fontSize: 16, fontWeight: '600', color: COLORS.secondary, textAlign: 'center' },
 
     // ── Modal ─────────────────────────────────────────────────────────────────
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
@@ -701,10 +703,10 @@ const styles = StyleSheet.create({
     },
     modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
     modalButton: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, minWidth: 100, alignItems: 'center' },
-    modalButtonCancel: { backgroundColor: '#F3F4F6' },
-    modalButtonCancelText: { color: '#4B5563', fontWeight: '600' },
-    modalButtonConfirm: { backgroundColor: COLORS.green },
-    modalButtonConfirmText: { color: COLORS.white, fontWeight: 'bold' },
-    monitorAvisoContainer: { backgroundColor: '#FEF3C7', padding: 12, borderRadius: 8, marginBottom: 20 },
-    monitorAvisoText: { color: '#92400E', fontSize: 14, lineHeight: 20 },
+    modalButtonCancel: { backgroundColor: COLORS.bg },
+    modalButtonCancelText: { color: COLORS.textSecondary, fontWeight: '600' },
+    modalButtonConfirm: { backgroundColor: COLORS.secondary },
+    modalButtonConfirmText: { color: COLORS.surface, fontWeight: 'bold' },
+    monitorAvisoContainer: { backgroundColor: COLORS.secondaryLight, padding: 12, borderRadius: 8, marginBottom: 20 },
+    monitorAvisoText: { color: COLORS.primaryDark, fontSize: 14, lineHeight: 20 },
 });
