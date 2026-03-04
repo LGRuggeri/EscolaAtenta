@@ -302,7 +302,9 @@ export function AlertasScreen() {
                 <View style={styles.cardFooter}>
                     <TipoBadge tipo={item.tipo} />
                     <View style={styles.resolverBadge}>
-                        <Text style={styles.resolverBadgeText}>Toque para Resolver</Text>
+                        <Text style={styles.resolverBadgeText}>
+                            {user?.papel === PapelUsuario.Monitor ? 'Toque para Visualizar' : 'Toque para Resolver'}
+                        </Text>
                     </View>
                 </View>
             </TouchableOpacity>

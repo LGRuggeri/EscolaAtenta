@@ -17,19 +17,24 @@ namespace EscolaAtenta.Domain.Entities;
 public class Usuario : EntityBase, ISoftDeletable
 {
     // Construtor com parametros obrigatorios - força o uso de factory methods ou repositorio
-    public Usuario(string email, string hashSenha, PapelUsuario papel)
+    public Usuario(string nome, string email, string hashSenha, PapelUsuario papel)
     {
+        // Validacao do nome
+        if (string.IsNullOrWhiteSpace(nome))
+            throw new ArgumentException("Nome e obrigatorio.", nameof(nome));
+
         // Validacao de email via construtor - garantindo invariante
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Email e obrigatorio.", nameof(email));
-        
+
         if (!email.Contains('@'))
             throw new ArgumentException("Email invalido.", nameof(email));
-        
+
         // Validacao do papel
         if (!Enum.IsDefined(typeof(PapelUsuario), papel))
             throw new ArgumentException("Papel invalido.", nameof(papel));
 
+        Nome = nome.Trim();
         Email = email.ToLowerInvariant().Trim(); // Normalizacao: lowercase + trim
         HashSenha = hashSenha ?? throw new ArgumentNullException(nameof(hashSenha));
         Papel = papel;
@@ -40,6 +45,8 @@ public class Usuario : EntityBase, ISoftDeletable
     protected Usuario() { }
 
     // ── Propriedades de Identity ─────────────────────────────────────────────────
+    public string Nome { get; private set; } = string.Empty;
+
     public string Email { get; private set; } = string.Empty;
     
     // hash bcrypt de 60 caracteres - NUNCA armazenar senha em texto
@@ -53,6 +60,22 @@ public class Usuario : EntityBase, ISoftDeletable
     public string? UsuarioExclusao { get; private set; }
 
     // ── Metodos de Negocio ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Atualiza o perfil administrativo do usuario (nome e papel).
+    /// Email nao e alteravel para preservar a identidade.
+    /// </summary>
+    public void AtualizarPerfil(string nome, PapelUsuario papel)
+    {
+        if (string.IsNullOrWhiteSpace(nome))
+            throw new ArgumentException("Nome e obrigatorio.", nameof(nome));
+
+        if (!Enum.IsDefined(typeof(PapelUsuario), papel))
+            throw new ArgumentException("Papel invalido.", nameof(papel));
+
+        Nome = nome.Trim();
+        Papel = papel;
+    }
 
     /// <summary>
     /// Altera a senha do usuario.

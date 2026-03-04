@@ -12,6 +12,8 @@ import { TurmaFormScreen } from '../screens/gestao/TurmaFormScreen';
 import { AlunosScreen } from '../screens/gestao/AlunosScreen';
 import { AlunoFormScreen } from '../screens/gestao/AlunoFormScreen';
 import { ChamadaScreen } from '../screens/operacao/ChamadaScreen';
+import { UsuariosScreen } from '../screens/gestao/UsuariosScreen';
+import { UsuarioFormScreen } from '../screens/gestao/UsuarioFormScreen';
 import { AlertasScreen } from '../screens/dashboard/AlertasScreen';
 import { HistoricoAlertasScreen } from '../screens/dashboard/HistoricoAlertasScreen';
 import { RootStackParamList } from './types';
@@ -40,6 +42,8 @@ export function AppNavigator() {
                     <Stack.Screen name="Alunos" component={AlunosScreen} />
                     <Stack.Screen name="AlunoForm" component={AlunoFormScreen} />
                     <Stack.Screen name="ChamadaOperacao" component={ChamadaScreen} />
+                    <Stack.Screen name="Usuarios" component={UsuariosScreen} />
+                    <Stack.Screen name="UsuarioForm" component={UsuarioFormScreen} />
                     <Stack.Screen name="Alertas" component={AlertasScreen} />
                     <Stack.Screen name="HistoricoAlertas" component={HistoricoAlertasScreen} />
                 </>

@@ -213,9 +213,8 @@ export function HistoricoAlertasScreen() {
                 console.log('Requisição abortada (Race condition evitada)');
                 return;
             }
-            // 403 = Monitor sem permissão de acesso — mensagem específica
             if (err?.response?.status === 403) {
-                Alert.alert('Acesso negado', 'Apenas Supervisão e Administrador podem ver a auditoria.');
+                Alert.alert('Acesso negado', 'Você não tem permissão para acessar a auditoria.');
             } else {
                 Alert.alert('Erro', 'Não foi possível carregar a auditoria de alertas.');
             }

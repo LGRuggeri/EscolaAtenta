@@ -9,6 +9,8 @@ export type RootStackParamList = {
     Alunos: { turmaId: string; turmaNome: string };
     AlunoForm: { turmaId: string; aluno?: AlunoDto };
     ChamadaOperacao: { turmaId: string; turmaNome: string };
+    Usuarios: undefined;
+    UsuarioForm: { id?: string } | undefined;
     Alertas: undefined;
     HistoricoAlertas: undefined;
 };

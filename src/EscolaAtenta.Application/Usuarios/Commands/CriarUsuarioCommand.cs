@@ -36,7 +36,7 @@ public class CriarUsuarioHandler : IRequestHandler<CriarUsuarioCommand, UsuarioC
         var senhaAleatoria = PasswordGenerator.Generate();
         var hash = BCrypt.Net.BCrypt.HashPassword(senhaAleatoria);
 
-        var usuario = new Usuario(request.Email, hash, request.Papel);
+        var usuario = new Usuario(request.Nome, request.Email, hash, request.Papel);
         
         _context.Usuarios.Add(usuario);
         await _context.SaveChangesAsync(cancellationToken);

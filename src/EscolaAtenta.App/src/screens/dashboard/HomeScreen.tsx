@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
@@ -14,34 +14,44 @@ export function HomeScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.welcomeTitle}>Olá, {user?.nome?.split(' ')[0]}!</Text>
-                <Text style={styles.roleText}>{PapelUsuario[user?.papel || 1]}</Text>
-            </View>
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <View style={styles.header}>
+                    <Text style={styles.welcomeTitle}>Olá, {user?.nome?.split(' ')[0]}!</Text>
+                    <Text style={styles.roleText}>{PapelUsuario[user?.papel || 1]}</Text>
+                </View>
 
-            <View style={styles.grid}>
-                <TouchableOpacity style={[styles.card, { width: '48%' }]} onPress={() => navigation.navigate('Turmas')}>
-                    <Text style={styles.cardIcon}>🏫</Text>
-                    <Text style={styles.cardText}>Turmas</Text>
+                <View style={styles.grid}>
+                    <TouchableOpacity style={[styles.card, { width: '48%' }]} onPress={() => navigation.navigate('Turmas')}>
+                        <Text style={styles.cardIcon}>🏫</Text>
+                        <Text style={styles.cardText}>Turmas</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.card, { width: '48%' }]} onPress={() => navigation.navigate('Alertas')}>
+                        <Text style={styles.cardIcon}>⚠️</Text>
+                        <Text style={[styles.cardText, { color: theme.colors.error }]}>Alertas</Text>
+                    </TouchableOpacity>
+
+                    {user?.papel === PapelUsuario.Administrador && (
+                        <TouchableOpacity style={[styles.card, { width: '48%' }]} onPress={() => navigation.navigate('Usuarios')}>
+                            <Text style={styles.cardIcon}>👤</Text>
+                            <Text style={styles.cardText}>Usuários</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                <QuadroDeHonraFrequencia />
+
+                <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
+                    <Text style={styles.logoutText}>Sair da Conta</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.card, { width: '48%' }]} onPress={() => navigation.navigate('Alertas')}>
-                    <Text style={styles.cardIcon}>⚠️</Text>
-                    <Text style={[styles.cardText, { color: theme.colors.error }]}>Alertas</Text>
-                </TouchableOpacity>
-            </View>
-
-            <QuadroDeHonraFrequencia />
-
-            <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
-                <Text style={styles.logoutText}>Sair da Conta</Text>
-            </TouchableOpacity>
-        </SafeAreaView >
+            </ScrollView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.background, padding: 20, paddingTop: 60, paddingBottom: 20 },
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    scrollContent: { padding: 20, paddingTop: 60, paddingBottom: 40, flexGrow: 1 },
     header: { marginBottom: 40 },
     welcomeTitle: { fontSize: 28, fontWeight: 'bold', color: theme.colors.textPrimary },
     roleText: { fontSize: 16, color: theme.colors.primary, fontWeight: 'bold', marginTop: 4 },

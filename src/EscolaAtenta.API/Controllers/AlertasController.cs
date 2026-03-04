@@ -95,10 +95,10 @@ public class AlertasController : ControllerBase
     /// Status codes:
     /// - 200 OK: sucesso (pode retornar lista vazia com TotalCount=0)
     /// - 401 Unauthorized: token ausente ou expirado
-    /// - 403 Forbidden: papel Monitor não tem acesso a auditoria
+    /// - 403 Forbidden: papel não autorizado
     /// </summary>
     [HttpGet("auditoria")]
-    [Authorize(Roles = "Supervisao,Administrador")]
+    [Authorize(Roles = "Monitor,Supervisao,Administrador")]
     public async Task<ActionResult<PagedResult<AuditoriaAlertaDto>>> GetAuditoria(
         [FromQuery] string? nomeAluno = null,
         [FromQuery] TipoAlerta? tipo = null,

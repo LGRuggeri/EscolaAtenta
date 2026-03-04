@@ -12,7 +12,12 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
     {
         // PK
         builder.HasKey(u => u.Id);
-        
+
+        // Nome
+        builder.Property(u => u.Nome)
+               .IsRequired()
+               .HasMaxLength(100);
+
         // Email unico e indexado
         builder.HasIndex(u => u.Email)
                .IsUnique()
