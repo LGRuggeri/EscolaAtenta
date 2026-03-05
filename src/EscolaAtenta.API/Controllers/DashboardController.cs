@@ -2,6 +2,7 @@
 // Fornece endpoints para visualização de alunos com faltas
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MediatR;
 using EscolaAtenta.Application.Alunos.Queries;
 
@@ -13,6 +14,7 @@ namespace EscolaAtenta.API.Controllers;
 [ApiController]
 [Route("api/v1/[controller]")]
 [Authorize] // Requer autenticação
+[EnableRateLimiting("GlobalPolicy")]
 public class DashboardController : ControllerBase
 {
     private readonly IMediator _mediator;

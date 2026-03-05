@@ -6,6 +6,7 @@ using EscolaAtenta.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EscolaAtenta.API.Controllers;
 
@@ -15,6 +16,7 @@ namespace EscolaAtenta.API.Controllers;
 [ApiController]
 [Route("api/v1/[controller]")]
 [Authorize(Roles = "Administrador")] // APENAS DEUS! digo, apenas Administrador.
+[EnableRateLimiting("GlobalPolicy")]
 public class UsuariosController : ControllerBase
 {
     private readonly IMediator _mediator;

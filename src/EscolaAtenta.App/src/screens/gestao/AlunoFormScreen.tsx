@@ -4,6 +4,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { alunosService } from '../../services/alunosService';
 import { RootStackParamList } from '../../navigation/types';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AxiosError } from 'axios';
 import { HistoricoPresencasTimeline } from '../../components/domain/HistoricoPresencasTimeline';
 import { theme } from '../../theme/colors';
 
@@ -49,9 +50,15 @@ export function AlunoFormScreen() {
                 Alert.alert('Sucesso', 'Aluno cadastrado com sucesso!');
             }
             navigation.goBack();
-        } catch (error: any) {
-            console.error(error);
-            Alert.alert('Erro', 'Ocorreu um erro ao salvar o aluno.');
+        } catch (err: unknown) {
+            console.error(err);
+            if (err && typeof err === 'object' && 'isAxiosError' in err) {
+                const axiosError = err as AxiosError<{ message?: string, detail?: string }>;
+                const problemDetail = axiosError.response?.data?.detail;
+                Alert.alert('Erro', problemDetail || axiosError.response?.data?.message || 'Ocorreu um erro ao salvar o aluno.');
+            } else {
+                Alert.alert('Erro', 'Ocorreu um erro ao salvar o aluno.');
+            }
         } finally {
             setLoading(false);
         }

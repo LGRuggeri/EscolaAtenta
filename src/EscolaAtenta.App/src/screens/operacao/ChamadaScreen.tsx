@@ -2,54 +2,53 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Q } from '@nozbe/watermelondb';
 import { RootStackParamList, AppNavigationProp } from '../../navigation/types';
-import { chamadasService } from '../../services/chamadasService';
-import { alunosService } from '../../services/alunosService';
-import { useAuth } from '../../hooks/useAuth';
-import { AlunoDto, RealizarChamadaPayload } from '../../types/dtos';
-import * as Enums from '../../types/enums';
+import database from '../../database';
+import Aluno from '../../database/models/Aluno';
+import RegistroPresenca, { StatusPresencaLocal } from '../../database/models/RegistroPresenca';
 import { theme } from '../../theme/colors';
+
+import withObservables from '@nozbe/with-observables';
 
 type ChamadaRouteProp = RouteProp<RootStackParamList, 'ChamadaOperacao'>;
 
-export function ChamadaScreen() {
-    const route = useRoute<ChamadaRouteProp>();
-    const navigation = useNavigation<AppNavigationProp>();
-    const { user } = useAuth();
+interface ChamadaScreenProps {
+    route: ChamadaRouteProp;
+    navigation: AppNavigationProp;
+    alunos: Aluno[];
+}
+
+// Mapeamento de status para labels curtos e longos
+const STATUS_OPTIONS: { key: StatusPresencaLocal; label: string; sub: string }[] = [
+    { key: 'Presente', label: 'P', sub: 'Presente' },
+    { key: 'Falta', label: 'F', sub: 'Falta' },
+    { key: 'Atraso', label: 'A', sub: 'Atraso' },
+    { key: 'FaltaJustificada', label: 'J', sub: 'Justif.' },
+];
+
+function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
     const { turmaId, turmaNome } = route.params;
     const insets = useSafeAreaInsets();
 
-    const [alunos, setAlunos] = useState<AlunoDto[]>([]);
-    const [statusMap, setStatusMap] = useState<Record<string, Enums.StatusPresenca>>({});
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const [statusMap, setStatusMap] = useState<Record<string, StatusPresencaLocal>>({});
 
+    // Inicializa o statusMap para todos os alunos encontrados como 'Presente' (se ainda não preenchido)
     useEffect(() => {
-        carregarAlunos();
-    }, [turmaId]);
-
-    async function carregarAlunos() {
-        try {
-            setLoading(true);
-            const data = await alunosService.obterPorTurma(turmaId);
-            setAlunos(data);
-
-            const initialMap: Record<string, Enums.StatusPresenca> = {};
-            data.forEach(a => {
-                initialMap[a.id] = Enums.StatusPresenca.Presente; // Default Presente
+        if (alunos.length > 0 && Object.keys(statusMap).length === 0) {
+            const initialMap: Record<string, StatusPresencaLocal> = {};
+            alunos.forEach((a) => {
+                initialMap[a.id] = 'Presente';
             });
             setStatusMap(initialMap);
-        } catch (error) {
-            Alert.alert('Erro', 'Não foi possível carregar os alunos.');
-        } finally {
-            setLoading(false);
         }
-    }
+    }, [alunos]);
 
-    const setStatus = (alunoId: string, status: Enums.StatusPresenca) => {
-        setStatusMap(prev => ({ ...prev, [alunoId]: status }));
+    const setStatus = (alunoId: string, status: StatusPresencaLocal) => {
+        setStatusMap((prev) => ({ ...prev, [alunoId]: status }));
     };
 
+    // ── Salva chamada no WatermelonDB local (instantâneo, zero rede) ─────
     const handleSalvar = async () => {
         if (alunos.length === 0) {
             Alert.alert('Aviso', 'Não há alunos nesta turma para registrar chamada.');
@@ -57,66 +56,57 @@ export function ChamadaScreen() {
         }
 
         try {
-            setSaving(true);
-            const payload: RealizarChamadaPayload = {
-                turmaId,
-                responsavelId: user?.id || '',
-                alunos: alunos.map(a => ({
-                    alunoId: a.id,
-                    status: statusMap[a.id]
-                }))
-            };
+            const registrosCollection = database.get<RegistroPresenca>('registros_presenca');
 
-            await chamadasService.realizarChamada(payload);
-            Alert.alert('Sucesso', 'Chamada salva com sucesso!');
+            await database.write(async () => {
+                const batch = alunos.map((aluno) =>
+                    registrosCollection.prepareCreate((record) => {
+                        record.alunoId = aluno.id;
+                        record.turmaId = turmaId;
+                        record.data = new Date();
+                        record.status = statusMap[aluno.id] ?? 'Presente';
+                        record.sincronizado = false;
+                    })
+                );
+
+                await database.batch(...batch);
+            });
+
+            // Feedback instantâneo — sem esperar rede
+            Alert.alert('Chamada salva!', 'Os registros serão enviados ao servidor automaticamente.');
             navigation.goBack();
         } catch (error) {
-            Alert.alert('Erro', 'Houve um problema ao salvar a chamada. Tente novamente.');
-            console.error(error);
-        } finally {
-            setSaving(false);
+            console.error('[CHAMADA] Erro ao salvar localmente:', error);
+            Alert.alert('Erro', 'Falha ao salvar a chamada no dispositivo.');
         }
     };
 
-    const renderItem = ({ item }: { item: AlunoDto }) => {
-        const currentStatus = statusMap[item.id];
+    // ── Render ───────────────────────────────────────────────────────────
+    const renderItem = ({ item }: { item: Aluno }) => {
+        const currentStatus = statusMap[item.id] ?? 'Presente';
 
         return (
             <View style={styles.card}>
                 <Text style={styles.alunoNome}>{item.nome}</Text>
 
                 <View style={styles.statusRow}>
-                    <TouchableOpacity
-                        style={[styles.statusButton, currentStatus === Enums.StatusPresenca.Presente && styles.btnPresenteActive]}
-                        onPress={() => setStatus(item.id, Enums.StatusPresenca.Presente)}
-                    >
-                        <Text style={[styles.statusText, currentStatus === Enums.StatusPresenca.Presente && styles.textWhite]}>P</Text>
-                        <Text style={[styles.statusSubText, currentStatus === Enums.StatusPresenca.Presente && styles.textWhite]}>Presente</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.statusButton, currentStatus === Enums.StatusPresenca.Falta && styles.btnFaltaActive]}
-                        onPress={() => setStatus(item.id, Enums.StatusPresenca.Falta)}
-                    >
-                        <Text style={[styles.statusText, currentStatus === Enums.StatusPresenca.Falta && styles.textWhite]}>F</Text>
-                        <Text style={[styles.statusSubText, currentStatus === Enums.StatusPresenca.Falta && styles.textWhite]}>Falta</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.statusButton, currentStatus === Enums.StatusPresenca.Atraso && styles.btnAtrasoActive]}
-                        onPress={() => setStatus(item.id, Enums.StatusPresenca.Atraso)}
-                    >
-                        <Text style={[styles.statusText, currentStatus === Enums.StatusPresenca.Atraso && styles.textWhite]}>A</Text>
-                        <Text style={[styles.statusSubText, currentStatus === Enums.StatusPresenca.Atraso && styles.textWhite]}>Atraso</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.statusButton, currentStatus === Enums.StatusPresenca.FaltaJustificada && styles.btnJustificadaActive]}
-                        onPress={() => setStatus(item.id, Enums.StatusPresenca.FaltaJustificada)}
-                    >
-                        <Text style={[styles.statusText, currentStatus === Enums.StatusPresenca.FaltaJustificada && styles.textWhite]}>J</Text>
-                        <Text style={[styles.statusSubText, currentStatus === Enums.StatusPresenca.FaltaJustificada && styles.textWhite]}>Justif.</Text>
-                    </TouchableOpacity>
+                    {STATUS_OPTIONS.map((opt) => (
+                        <TouchableOpacity
+                            key={opt.key}
+                            style={[
+                                styles.statusButton,
+                                currentStatus === opt.key && getActiveStyle(opt.key),
+                            ]}
+                            onPress={() => setStatus(item.id, opt.key)}
+                        >
+                            <Text style={[styles.statusText, currentStatus === opt.key && styles.textWhite]}>
+                                {opt.label}
+                            </Text>
+                            <Text style={[styles.statusSubText, currentStatus === opt.key && styles.textWhite]}>
+                                {opt.sub}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
                 </View>
             </View>
         );
@@ -135,33 +125,45 @@ export function ChamadaScreen() {
             </View>
 
             <View style={{ flex: 1 }}>
-                {loading ? (
-                    <ActivityIndicator size="large" color={theme.colors.secondary} style={{ marginTop: 50 }} />
-                ) : (
-                    <FlatList
-                        data={alunos}
-                        keyExtractor={(item) => item.id}
-                        renderItem={renderItem}
-                        contentContainerStyle={styles.listContainer}
-                    />
-                )}
+                <FlatList
+                    data={alunos}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderItem}
+                    contentContainerStyle={styles.listContainer}
+                />
             </View>
 
             <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 30, 40) }]}>
                 <TouchableOpacity
-                    style={[styles.saveButton, (saving || loading) && styles.saveButtonDisabled]}
+                    style={styles.saveButton}
                     onPress={handleSalvar}
-                    disabled={saving || loading}
                 >
-                    {saving ? (
-                        <ActivityIndicator color="#FFF" />
-                    ) : (
-                        <Text style={styles.saveButtonText}>Salvar Chamada</Text>
-                    )}
+                    <Text style={styles.saveButtonText}>Salvar Chamada</Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>
     );
+}
+
+const EnhancedChamadaScreen = withObservables(['route'], ({ route }: { route: ChamadaRouteProp }) => ({
+    alunos: database.get<Aluno>('alunos').query(Q.where('turma_id', route.params.turmaId))
+}))(ChamadaScreenRaw);
+
+export function ChamadaScreen() {
+    const route = useRoute<ChamadaRouteProp>();
+    const navigation = useNavigation<AppNavigationProp>();
+    return <EnhancedChamadaScreen route={route} navigation={navigation} />;
+}
+
+// ── Helpers de estilo ────────────────────────────────────────────────────────
+
+function getActiveStyle(status: StatusPresencaLocal) {
+    switch (status) {
+        case 'Presente': return styles.btnPresenteActive;
+        case 'Falta': return styles.btnFaltaActive;
+        case 'Atraso': return styles.btnAtrasoActive;
+        case 'FaltaJustificada': return styles.btnJustificadaActive;
+    }
 }
 
 const styles = StyleSheet.create({
@@ -187,5 +189,5 @@ const styles = StyleSheet.create({
     footer: { padding: 20, paddingTop: 16, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderColor: theme.colors.border },
     saveButton: { backgroundColor: theme.colors.primary, paddingVertical: 16, borderRadius: 12, alignItems: 'center' },
     saveButtonDisabled: { opacity: 0.7, backgroundColor: theme.colors.border },
-    saveButtonText: { color: theme.colors.surface, fontWeight: 'bold', fontSize: 18 }
+    saveButtonText: { color: theme.colors.surface, fontWeight: 'bold', fontSize: 18 },
 });

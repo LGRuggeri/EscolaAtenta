@@ -47,6 +47,30 @@ public class CurrentUserService : ICurrentUserService
         }
     }
 
+    /// <summary>
+    /// Retorna o papel (role) do usuário autenticado.
+    /// Extrai do claim "role" ou ClaimTypes.Role do token JWT.
+    /// </summary>
+    public string Papel
+    {
+        get
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+
+            if (user?.Identity?.IsAuthenticated != true)
+                return string.Empty;
+
+            // Busca claim "role" (padrão JWT customizado)
+            var role = user.FindFirst("role")?.Value;
+            if (!string.IsNullOrEmpty(role))
+                return role;
+
+            // Fallback para ClaimTypes.Role (padrão ASP.NET Identity)
+            var claimRole = user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            return claimRole ?? string.Empty;
+        }
+    }
+
     public bool EstaAutenticado =>
         _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true;
 }

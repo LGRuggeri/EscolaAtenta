@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { theme } from '../../theme/colors';
+import { AxiosError } from 'axios';
 
 export function LoginScreen() {
     const { signIn } = useAuth();
@@ -26,11 +27,18 @@ export function LoginScreen() {
             );
 
             await Promise.race([loginPromise, timeoutPromise]);
-        } catch (error: any) {
-            const mensagem = error.message.includes('Timeout')
-                ? error.message
-                : (error.response?.data?.message || 'Falha de comunicação com o servidor. O Computador (API C#) e o Celular estão na mesma rede Wi-Fi?');
-            Alert.alert('Ops!', mensagem);
+        } catch (err: unknown) {
+            let mensagem = 'Falha de comunicação com o servidor. Verifique sua conexão e se o backend está rodando.';
+
+            if (err instanceof Error && err.message.includes('Timeout')) {
+                mensagem = err.message;
+            } else if (err && typeof err === 'object' && 'isAxiosError' in err) {
+                const axiosError = err as AxiosError<{ detail?: string, message?: string }>;
+                const problemDetailMessage = axiosError.response?.data?.detail;
+                mensagem = problemDetailMessage || axiosError.response?.data?.message || mensagem;
+            }
+
+            Alert.alert('Erro de Acesso', mensagem);
         } finally {
             setLoading(false);
         }

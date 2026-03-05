@@ -18,6 +18,12 @@ public interface ICurrentUserService
     string UsuarioId { get; }
 
     /// <summary>
+    /// Papel do usuário autenticado (ex: "Monitor", "Supervisao", "Administrador").
+    /// Retorna string.Empty se não houver usuário autenticado.
+    /// </summary>
+    string Papel { get; }
+
+    /// <summary>
     /// Indica se há um usuário autenticado na requisição atual.
     /// </summary>
     bool EstaAutenticado { get; }

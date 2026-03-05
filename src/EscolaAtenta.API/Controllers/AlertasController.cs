@@ -6,12 +6,14 @@ using EscolaAtenta.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EscolaAtenta.API.Controllers;
 
 [Authorize]
 [ApiController]
 [Route("api/v1/[controller]")]
+[EnableRateLimiting("GlobalPolicy")]
 public class AlertasController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -123,4 +125,3 @@ public class AlertasController : ControllerBase
         return Ok(result);
     }
 }
-

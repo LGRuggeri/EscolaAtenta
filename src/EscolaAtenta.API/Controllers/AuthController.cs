@@ -6,17 +6,20 @@
 // SEGURANCA (AppSec):
 // - CredenciaisInvalidasException retorna 401 Unauthorized com mensagem generica
 // - NUNCA revela se o email existe ou nao (prevencao de enumeração)
+// - Rate Limiting (AuthPolicy): 5 req/min por IP para mitigar brute force
 
 using EscolaAtenta.Application.Auth;
 using EscolaAtenta.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MediatR;
 
 namespace EscolaAtenta.API.Controllers;
 
 [ApiController]
 [Route("api/v1/auth")]
+[EnableRateLimiting("AuthPolicy")] // Proteção contra brute force: 5 req/min por IP
 public class AuthController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -36,6 +39,7 @@ public class AuthController : ControllerBase
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
         // Validacao basica do request

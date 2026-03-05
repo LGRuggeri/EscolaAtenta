@@ -4,12 +4,14 @@ using EscolaAtenta.Application.Turmas.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EscolaAtenta.API.Controllers;
 
 [ApiController]
 [Route("api/v1/[controller]")]
 [Authorize]
+[EnableRateLimiting("GlobalPolicy")]
 public class TurmasController : ControllerBase
 {
     private readonly IMediator _mediator;

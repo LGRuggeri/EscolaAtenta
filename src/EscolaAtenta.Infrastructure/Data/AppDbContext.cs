@@ -39,6 +39,7 @@ public class AppDbContext : DbContext
     public DbSet<RegistroPresenca> RegistrosPresenca => Set<RegistroPresenca>();
     public DbSet<AlertaEvasao> AlertasEvasao => Set<AlertaEvasao>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

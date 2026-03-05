@@ -2,12 +2,14 @@ using EscolaAtenta.Application.Chamadas.Commands;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EscolaAtenta.API.Controllers;
 
 [ApiController]
 [Route("api/v1/[controller]")]
 [Authorize]
+[EnableRateLimiting("GlobalPolicy")]
 public class ChamadasController : ControllerBase
 {
     private readonly IMediator _mediator;

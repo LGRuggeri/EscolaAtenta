@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
+import { AxiosError } from 'axios';
 import { TurmaFrequenciaPerfeitaDto } from '../../types/dtos';
 import { dashboardService } from '../../services/dashboardService';
 import { theme } from '../../theme/colors';
@@ -31,8 +32,15 @@ export function QuadroDeHonraFrequencia() {
 
             const data = await dashboardService.obterTurmasFrequenciaPerfeita(dataInicio, dataFim);
             setTurmas(data);
-        } catch (error: any) {
-            console.error('Erro ao buscar turmas para o Quadro de Honra.', error.response?.data || error.message);
+        } catch (err: unknown) {
+            let errorMsg = 'Erro desconhecido';
+            if (err instanceof Error) {
+                errorMsg = err.message;
+            } else if (err && typeof err === 'object' && 'isAxiosError' in err) {
+                const axiosError = err as AxiosError<{ data?: string, message?: string }>;
+                errorMsg = String(axiosError.response?.data || axiosError.message);
+            }
+            console.error('Erro ao buscar turmas para o Quadro de Honra.', errorMsg);
         } finally {
             setLoading(false);
         }

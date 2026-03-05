@@ -6,6 +6,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { TurmaDto } from '../../types/dtos';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../../theme/colors';
+import { AxiosError } from 'axios';
 
 type TurmaFormRouteProp = RouteProp<RootStackParamList, 'TurmaForm'>;
 
@@ -43,12 +44,17 @@ export function TurmaFormScreen() {
                 Alert.alert('Sucesso', 'Turma criada com sucesso!');
             }
             navigation.goBack();
-        } catch (error: any) {
-            console.error(error);
-            if (error.response?.status === 404) {
-                Alert.alert('Erro 404', 'Endpoint de atualização não encontrado na API C#.');
-            } else if (error.response?.status === 400) {
-                Alert.alert('Erro 400', 'Dados inválidos enviados para a API C#.');
+        } catch (err: unknown) {
+            console.error(err);
+            if (err && typeof err === 'object' && 'isAxiosError' in err) {
+                const axiosError = err as AxiosError;
+                if (axiosError.response?.status === 404) {
+                    Alert.alert('Erro 404', 'Endpoint de atualização não encontrado na API C#.');
+                } else if (axiosError.response?.status === 400) {
+                    Alert.alert('Erro 400', 'Dados inválidos enviados para a API C#.');
+                } else {
+                    Alert.alert('Erro', 'Ocorreu um erro ao salvar a turma.');
+                }
             } else {
                 Alert.alert('Erro', 'Ocorreu um erro ao salvar a turma.');
             }

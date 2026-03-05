@@ -3,7 +3,15 @@ import { UsuarioLogado } from '../types/dtos';
 import { PapelUsuario } from '../types/enums';
 import { authStorage } from '../services/api';
 import { authService } from '../services/authService';
-import { jwtDecode } from 'jwt-decode';
+import { jwtDecode, JwtPayload } from 'jwt-decode';
+
+interface EscolaAtentaJwtPayload extends JwtPayload {
+    email?: string;
+    role?: string | number;
+    name?: string;
+    'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'?: string;
+    'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'?: string | number;
+}
 
 // Função para transformar a string "Administrador" no Enum correspondente, ou usar fallback
 function parseRole(roleStringOrId: string | number): number {
@@ -38,7 +46,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (token) {
                 try {
                     // Extrai os dados básicos do token para restaurar a sessão sem bater na API
-                    const decoded: any = jwtDecode(token);
+                    const decoded = jwtDecode<EscolaAtentaJwtPayload>(token);
 
                     // O email pode vir do custom claim ou do padrão Microsoft
                     const emailClaim = decoded.email || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] || '';
@@ -69,7 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Precisamos decodificar o token para pegar o ID real e o Nome se quisermos preencher o UsuarioLogado completo,
         // mas podemos usar os dados que vieram do response por agora.
         try {
-            const decoded: any = jwtDecode(response.token);
+            const decoded = jwtDecode<EscolaAtentaJwtPayload>(response.token);
             setUser({
                 id: decoded.sub || '',
                 email: response.email,

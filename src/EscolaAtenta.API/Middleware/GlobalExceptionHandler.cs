@@ -82,6 +82,12 @@ public class GlobalExceptionHandler : IExceptionHandler
     {
         return exception switch
         {
+            // Erro de Login (E-mail/Senha inválidos) → 401
+            CredenciaisInvalidasException credEx =>
+                (StatusCodes.Status401Unauthorized,
+                 "Nao Autorizado",
+                 credEx.Message),
+
             // Violação de regra de negócio do domínio → 422
             DomainException domainEx =>
                 (StatusCodes.Status422UnprocessableEntity,

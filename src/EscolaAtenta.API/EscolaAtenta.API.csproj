@@ -21,11 +21,12 @@
     <PackageReference Include="Serilog.Sinks.File" Version="6.*" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="3.*" />
     <PackageReference Include="Serilog.Enrichers.Thread" Version="4.*" />
+    <PackageReference Include="Serilog.Sinks.Async" Version="2.*" />
     <!--
-      Health Checks: Monitoramento da saúde do banco de dados PostgreSQL.
-      Expõe endpoint /health para load balancers e orquestradores (K8s, Docker).
+      Health Checks: Monitoramento da saúde do banco via EF Core DbContext.
+      Expõe endpoint /health para monitoramento on-premise e orquestradores.
     -->
-    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.*" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="9.*" />
     <!--
       JWT Bearer: Autenticação e validação de tokens JWT.
       Microsoft.AspNetCore.Authentication.JwtBearer inclui o handler de autenticação.
