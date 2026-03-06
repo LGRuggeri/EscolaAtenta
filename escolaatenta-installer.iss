@@ -64,5 +64,7 @@ Filename: "sc.exe"; Parameters: "delete EscolaAtenta"; Flags: runhidden waitunti
 Filename: "taskkill.exe"; Parameters: "/F /IM EscolaAtenta.TrayMonitor.exe"; Flags: runhidden
 
 [Dirs]
+; Bloqueia a pasta base: Administradores e SYSTEM têm acesso total. Utilizadores comuns (Users) apenas leitura/execução.
+Name: "{app}"; Permissions: admins-full system-full users-readexec
 ; Criar pasta de Logs com permissão para o serviço escrever
 Name: "{app}\Logs"
