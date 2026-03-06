@@ -29,15 +29,18 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
     private readonly AppDbContext _context;
     private readonly ICurrentUserService _currentUser;
     private readonly ILogger<SyncPushHandler> _logger;
+    private readonly ISqliteWriteLockProvider _lockProvider;
 
     public SyncPushHandler(
         AppDbContext context,
         ICurrentUserService currentUser,
-        ILogger<SyncPushHandler> logger)
+        ILogger<SyncPushHandler> logger,
+        ISqliteWriteLockProvider lockProvider)
     {
         _context = context;
         _currentUser = currentUser;
         _logger = logger;
+        _lockProvider = lockProvider;
     }
 
     public async Task<SyncPushResult> Handle(SyncPushCommand request, CancellationToken cancellationToken)
@@ -57,22 +60,30 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         int totalSincronizados = 0;
         int alertasGerados = 0;
 
-        // ── CREATED ──────────────────────────────────────────────────────────
-        if (created.Count > 0)
+        await _lockProvider.WaitAsync(cancellationToken);
+        try
         {
-            var (criados, alertas) = await ProcessarCreated(created, responsavelId, cancellationToken);
-            totalSincronizados += criados;
-            alertasGerados += alertas;
-        }
+            // ── CREATED ──────────────────────────────────────────────────────────
+            if (created.Count > 0)
+            {
+                var (criados, alertas) = await ProcessarCreated(created, responsavelId, cancellationToken);
+                totalSincronizados += criados;
+                alertasGerados += alertas;
+            }
 
-        // ── UPDATED ──────────────────────────────────────────────────────────
-        if (updated.Count > 0)
+            // ── UPDATED ──────────────────────────────────────────────────────────
+            if (updated.Count > 0)
+            {
+                totalSincronizados += await ProcessarUpdated(updated, cancellationToken);
+            }
+
+            // ── Persistência atômica (domain events despachados no SaveChanges) ──
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        finally
         {
-            totalSincronizados += await ProcessarUpdated(updated, cancellationToken);
+            _lockProvider.Release();
         }
-
-        // ── Persistência atômica (domain events despachados no SaveChanges) ──
-        await _context.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
             "[SYNC-PUSH] Concluído — Created={Created} Updated={Updated} Alertas={Alertas} Responsavel={User}",
