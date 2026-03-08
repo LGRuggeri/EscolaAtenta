@@ -4,9 +4,9 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { alunosService } from '../../services/alunosService';
 import { RootStackParamList } from '../../navigation/types';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AxiosError } from 'axios';
 import { HistoricoPresencasTimeline } from '../../components/domain/HistoricoPresencasTimeline';
 import { theme } from '../../theme/colors';
+import { syncWithServer } from '../../services/sync/watermelondbSync';
 
 type AlunoFormRouteProp = RouteProp<RootStackParamList, 'AlunoForm'>;
 
@@ -14,12 +14,10 @@ export function AlunoFormScreen() {
     const navigation = useNavigation();
     const route = useRoute<AlunoFormRouteProp>();
 
-    // Captura os parâmetros corretamente
     const turmaId = route.params?.turmaId;
     const alunoParaEditar = route.params?.aluno;
 
     const [nome, setNome] = useState(alunoParaEditar?.nome || '');
-    const [matricula, setMatricula] = useState(alunoParaEditar?.matricula || '');
     const [loading, setLoading] = useState(false);
 
     const isEditing = !!alunoParaEditar;
@@ -30,35 +28,26 @@ export function AlunoFormScreen() {
             return;
         }
 
-        const payload = {
-            nome: nome.trim(),
-            matricula: matricula.trim(),
-            turmaId: turmaId
-        };
-
         try {
             setLoading(true);
+
+            // Salva localmente — funciona sem Wi-Fi
             if (isEditing && alunoParaEditar.id) {
                 await alunosService.atualizar(alunoParaEditar.id, {
                     id: alunoParaEditar.id,
                     nome: nome.trim(),
-                    matricula: matricula.trim()
                 });
-                Alert.alert('Sucesso', 'Aluno atualizado com sucesso!');
             } else {
-                await alunosService.criar(payload);
-                Alert.alert('Sucesso', 'Aluno cadastrado com sucesso!');
+                await alunosService.criar({ nome: nome.trim(), turmaId });
             }
+
+            // Tenta sincronizar em background — falha silenciosamente sem rede
+            syncWithServer().catch(() => {});
+
             navigation.goBack();
-        } catch (err: unknown) {
-            console.error(err);
-            if (err && typeof err === 'object' && 'isAxiosError' in err) {
-                const axiosError = err as AxiosError<{ message?: string, detail?: string }>;
-                const problemDetail = axiosError.response?.data?.detail;
-                Alert.alert('Erro', problemDetail || axiosError.response?.data?.message || 'Ocorreu um erro ao salvar o aluno.');
-            } else {
-                Alert.alert('Erro', 'Ocorreu um erro ao salvar o aluno.');
-            }
+        } catch (err) {
+            console.error('[AlunoForm]', err);
+            Alert.alert('Erro', 'Não foi possível salvar o aluno localmente.');
         } finally {
             setLoading(false);
         }
@@ -80,14 +69,6 @@ export function AlunoFormScreen() {
                     placeholder="Ex: João da Silva"
                     value={nome}
                     onChangeText={setNome}
-                />
-
-                <Text style={styles.label}>Matrícula (opcional)</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Ex: 2024001"
-                    value={matricula}
-                    onChangeText={setMatricula}
                 />
 
                 <TouchableOpacity
@@ -121,5 +102,5 @@ const styles = StyleSheet.create({
     input: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 12, fontSize: 16, marginBottom: 20, color: theme.colors.textPrimary },
     saveButton: { backgroundColor: theme.colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 12 },
     saveButtonDisabled: { opacity: 0.7 },
-    saveButtonText: { color: theme.colors.surface, fontSize: 16, fontWeight: 'bold' }
+    saveButtonText: { color: theme.colors.surface, fontSize: 16, fontWeight: 'bold' },
 });

@@ -3,26 +3,19 @@ import { AppState, AppStateStatus } from 'react-native';
 import { syncWithServer, hasPendingSync } from '../services/sync/watermelondbSync';
 
 interface SyncState {
-  /** true enquanto um ciclo de sync está em andamento */
   isSyncing: boolean;
-  /** true se existem registros locais aguardando push */
   temPendentes: boolean;
-  /** mensagem de erro do último sync falhado (null = sem erro) */
   erro: string | null;
-  /** timestamp do último sync bem-sucedido */
   ultimoSync: number | null;
 }
 
 /**
  * Hook que orquestra o ciclo de vida da sincronização offline-first.
  *
- * Agora usa a `synchronize()` nativa do WatermelonDB, que gerencia
- * automaticamente quais registros são sujos e limpa a flag interna
- * (_status) após push bem-sucedido.
- *
  * Gatilhos:
- * - Auto-sync quando o app retorna ao foreground.
- * - Polling periódico a cada 60s enquanto o app está ativo.
+ * - Sync automático ao montar o componente (primeiro login/abertura).
+ * - Sync ao voltar para foreground.
+ * - Polling periódico a cada 60s.
  * - `sincronizarAgora()` para disparo manual via UI.
  */
 export function useSyncEngine() {
@@ -33,20 +26,28 @@ export function useSyncEngine() {
     ultimoSync: null,
   });
 
+  // Ref para evitar stale closure — permite verificar isSyncing sem recria o callback
+  const isSyncingRef = useRef(false);
   const isMounted = useRef(true);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const verificarPendentes = useCallback(async () => {
-    const pendentes = await hasPendingSync();
-    if (isMounted.current) {
-      setState((prev) => ({ ...prev, temPendentes: pendentes }));
+    try {
+      const pendentes = await hasPendingSync();
+      if (isMounted.current) {
+        setState((prev) => ({ ...prev, temPendentes: pendentes }));
+      }
+    } catch {
+      // ignorar erros de verificação
     }
   }, []);
 
   const sincronizarAgora = useCallback(async () => {
-    if (state.isSyncing) return; // Evita sync concorrente
+    if (isSyncingRef.current) return;
 
-    setState((prev) => ({ ...prev, isSyncing: true, erro: null }));
+    isSyncingRef.current = true;
+    if (isMounted.current) {
+      setState((prev) => ({ ...prev, isSyncing: true, erro: null }));
+    }
 
     try {
       await syncWithServer();
@@ -61,10 +62,6 @@ export function useSyncEngine() {
 
       await verificarPendentes();
     } catch (error: any) {
-      // ── Tratamento de falha de rede ────────────────────────────────
-      // Se o axios falhou (sem Wi-Fi, timeout, 5xx), o synchronize()
-      // já abortou sem limpar os registros sujos. Eles serão reenviados
-      // na próxima tentativa automaticamente.
       const mensagem =
         error?.response?.data?.detail ||
         error?.message ||
@@ -77,10 +74,12 @@ export function useSyncEngine() {
           erro: mensagem,
         }));
       }
+    } finally {
+      isSyncingRef.current = false;
     }
-  }, [state.isSyncing, verificarPendentes]);
+  }, [verificarPendentes]);
 
-  // ── Sync ao voltar para foreground ──────────────────────────────────────────
+  // Sync ao voltar para foreground
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
       if (nextState === 'active') {
@@ -92,22 +91,23 @@ export function useSyncEngine() {
     return () => subscription.remove();
   }, [sincronizarAgora]);
 
-  // ── Polling periódico (60s) + sync inicial ─────────────────────────────────
+  // Sync inicial + polling periódico (60s)
   useEffect(() => {
+    isMounted.current = true;
+
     verificarPendentes();
     sincronizarAgora();
 
-    intervalRef.current = setInterval(() => {
+    const interval = setInterval(() => {
       sincronizarAgora();
     }, 60_000);
 
     return () => {
       isMounted.current = false;
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      clearInterval(interval);
     };
-  }, [sincronizarAgora, verificarPendentes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intencionalmente sem dependências — executa só uma vez ao montar
 
   return {
     ...state,

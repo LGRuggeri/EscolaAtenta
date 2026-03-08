@@ -14,5 +14,19 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      toVersion: 3,
+      steps: [
+        addColumns({
+          table: 'alunos',
+          columns: [
+            { name: 'faltas_consecutivas_atuais', type: 'number' },
+            { name: 'faltas_no_trimestre', type: 'number' },
+            { name: 'total_faltas', type: 'number' },
+            { name: 'atrasos_no_trimestre', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });

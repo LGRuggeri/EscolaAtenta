@@ -62,7 +62,8 @@ public class LoginHandler : IRequestHandler<LoginCommand, LoginResponse>
             Token: loginResult.Token,
             Email: loginResult.Email,
             Papel: loginResult.Papel,
-            ExpiresAt: loginResult.ExpiresAt
+            ExpiresAt: loginResult.ExpiresAt,
+            DeveAlterarSenha: usuario.DeveAlterarSenha
         );
     }
 }

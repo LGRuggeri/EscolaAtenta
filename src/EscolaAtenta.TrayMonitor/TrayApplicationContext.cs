@@ -20,13 +20,15 @@ public class TrayApplicationContext : ApplicationContext
 {
     private const string NomeServico = "EscolaAtenta";
     private const string UrlHealthPadrao = "http://localhost:5114/health";
-    private const int IntervaloPollingMs = 30_000;
+    private const int IntervaloPollingMs = 15_000;
 
     private readonly NotifyIcon _notifyIcon;
     private readonly System.Windows.Forms.Timer _timer;
     private readonly HttpClient _httpClient;
     private readonly ToolStripMenuItem _menuStatus;
     private readonly ToolStripMenuItem _menuInstalarUpdate;
+    private readonly ToolStripMenuItem _menuParar;
+    private readonly ToolStripMenuItem _menuIniciar;
     private readonly UpdateCheckService _updateCheckService;
     private readonly SynchronizationContext? _syncContext;
 
@@ -59,6 +61,8 @@ public class TrayApplicationContext : ApplicationContext
         var menuAbrir = new ToolStripMenuItem("Abrir Sistema", null, OnAbrirSistema);
         var menuLogs = new ToolStripMenuItem("Ver Logs", null, OnVerLogs);
         var menuReiniciar = new ToolStripMenuItem("Reiniciar Serviço", null, OnReiniciarServico);
+        _menuParar = new ToolStripMenuItem("Parar Serviço", null, OnPararServico);
+        _menuIniciar = new ToolStripMenuItem("Iniciar Serviço", null, OnIniciarServico) { Visible = false };
         var menuSair = new ToolStripMenuItem("Sair", null, OnSair);
 
         var contextMenu = new ContextMenuStrip();
@@ -69,6 +73,8 @@ public class TrayApplicationContext : ApplicationContext
         contextMenu.Items.Add(menuLogs);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add(menuReiniciar);
+        contextMenu.Items.Add(_menuParar);
+        contextMenu.Items.Add(_menuIniciar);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add(menuSair);
 
@@ -188,6 +194,7 @@ public class TrayApplicationContext : ApplicationContext
     private void AtualizarStatus(StatusSaude status, string detalhe)
     {
         if (_statusAtual == status) return;
+        var statusAnterior = _statusAtual;
         _statusAtual = status;
 
         var (cor, texto, tooltip) = status switch
@@ -202,15 +209,19 @@ public class TrayApplicationContext : ApplicationContext
         _notifyIcon.Text = tooltip.Length > 63 ? tooltip[..63] : tooltip;
         _menuStatus.Text = $"Status: {texto}";
 
+        // Parar fica visível quando operacional; Iniciar fica visível quando em falha
+        _menuParar.Visible = status == StatusSaude.Operacional || status == StatusSaude.Degradado;
+        _menuIniciar.Visible = status == StatusSaude.Falha;
+
         // Notificação balloon ao mudar de status
         if (status == StatusSaude.Falha)
         {
             _notifyIcon.ShowBalloonTip(
-                5000, "EscolaAtenta",
-                "O serviço de frequência parou. Clique com o botão direito para reiniciar.",
+                8000, "EscolaAtenta — SERVIÇO PARADO",
+                "O serviço de frequência parou. Clique com o botão direito e selecione 'Iniciar Serviço' ou 'Reiniciar Serviço'.",
                 ToolTipIcon.Error);
         }
-        else if (status == StatusSaude.Operacional && _statusAtual != StatusSaude.Desconhecido)
+        else if (status == StatusSaude.Operacional && statusAnterior != StatusSaude.Desconhecido)
         {
             _notifyIcon.ShowBalloonTip(
                 3000, "EscolaAtenta",
@@ -308,6 +319,74 @@ public class TrayApplicationContext : ApplicationContext
         {
             MessageBox.Show(
                 $"Erro ao reiniciar o serviço:\n{ex.Message}\n\nVerifique se você tem permissão de administrador.",
+                "EscolaAtenta — Erro",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+    }
+
+    private void OnPararServico(object? sender, EventArgs e)
+    {
+        try
+        {
+            var resultado = MessageBox.Show(
+                "Deseja parar o serviço de frequência?\nO app ficará offline até ser reiniciado.",
+                "EscolaAtenta — Parar Serviço",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (resultado != DialogResult.Yes) return;
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = "sc.exe",
+                Arguments = $"stop {NomeServico}",
+                UseShellExecute = true,
+                Verb = "runas",
+                CreateNoWindow = true
+            };
+
+            Process.Start(psi)?.WaitForExit(10_000);
+
+            _notifyIcon.ShowBalloonTip(3000, "EscolaAtenta",
+                "Serviço parado. Use 'Iniciar Serviço' para reativá-lo.", ToolTipIcon.Warning);
+
+            _ = Task.Delay(3000).ContinueWith(_ => VerificarSaudeAsync());
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Erro ao parar o serviço:\n{ex.Message}",
+                "EscolaAtenta — Erro",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+    }
+
+    private void OnIniciarServico(object? sender, EventArgs e)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "sc.exe",
+                Arguments = $"start {NomeServico}",
+                UseShellExecute = true,
+                Verb = "runas",
+                CreateNoWindow = true
+            };
+
+            Process.Start(psi)?.WaitForExit(10_000);
+
+            _notifyIcon.ShowBalloonTip(3000, "EscolaAtenta",
+                "Serviço iniciado. Aguarde a verificação...", ToolTipIcon.Info);
+
+            _ = Task.Delay(5000).ContinueWith(_ => VerificarSaudeAsync());
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Erro ao iniciar o serviço:\n{ex.Message}",
                 "EscolaAtenta — Erro",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);

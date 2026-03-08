@@ -74,9 +74,33 @@ try
     // Configura a API para validar tokens JWT emitidos por um Identity Provider externo.
     // Em produção, configure a seção "Jwt" no appsettings.json ou user-secrets.
     var jwtSettings = builder.Configuration.GetSection("Jwt");
-    var secretKey = builder.Environment.IsDevelopment()
-        ? "ChaveSecretaDeDesenvolvimentoMuitoLongaParaTestes123456!"
-        : (jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey não configurada em produção"));
+    var secretKey = jwtSettings["SecretKey"];
+
+    if (string.IsNullOrWhiteSpace(secretKey))
+    {
+        if (builder.Environment.IsDevelopment())
+        {
+            secretKey = "ChaveSecretaDeDesenvolvimentoMuitoLongaParaTestes123456!";
+        }
+        else
+        {
+            // Deploy local (edge): gera uma chave persistente no appsettings se não existir
+            var appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+            secretKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64));
+            Log.Warning("JWT SecretKey não configurada. Gerando chave aleatória e salvando em appsettings.json");
+
+            var json = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.Nodes.JsonObject>(
+                File.ReadAllText(appSettingsPath)) ?? new System.Text.Json.Nodes.JsonObject();
+            json["Jwt"] ??= new System.Text.Json.Nodes.JsonObject();
+            json["Jwt"]!["SecretKey"] = secretKey;
+            File.WriteAllText(appSettingsPath, System.Text.Json.JsonSerializer.Serialize(json,
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+
+            // Injeta a chave gerada no IConfiguration em memória para que AuthService
+            // a use corretamente sem precisar releitura do arquivo em runtime.
+            builder.Configuration["Jwt:SecretKey"] = secretKey;
+        }
+    }
 
     builder.Services.AddAuthentication(options =>
     {
@@ -302,8 +326,11 @@ try
         app.MapOpenApi();
     }
 
-    // HTTPS Redirection — força HTTPS em produção
-    app.UseHttpsRedirection();
+    // HTTPS Redirection — apenas em Development (não em produção local/edge sem certificado)
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseHttpsRedirection();
+    }
 
     // CORS deve vir ANTES de Authentication e Authorization
     app.UseCors("AllowAll");

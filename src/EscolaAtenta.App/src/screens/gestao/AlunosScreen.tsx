@@ -1,11 +1,13 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { AppNavigationProp, RootStackParamList } from '../../navigation/types';
 import { AlunoDto } from '../../types/dtos';
-import { alunosService } from '../../services/alunosService';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../../theme/colors';
+import database from '../../database';
+import Aluno from '../../database/models/Aluno';
+import { Q } from '@nozbe/watermelondb';
 
 type AlunosRouteProp = RouteProp<RootStackParamList, 'Alunos'>;
 
@@ -18,24 +20,35 @@ export function AlunosScreen() {
     const [alunos, setAlunos] = useState<AlunoDto[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useFocusEffect(
-        useCallback(() => {
-            carregarAlunos();
-        }, [turmaId])
-    );
-
-    async function carregarAlunos() {
-        try {
-            setLoading(true);
-            const data = await alunosService.obterPorTurma(turmaId);
-            setAlunos(data);
-        } catch (error) {
-            Alert.alert('Erro', 'Não foi possível carregar os alunos desta turma.');
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    }
+    // Assinatura reativa: atualiza a lista sempre que o WatermelonDB mudar (ex: após sync)
+    useEffect(() => {
+        // observeWithColumns garante que o observer dispara quando qualquer
+        // uma dessas colunas muda em registros existentes (ex: após sync de contadores)
+        const subscription = database
+            .get<Aluno>('alunos')
+            .query(Q.where('turma_id', turmaId))
+            .observeWithColumns([
+                'faltas_consecutivas_atuais',
+                'faltas_no_trimestre',
+                'total_faltas',
+                'atrasos_no_trimestre',
+                'nome',
+            ])
+            .subscribe(rows => {
+                setAlunos(rows.map(a => ({
+                    id: a.id,
+                    nome: a.nome,
+                    turmaId: a.turmaId,
+                    matricula: '',
+                    faltasConsecutivasAtuais: a.faltasConsecutivasAtuais ?? 0,
+                    faltasNoTrimestre: a.faltasNoTrimestre ?? 0,
+                    totalFaltas: a.totalFaltas ?? 0,
+                    atrasosNoTrimestre: a.atrasosNoTrimestre ?? 0,
+                })));
+                setLoading(false);
+            });
+        return () => subscription.unsubscribe();
+    }, [turmaId]);
 
     const renderItem = ({ item }: { item: AlunoDto }) => (
         <TouchableOpacity

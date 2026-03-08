@@ -52,6 +52,9 @@ public class TurmaSyncDto
     public string Id { get; set; } = string.Empty;
     public string Nome { get; set; } = string.Empty;
     public string Turno { get; set; } = string.Empty;
+
+    [JsonPropertyName("ano_letivo")]
+    public int AnoLetivo { get; set; }
 }
 
 /// <summary>
@@ -65,4 +68,16 @@ public class AlunoSyncDto
 
     [JsonPropertyName("turma_id")]
     public string TurmaId { get; set; } = string.Empty;
+
+    [JsonPropertyName("faltas_consecutivas_atuais")]
+    public int FaltasConsecutivasAtuais { get; set; }
+
+    [JsonPropertyName("faltas_no_trimestre")]
+    public int FaltasNoTrimestre { get; set; }
+
+    [JsonPropertyName("total_faltas")]
+    public int TotalFaltas { get; set; }
+
+    [JsonPropertyName("atrasos_no_trimestre")]
+    public int AtrasosNoTrimestre { get; set; }
 }

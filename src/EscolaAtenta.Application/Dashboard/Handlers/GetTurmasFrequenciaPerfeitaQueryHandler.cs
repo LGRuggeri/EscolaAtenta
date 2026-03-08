@@ -22,30 +22,38 @@ public class GetTurmasFrequenciaPerfeitaQueryHandler : IRequestHandler<GetTurmas
 
     public async Task<IEnumerable<TurmaFrequenciaPerfeitaDto>> Handle(GetTurmasFrequenciaPerfeitaQuery request, CancellationToken cancellationToken)
     {
-        // Buscamos apenas os IDs e Nomes das Turmas que satisfazem as regras
-        var turmasValidas = await _context.Turmas
+        // SQLite não suporta comparação de DateTimeOffset em LINQ — carrega em memória e filtra
+        var dataInicio = request.DataInicio.ToUniversalTime();
+        var dataFim = request.DataFim.ToUniversalTime();
+
+        var todasTurmas = await _context.Turmas
             .AsNoTracking()
-            // Regra 1: Deve ter pelo menos uma chamada no período
-            .Where(t => t.Chamadas.Any(c => c.DataHora >= request.DataInicio && c.DataHora <= request.DataFim))
-            // Regra 2: Não pode conter NENHUMA falta ou atraso injustificado nesse período
+            .Include(t => t.Chamadas)
+                .ThenInclude(c => c.RegistrosPresenca)
+            .ToListAsync(cancellationToken);
+
+        var turmasValidas = todasTurmas
+            .Where(t => t.Chamadas.Any(c => c.DataHora.UtcDateTime >= dataInicio && c.DataHora.UtcDateTime <= dataFim))
             .Where(t => !t.Chamadas
-                .Any(c => c.DataHora >= request.DataInicio && c.DataHora <= request.DataFim &&
+                .Any(c => c.DataHora.UtcDateTime >= dataInicio && c.DataHora.UtcDateTime <= dataFim &&
                      c.RegistrosPresenca.Any(rp => rp.Status == StatusPresenca.Falta || rp.Status == StatusPresenca.Atraso)))
             .Select(t => new { t.Id, t.Nome })
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         if (!turmasValidas.Any())
             return Enumerable.Empty<TurmaFrequenciaPerfeitaDto>();
 
         var turmaIds = turmasValidas.Select(t => t.Id).ToList();
 
-        // Count das aulas ministradas por turma no período
-        var contagemChamadas = await _context.Chamadas
+        var todasChamadas = await _context.Chamadas
             .AsNoTracking()
-            .Where(c => turmaIds.Contains(c.TurmaId) && c.DataHora >= request.DataInicio && c.DataHora <= request.DataFim)
+            .Where(c => turmaIds.Contains(c.TurmaId))
+            .ToListAsync(cancellationToken);
+
+        var contagemChamadas = todasChamadas
+            .Where(c => c.DataHora.UtcDateTime >= dataInicio && c.DataHora.UtcDateTime <= dataFim)
             .GroupBy(c => c.TurmaId)
-            .Select(g => new { TurmaId = g.Key, Quantidade = g.Count() })
-            .ToDictionaryAsync(g => g.TurmaId, g => g.Quantidade, cancellationToken);
+            .ToDictionary(g => g.Key, g => g.Count());
 
         var turmasPerfeitas = turmasValidas
             .Select(t => new TurmaFrequenciaPerfeitaDto(

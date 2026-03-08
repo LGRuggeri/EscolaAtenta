@@ -45,10 +45,12 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
     public async Task<SyncPushResult> Handle(SyncPushCommand request, CancellationToken cancellationToken)
     {
+        var turmasCriadas = request.Changes.Turmas.Created;
+        var alunosCriados = request.Changes.Alunos.Created;
         var created = request.Changes.RegistrosPresenca.Created;
         var updated = request.Changes.RegistrosPresenca.Updated;
 
-        if (created.Count == 0 && updated.Count == 0)
+        if (turmasCriadas.Count == 0 && alunosCriados.Count == 0 && created.Count == 0 && updated.Count == 0)
             return new SyncPushResult(0, 0);
 
         // ── Segurança: Responsável extraído do JWT, nunca do cliente ─────────
@@ -63,6 +65,24 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         await _lockProvider.WaitAsync(cancellationToken);
         try
         {
+            // ── TURMAS CRIADAS OFFLINE ────────────────────────────────────────────
+            if (turmasCriadas.Count > 0)
+            {
+                totalSincronizados += await ProcessarTurmasCriadas(turmasCriadas, cancellationToken);
+                // Persiste turmas e SyncLogs antes de processar alunos,
+                // para que o lookup por IdExterno no SyncLog funcione corretamente.
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+
+            // ── ALUNOS CRIADOS OFFLINE ────────────────────────────────────────────
+            if (alunosCriados.Count > 0)
+            {
+                totalSincronizados += await ProcessarAlunosCriados(alunosCriados, cancellationToken);
+                // Persiste alunos e SyncLogs antes de processar presenças,
+                // para que o lookup por IdExterno no SyncLog funcione corretamente.
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+
             // ── CREATED ──────────────────────────────────────────────────────────
             if (created.Count > 0)
             {
@@ -86,10 +106,54 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         }
 
         _logger.LogInformation(
-            "[SYNC-PUSH] Concluído — Created={Created} Updated={Updated} Alertas={Alertas} Responsavel={User}",
-            created.Count, updated.Count, alertasGerados, responsavelId);
+            "[SYNC-PUSH] Concluído — Turmas={Turmas} Alunos={Alunos} Created={Created} Updated={Updated} Alertas={Alertas} Responsavel={User}",
+            turmasCriadas.Count, alunosCriados.Count, created.Count, updated.Count, alertasGerados, responsavelId);
 
         return new SyncPushResult(totalSincronizados, alertasGerados);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // TURMAS CRIADAS OFFLINE
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private async Task<int> ProcessarTurmasCriadas(
+        List<TurmaOfflineSyncDto> turmas,
+        CancellationToken ct)
+    {
+        // Idempotência: ignorar turmas já sincronizadas
+        var idsExternos = turmas.Select(t => t.Id).ToList();
+        var idsJaSincronizados = await _context.SyncLogs
+            .Where(s => idsExternos.Contains(s.IdExterno))
+            .Select(s => s.IdExterno)
+            .ToHashSetAsync(ct);
+
+        var novas = turmas.Where(t => !idsJaSincronizados.Contains(t.Id)).ToList();
+        if (novas.Count == 0) return 0;
+
+        int criados = 0;
+
+        foreach (var dto in novas)
+        {
+            var turno = string.IsNullOrWhiteSpace(dto.Turno) ? "Matutino" : dto.Turno;
+            var anoLetivo = dto.AnoLetivo > 0 ? dto.AnoLetivo : DateTime.UtcNow.Year;
+
+            var turma = new Turma(Guid.NewGuid(), dto.Nome, turno, anoLetivo);
+            _context.Turmas.Add(turma);
+
+            _context.SyncLogs.Add(new SyncLog
+            {
+                Id = Guid.NewGuid(),
+                IdExterno = dto.Id,
+                EntidadeId = turma.Id,
+                TabelaOrigem = "turmas",
+                SincronizadoEm = DateTimeOffset.UtcNow
+            });
+
+            criados++;
+        }
+
+        _logger.LogInformation("[SYNC-TURMA] {Count} turma(s) criada(s) offline sincronizadas.", criados);
+        return criados;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -115,28 +179,50 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         if (registrosNovos.Count == 0)
             return (0, 0);
 
-        // 2. Agrupar por (TurmaId + Dia) → uma Chamada por turma por dia
-        //    Necessário porque chamada.RegistrarPresenca() impede aluno duplicado.
-        //    Se o monitor fez chamada na segunda e na terça offline, são Chamadas distintas.
+        // 2. Resolver IDs externos (WatermelonDB local) → GUIDs reais via SyncLog
+        //    AlunoId e TurmaId podem ser IDs locais (ex: "NnshRE3qD8uI4cdW") ou GUIDs reais.
+        var todosIdsExternos = registrosNovos
+            .SelectMany(r => new[] { r.AlunoId, r.TurmaId })
+            .Where(id => !Guid.TryParse(id, out _))
+            .Distinct()
+            .ToList();
+
+        var syncLogMap = todosIdsExternos.Count > 0
+            ? await _context.SyncLogs
+                .Where(s => todosIdsExternos.Contains(s.IdExterno))
+                .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, ct)
+            : new Dictionary<string, Guid>();
+
+        Guid ResolveGuid(string id)
+        {
+            if (Guid.TryParse(id, out var guid)) return guid;
+            return syncLogMap.TryGetValue(id, out var resolved) ? resolved : Guid.Empty;
+        }
+
+        // 3. Agrupar por (TurmaId resolvido + Dia) → uma Chamada por turma por dia
         var grupos = registrosNovos
             .GroupBy(r => new
             {
-                r.TurmaId,
+                TurmaGuid = ResolveGuid(r.TurmaId),
                 Dia = ConvertTimestamp(r.Data).Date
             })
             .ToList();
 
-        // 3. Validar turmas existentes
-        var turmaIds = grupos.Select(g => g.Key.TurmaId).Distinct().ToList();
+        // 4. Validar turmas existentes
+        var turmaGuids = grupos.Select(g => g.Key.TurmaGuid).Where(g => g != Guid.Empty).Distinct().ToList();
         var turmasExistentes = await _context.Turmas
-            .Where(t => turmaIds.Contains(t.Id))
+            .Where(t => turmaGuids.Contains(t.Id))
             .Select(t => t.Id)
             .ToHashSetAsync(ct);
 
-        // 4. Carregar alunos necessários (para atualizar contadores)
-        var todosAlunoIds = registrosNovos.Select(r => r.AlunoId).Distinct().ToList();
+        // 5. Carregar alunos necessários (para atualizar contadores)
+        var todosAlunoGuids = registrosNovos
+            .Select(r => ResolveGuid(r.AlunoId))
+            .Where(g => g != Guid.Empty)
+            .Distinct()
+            .ToList();
         var alunosDb = await _context.Alunos
-            .Where(a => todosAlunoIds.Contains(a.Id))
+            .Where(a => todosAlunoGuids.Contains(a.Id))
             .ToDictionaryAsync(a => a.Id, ct);
 
         int criados = 0;
@@ -144,10 +230,10 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
         foreach (var grupo in grupos)
         {
-            if (!turmasExistentes.Contains(grupo.Key.TurmaId))
+            if (grupo.Key.TurmaGuid == Guid.Empty || !turmasExistentes.Contains(grupo.Key.TurmaGuid))
             {
-                _logger.LogWarning("[SYNC] Turma {TurmaId} não encontrada. Ignorando {Count} registros.",
-                    grupo.Key.TurmaId, grupo.Count());
+                _logger.LogWarning("[SYNC] Turma '{TurmaId}' não encontrada. Ignorando {Count} registros.",
+                    grupo.First().TurmaId, grupo.Count());
                 continue;
             }
 
@@ -159,7 +245,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             var chamada = new Chamada(
                 id: Guid.NewGuid(),
                 dataHora: dataHoraChamada,
-                turmaId: grupo.Key.TurmaId,
+                turmaId: grupo.Key.TurmaGuid,
                 responsavelId: responsavelId
             );
 
@@ -167,9 +253,10 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
             foreach (var dto in grupo)
             {
-                if (!alunosDb.TryGetValue(dto.AlunoId, out var aluno))
+                var alunoGuid = ResolveGuid(dto.AlunoId);
+                if (alunoGuid == Guid.Empty || !alunosDb.TryGetValue(alunoGuid, out var aluno))
                 {
-                    _logger.LogWarning("[SYNC] Aluno {AlunoId} não encontrado. Registro ignorado.", dto.AlunoId);
+                    _logger.LogWarning("[SYNC] Aluno '{AlunoId}' não encontrado. Registro ignorado.", dto.AlunoId);
                     continue;
                 }
 
@@ -258,6 +345,70 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         }
 
         return atualizados;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // ALUNOS CRIADOS OFFLINE
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private async Task<int> ProcessarAlunosCriados(
+        List<AlunoOfflineSyncDto> alunos,
+        CancellationToken ct)
+    {
+        // Idempotência: ignorar alunos já sincronizados
+        var idsExternos = alunos.Select(a => a.Id).ToList();
+        var idsJaSincronizados = await _context.SyncLogs
+            .Where(s => idsExternos.Contains(s.IdExterno))
+            .Select(s => s.IdExterno)
+            .ToHashSetAsync(ct);
+
+        var novos = alunos.Where(a => !idsJaSincronizados.Contains(a.Id)).ToList();
+        if (novos.Count == 0) return 0;
+
+        int criados = 0;
+
+        foreach (var dto in novos)
+        {
+            // TurmaId pode ser um Guid real (sync'd) ou um ID local (WatermelonDB)
+            // Tenta primeiro como Guid real, depois consulta SyncLog
+            Guid turmaGuid;
+            if (!Guid.TryParse(dto.TurmaId, out turmaGuid))
+            {
+                // ID local — busca no SyncLog o Guid real
+                var syncLog = await _context.SyncLogs
+                    .FirstOrDefaultAsync(s => s.IdExterno == dto.TurmaId, ct);
+                if (syncLog == null)
+                {
+                    _logger.LogWarning("[SYNC-ALUNO] TurmaId {TurmaId} não encontrado. Aluno {Nome} ignorado.", dto.TurmaId, dto.Nome);
+                    continue;
+                }
+                turmaGuid = syncLog.EntidadeId;
+            }
+
+            var turmaExiste = await _context.Turmas.AnyAsync(t => t.Id == turmaGuid, ct);
+            if (!turmaExiste)
+            {
+                _logger.LogWarning("[SYNC-ALUNO] Turma {TurmaId} não existe no servidor. Aluno {Nome} ignorado.", turmaGuid, dto.Nome);
+                continue;
+            }
+
+            var aluno = new Aluno(Guid.NewGuid(), dto.Nome, null, turmaGuid);
+            _context.Alunos.Add(aluno);
+
+            _context.SyncLogs.Add(new SyncLog
+            {
+                Id = Guid.NewGuid(),
+                IdExterno = dto.Id,
+                EntidadeId = aluno.Id,
+                TabelaOrigem = "alunos",
+                SincronizadoEm = DateTimeOffset.UtcNow
+            });
+
+            criados++;
+        }
+
+        _logger.LogInformation("[SYNC-ALUNO] {Count} aluno(s) criado(s) offline sincronizados.", criados);
+        return criados;
     }
 
     // ═════════════════════════════════════════════════════════════════════════

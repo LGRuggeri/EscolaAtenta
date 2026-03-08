@@ -1,13 +1,15 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 1,
+  version: 3,
   tables: [
     tableSchema({
       name: 'turmas',
       columns: [
         { name: 'nome', type: 'string' },
         { name: 'turno', type: 'string' },
+        { name: 'ano_letivo', type: 'number' },
+        { name: 'server_id', type: 'string', isOptional: true },
       ],
     }),
     tableSchema({
@@ -15,6 +17,10 @@ export default appSchema({
       columns: [
         { name: 'nome', type: 'string' },
         { name: 'turma_id', type: 'string', isIndexed: true },
+        { name: 'faltas_consecutivas_atuais', type: 'number' },
+        { name: 'faltas_no_trimestre', type: 'number' },
+        { name: 'total_faltas', type: 'number' },
+        { name: 'atrasos_no_trimestre', type: 'number' },
       ],
     }),
     tableSchema({

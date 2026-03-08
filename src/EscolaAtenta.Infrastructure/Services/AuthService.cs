@@ -23,22 +23,27 @@ namespace EscolaAtenta.Infrastructure.Services;
 public class AuthService : IAuthService
 {
     private readonly IConfiguration _configuration;
-    private readonly string _secretKey;
-    private readonly string _issuer;
-    private readonly string _audience;
-    private readonly int _expiryMinutes;
 
     public AuthService(IConfiguration configuration)
     {
         _configuration = configuration;
-        
-        // Le configuracoes do JWT - fallback para desenvolvimento
-        var jwtSection = _configuration.GetSection("Jwt");
-        _secretKey = jwtSection["SecretKey"] ?? "ChaveSecretaDeDesenvolvimentoMuitoLongaParaTestes123456!";
-        _issuer = jwtSection["Issuer"] ?? "EscolaAtenta";
-        _audience = jwtSection["Audience"] ?? "EscolaAtenta";
-        _expiryMinutes = int.TryParse(jwtSection["ExpiryMinutes"], out var mins) ? mins : 60;
     }
+
+    private string SecretKey
+    {
+        get
+        {
+            // Lê sempre em runtime para pegar a chave persistida após geração no startup
+            var key = _configuration["Jwt:SecretKey"];
+            return string.IsNullOrWhiteSpace(key)
+                ? "ChaveSecretaDeDesenvolvimentoMuitoLongaParaTestes123456!"
+                : key;
+        }
+    }
+
+    private string Issuer => _configuration["Jwt:Issuer"] ?? "EscolaAtenta";
+    private string Audience => _configuration["Jwt:Audience"] ?? "EscolaAtenta";
+    private int ExpiryMinutes => int.TryParse(_configuration["Jwt:ExpiryMinutes"], out var mins) ? mins : 60;
 
     public LoginResult GerarToken(Usuario usuario)
     {
@@ -53,14 +58,14 @@ public class AuthService : IAuthService
         };
 
         // Chave simetrica - em producao, usar RSA ou ECDSA com chave armazenada em vault
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SecretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var expiresAt = DateTime.UtcNow.AddMinutes(_expiryMinutes);
+        var expiresAt = DateTime.UtcNow.AddMinutes(ExpiryMinutes);
 
         var token = new JwtSecurityToken(
-            issuer: _issuer,
-            audience: _audience,
+            issuer: Issuer,
+            audience: Audience,
             claims: claims,
             notBefore: DateTime.UtcNow,
             expires: expiresAt,

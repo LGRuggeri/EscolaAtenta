@@ -30,114 +30,163 @@ public class SyncPullHandler : IRequestHandler<SyncPullQuery, SyncPullResult>
     public async Task<SyncPullResult> Handle(SyncPullQuery request, CancellationToken ct)
     {
         var lastPulledAt = request.LastPulledAt ?? 0;
+        // SQLite não suporta comparação direta de DateTimeOffset em LINQ — usa DateTime UTC
         var sinceUtc = lastPulledAt > 0
-            ? DateTimeOffset.FromUnixTimeMilliseconds(lastPulledAt)
-            : DateTimeOffset.MinValue;
+            ? DateTimeOffset.FromUnixTimeMilliseconds(lastPulledAt).UtcDateTime
+            : DateTime.MinValue;
 
         var isPrimeiroSync = lastPulledAt == 0;
 
         var changes = new SyncPullChanges();
 
         // ── TURMAS ───────────────────────────────────────────────────────────
+        // Mapeamento GUID → ID local (para turmas criadas via push offline)
+        // Quando o pull retorna uma turma que veio do push, usa o idExterno (ID local WatermelonDB)
+        // como Id no payload, para que o celular atualize o registro existente ao invés de criar duplicata.
+        var syncLogsTurmas = await _context.SyncLogs
+            .AsNoTracking()
+            .Where(s => s.TabelaOrigem == "turmas")
+            .ToDictionaryAsync(s => s.EntidadeId, s => s.IdExterno, ct);
+
+        string ResolverIdTurma(Guid guid) =>
+            syncLogsTurmas.TryGetValue(guid, out var idLocal) ? idLocal : guid.ToString();
+
         if (isPrimeiroSync)
         {
             // Primeiro sync: todas as turmas ativas vão em Created
             var todasTurmas = await _context.Turmas
                 .AsNoTracking()
-                .Select(t => new TurmaSyncDto
-                {
-                    Id = t.Id.ToString(),
-                    Nome = t.Nome,
-                    Turno = t.Turno
-                })
                 .ToListAsync(ct);
 
-            changes.Turmas.Created = todasTurmas;
+            changes.Turmas.Created = todasTurmas
+                .Select(t => new TurmaSyncDto
+                {
+                    Id = ResolverIdTurma(t.Id),
+                    Nome = t.Nome,
+                    Turno = t.Turno,
+                    AnoLetivo = t.AnoLetivo
+                })
+                .ToList();
         }
         else
         {
-            // Delta: Created = novas desde lastPulledAt
-            changes.Turmas.Created = await _context.Turmas
+            // Delta com filtragem em memória — SQLite não suporta comparação de DateTimeOffset em LINQ
+            var todasTurmas = await _context.Turmas
                 .AsNoTracking()
-                .Where(t => t.DataCriacao > sinceUtc)
-                .Select(t => new TurmaSyncDto
-                {
-                    Id = t.Id.ToString(),
-                    Nome = t.Nome,
-                    Turno = t.Turno
-                })
                 .ToListAsync(ct);
 
-            // Delta: Updated = modificadas (existiam antes, atualizadas depois)
-            changes.Turmas.Updated = await _context.Turmas
-                .AsNoTracking()
+            changes.Turmas.Created = todasTurmas
+                .Where(t => t.DataCriacao.UtcDateTime > sinceUtc)
+                .Select(t => new TurmaSyncDto { Id = ResolverIdTurma(t.Id), Nome = t.Nome, Turno = t.Turno, AnoLetivo = t.AnoLetivo })
+                .ToList();
+
+            changes.Turmas.Updated = todasTurmas
                 .Where(t => t.DataAtualizacao != null
-                         && t.DataAtualizacao > sinceUtc
-                         && t.DataCriacao <= sinceUtc)
-                .Select(t => new TurmaSyncDto
-                {
-                    Id = t.Id.ToString(),
-                    Nome = t.Nome,
-                    Turno = t.Turno
-                })
-                .ToListAsync(ct);
+                         && t.DataAtualizacao.Value.UtcDateTime > sinceUtc
+                         && t.DataCriacao.UtcDateTime <= sinceUtc)
+                .Select(t => new TurmaSyncDto { Id = ResolverIdTurma(t.Id), Nome = t.Nome, Turno = t.Turno, AnoLetivo = t.AnoLetivo })
+                .ToList();
 
-            // Delta: Deleted = soft-deleted desde lastPulledAt
-            changes.Turmas.Deleted = await _context.Turmas
+            var turmasExcluidas = await _context.Turmas
                 .IgnoreQueryFilters()
                 .AsNoTracking()
-                .Where(t => !t.Ativo && t.DataExclusao != null && t.DataExclusao > sinceUtc)
-                .Select(t => t.Id.ToString())
+                .Where(t => !t.Ativo)
                 .ToListAsync(ct);
+
+            changes.Turmas.Deleted = turmasExcluidas
+                .Where(t => t.DataExclusao != null && t.DataExclusao.Value.UtcDateTime > sinceUtc)
+                .Select(t => ResolverIdTurma(t.Id))
+                .ToList();
         }
 
         // ── ALUNOS ───────────────────────────────────────────────────────────
+        // Mesmo padrão: se o aluno veio do push offline, usa o ID local como Id no pull
+        var syncLogsAlunos = await _context.SyncLogs
+            .AsNoTracking()
+            .Where(s => s.TabelaOrigem == "alunos")
+            .ToDictionaryAsync(s => s.EntidadeId, s => s.IdExterno, ct);
+
+        string ResolverIdAluno(Guid guid) =>
+            syncLogsAlunos.TryGetValue(guid, out var idLocal) ? idLocal : guid.ToString();
+
+        // TurmaId no payload do pull também precisa ser resolvido para o ID local (se veio de push)
+        string ResolverTurmaId(Guid turmaGuid) =>
+            syncLogsTurmas.TryGetValue(turmaGuid, out var idLocal) ? idLocal : turmaGuid.ToString();
+
         if (isPrimeiroSync)
         {
             var todosAlunos = await _context.Alunos
                 .AsNoTracking()
-                .Select(a => new AlunoSyncDto
-                {
-                    Id = a.Id.ToString(),
-                    Nome = a.Nome,
-                    TurmaId = a.TurmaId.ToString()
-                })
                 .ToListAsync(ct);
 
-            changes.Alunos.Created = todosAlunos;
+            changes.Alunos.Created = todosAlunos
+                .Select(a => new AlunoSyncDto
+                {
+                    Id = ResolverIdAluno(a.Id),
+                    Nome = a.Nome,
+                    TurmaId = ResolverTurmaId(a.TurmaId),
+                    FaltasConsecutivasAtuais = a.FaltasConsecutivasAtuais,
+                    FaltasNoTrimestre = a.FaltasNoTrimestre,
+                    TotalFaltas = a.TotalFaltas,
+                    AtrasosNoTrimestre = a.AtrasosNoTrimestre
+                })
+                .ToList();
         }
         else
         {
-            changes.Alunos.Created = await _context.Alunos
+            // Delta com filtragem em memória — SQLite não suporta comparação de DateTimeOffset em LINQ
+            var todosAlunos = await _context.Alunos
                 .AsNoTracking()
-                .Where(a => a.DataCriacao > sinceUtc)
-                .Select(a => new AlunoSyncDto
-                {
-                    Id = a.Id.ToString(),
-                    Nome = a.Nome,
-                    TurmaId = a.TurmaId.ToString()
-                })
                 .ToListAsync(ct);
 
-            changes.Alunos.Updated = await _context.Alunos
-                .AsNoTracking()
+            AlunoSyncDto MapAluno(Domain.Entities.Aluno a) => new()
+            {
+                Id = ResolverIdAluno(a.Id),
+                Nome = a.Nome,
+                TurmaId = ResolverTurmaId(a.TurmaId),
+                FaltasConsecutivasAtuais = a.FaltasConsecutivasAtuais,
+                FaltasNoTrimestre = a.FaltasNoTrimestre,
+                TotalFaltas = a.TotalFaltas,
+                AtrasosNoTrimestre = a.AtrasosNoTrimestre
+            };
+
+            // Alunos criados via push offline já existem no WatermelonDB com o ID local.
+            // Se chegarem em Created novamente, o WatermelonDB ignora (ID já existe).
+            // Por isso, alunos com SyncLog (origem: push offline) devem ir em Updated no delta.
+            // syncLogsAlunos: EntidadeId (Guid) → IdExterno (string local)
+            var idsAlunoPushOffline = syncLogsAlunos.Keys.ToHashSet();
+
+            var alunosNovos = todosAlunos.Where(a => a.DataCriacao.UtcDateTime > sinceUtc).ToList();
+
+            changes.Alunos.Created = alunosNovos
+                .Where(a => !idsAlunoPushOffline.Contains(a.Id))
+                .Select(MapAluno)
+                .ToList();
+
+            changes.Alunos.Updated = todosAlunos
                 .Where(a => a.DataAtualizacao != null
-                         && a.DataAtualizacao > sinceUtc
-                         && a.DataCriacao <= sinceUtc)
-                .Select(a => new AlunoSyncDto
-                {
-                    Id = a.Id.ToString(),
-                    Nome = a.Nome,
-                    TurmaId = a.TurmaId.ToString()
-                })
-                .ToListAsync(ct);
+                         && a.DataAtualizacao.Value.UtcDateTime > sinceUtc
+                         && a.DataCriacao.UtcDateTime <= sinceUtc)
+                .Select(MapAluno)
+                .ToList();
 
-            changes.Alunos.Deleted = await _context.Alunos
+            // Alunos criados offline cujos contadores mudaram desde o push também precisam ir em Updated
+            changes.Alunos.Updated.AddRange(
+                alunosNovos
+                    .Where(a => idsAlunoPushOffline.Contains(a.Id))
+                    .Select(MapAluno)
+            );
+
+            var alunosExcluidos = await _context.Alunos
                 .IgnoreQueryFilters()
                 .AsNoTracking()
-                .Where(a => !a.Ativo && a.DataExclusao != null && a.DataExclusao > sinceUtc)
-                .Select(a => a.Id.ToString())
+                .Where(a => !a.Ativo)
                 .ToListAsync(ct);
+
+            changes.Alunos.Deleted = alunosExcluidos
+                .Where(a => a.DataExclusao != null && a.DataExclusao.Value.UtcDateTime > sinceUtc)
+                .Select(a => ResolverIdAluno(a.Id))
+                .ToList();
         }
 
         // Timestamp do servidor para o próximo pull
