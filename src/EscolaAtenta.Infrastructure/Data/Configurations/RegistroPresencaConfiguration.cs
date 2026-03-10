@@ -17,14 +17,10 @@ public class RegistroPresencaConfiguration : IEntityTypeConfiguration<RegistroPr
                .IsRequired()
                .HasConversion<int>();
 
-        // ── Concorrência Otimista via xmin do PostgreSQL ───────────────────────
-        // RegistroPresenca também usa xmin pois pode ser atualizado concorrentemente
-        // (ex: correção de status por dois professores ao mesmo tempo)
-        builder.Property<uint>("xmin")
-               .HasColumnName("xmin")
-               .HasColumnType("xid")
-               .ValueGeneratedOnAddOrUpdate()
-               .IsConcurrencyToken();
+        // ── Concorrência Otimista ─────────────────────────────────────────────
+        // SQLite: concorrência otimista não é necessária em ambiente escolar
+        // mono-usuário. Se futuramente for necessário, usar uma coluna
+        // RowVersion (byte[]) com ValueGeneratedOnAddOrUpdate().
 
         // ── Auditoria ──────────────────────────────────────────────────────────
         builder.Property(rp => rp.DataCriacao).IsRequired();

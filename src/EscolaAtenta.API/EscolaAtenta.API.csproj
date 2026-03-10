@@ -33,6 +33,11 @@
     -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.12" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.1" />
+    <!--
+      WindowsServices: Permite que a API rode como Serviço do Windows nativo.
+      Inicia automaticamente com o computador, sem depender de sessões de usuário.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.*" />
   </ItemGroup>
 
   <ItemGroup>

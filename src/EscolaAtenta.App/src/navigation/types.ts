@@ -3,6 +3,7 @@ import { TurmaDto, AlunoDto } from '../types/dtos';
 
 export type RootStackParamList = {
     Login: undefined;
+    ConfiguracaoServidor: undefined;
     Home: undefined;
     Turmas: undefined;
     TurmaForm: { turma?: TurmaDto };
@@ -13,6 +14,8 @@ export type RootStackParamList = {
     UsuarioForm: { id?: string } | undefined;
     Alertas: undefined;
     HistoricoAlertas: undefined;
+    RelatorioPresencas: undefined;
+    TrocarSenha: undefined;
 };
 
 export type AppNavigationProp = NativeStackNavigationProp<RootStackParamList>;

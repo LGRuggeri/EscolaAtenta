@@ -15,18 +15,10 @@ public class ChamadaConfiguration : IEntityTypeConfiguration<Chamada>
         builder.Property(c => c.DataHora).IsRequired();
         builder.Property(c => c.ResponsavelId).IsRequired();
 
-        // ── Concorrência Otimista via xmin do PostgreSQL ───────────────────────
-        // O xmin é o transaction ID nativo do PostgreSQL — muda a cada UPDATE.
-        // Configurado via Property para mapear a coluna de sistema "xmin".
-        // O EF Core inclui xmin no WHERE do UPDATE e lança DbUpdateConcurrencyException
-        // se outro processo modificou o registro entre o SELECT e o UPDATE.
-        // Nota: UseXminAsConcurrencyToken() é um método de extensão do Npgsql
-        // que internamente faz o mesmo que a configuração abaixo.
-        builder.Property<uint>("xmin")
-               .HasColumnName("xmin")
-               .HasColumnType("xid")
-               .ValueGeneratedOnAddOrUpdate()
-               .IsConcurrencyToken();
+        // ── Concorrência Otimista ─────────────────────────────────────────────
+        // SQLite: concorrência otimista não é necessária em ambiente escolar
+        // mono-usuário. Se futuramente for necessário, usar uma coluna
+        // RowVersion (byte[]) com ValueGeneratedOnAddOrUpdate().
 
         // ── Auditoria ──────────────────────────────────────────────────────────
         builder.Property(c => c.DataCriacao).IsRequired();

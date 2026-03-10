@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { UsuarioLogado } from '../types/dtos';
 import { PapelUsuario } from '../types/enums';
-import { authStorage } from '../services/api';
+import { authStorage, loadServerUrl } from '../services/api';
 import { authService } from '../services/authService';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
 
@@ -29,6 +29,7 @@ interface AuthContextData {
     signed: boolean;
     user: UsuarioLogado | null;
     loading: boolean;
+    deveAlterarSenha: boolean;
     signIn: (email: string, senha: string) => Promise<void>;
     signOut: () => Promise<void>;
 }
@@ -38,9 +39,13 @@ export const AuthContext = createContext<AuthContextData>({} as AuthContextData)
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<UsuarioLogado | null>(null);
     const [loading, setLoading] = useState(true);
+    const [deveAlterarSenha, setDeveAlterarSenha] = useState(false);
 
     useEffect(() => {
         async function loadStorageData() {
+            // Carrega a URL do servidor salva antes de tentar restaurar a sessao
+            await loadServerUrl();
+
             const token = await authStorage.getToken();
 
             if (token) {
@@ -73,9 +78,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const response = await authService.login(email, senha);
         await authStorage.saveToken(response.token);
 
-        // O backend C# retorna um LoginResponse direto: { token, email, papel, expiresAt }
-        // Precisamos decodificar o token para pegar o ID real e o Nome se quisermos preencher o UsuarioLogado completo,
-        // mas podemos usar os dados que vieram do response por agora.
         try {
             const decoded = jwtDecode<EscolaAtentaJwtPayload>(response.token);
             setUser({
@@ -84,6 +86,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 nome: decoded.name || response.email.split('@')[0] || 'Usuário',
                 papel: parseRole(response.papel || decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 1)
             });
+            setDeveAlterarSenha(response.deveAlterarSenha === true);
         } catch (e) {
             console.error("Falha ao decodificar token no signIn", e);
         }
@@ -92,10 +95,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     async function signOut() {
         await authStorage.removeToken();
         setUser(null);
+        setDeveAlterarSenha(false);
     }
 
     return (
-        <AuthContext.Provider value={{ signed: !!user, user, loading, signIn, signOut }}>
+        <AuthContext.Provider value={{ signed: !!user, user, loading, deveAlterarSenha, signIn, signOut }}>
             {children}
         </AuthContext.Provider>
     );

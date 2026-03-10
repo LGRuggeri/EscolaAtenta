@@ -32,6 +32,14 @@ public abstract class EntityBase
 
     public Guid Id { get; private set; }
 
+    // ── Preparação Multi-Tenant e Cloud Sync ───────────────────────────────────
+    
+    /// <summary>Identificador da Escola (Tenant) ao qual este registro pertence.</summary>
+    public Guid EscolaId { get; internal set; }
+
+    /// <summary>Data e hora em que este registro foi sincronizado com a Nuvem. Null se houver alterações locais pendentes de envio.</summary>
+    public DateTime? CloudSyncedAt { get; internal set; }
+
     // ── Campos de Auditoria ────────────────────────────────────────────────────
     // Preenchidos automaticamente pelo AppDbContext.SaveChangesAsync
 

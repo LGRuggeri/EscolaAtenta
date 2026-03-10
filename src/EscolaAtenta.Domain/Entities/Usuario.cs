@@ -39,6 +39,7 @@ public class Usuario : EntityBase, ISoftDeletable
         HashSenha = hashSenha ?? throw new ArgumentNullException(nameof(hashSenha));
         Papel = papel;
         Ativo = true; // Por padrao, usuario ativo
+        DeveAlterarSenha = false;
     }
 
     // Construtor protegido para EF Core
@@ -51,8 +52,14 @@ public class Usuario : EntityBase, ISoftDeletable
     
     // hash bcrypt de 60 caracteres - NUNCA armazenar senha em texto
     public string HashSenha { get; private set; } = string.Empty;
-    
+
     public PapelUsuario Papel { get; private set; }
+
+    /// <summary>
+    /// Indica que o usuario deve trocar a senha no proximo login.
+    /// Definido como true quando a senha e gerada automaticamente pelo sistema.
+    /// </summary>
+    public bool DeveAlterarSenha { get; private set; }
 
     // ── Soft Delete (ISoftDeletable) ────────────────────────────────────────────
     public bool Ativo { get; private set; }
@@ -84,8 +91,17 @@ public class Usuario : EntityBase, ISoftDeletable
     {
         if (string.IsNullOrWhiteSpace(novoHashSenha))
             throw new ArgumentException("Nova senha e obrigatoria.", nameof(novoHashSenha));
-        
+
         HashSenha = novoHashSenha;
+        DeveAlterarSenha = false; // Senha trocada pelo proprio usuario — flag limpo
+    }
+
+    /// <summary>
+    /// Marca que o usuario deve trocar a senha no proximo login (ex: senha gerada automaticamente).
+    /// </summary>
+    public void ExigirTrocaDeSenha()
+    {
+        DeveAlterarSenha = true;
     }
 
     /// <summary>

@@ -5,25 +5,24 @@
 namespace EscolaAtenta.Infrastructure.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class AddNomeUsuario : Migration
+    public partial class AddDeveAlterarSenha : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "Nome",
+            migrationBuilder.AddColumn<bool>(
+                name: "DeveAlterarSenha",
                 table: "Usuarios",
-                type: "character varying(100)",
-                maxLength: 100,
+                type: "INTEGER",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: false);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "Nome",
+                name: "DeveAlterarSenha",
                 table: "Usuarios");
         }
     }

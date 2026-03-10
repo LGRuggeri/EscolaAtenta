@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
@@ -7,10 +7,12 @@ import { AppNavigationProp } from '../../navigation/types';
 import { PapelUsuario } from '../../types/enums';
 import { QuadroDeHonraFrequencia } from '../../components/dashboard/QuadroDeHonraFrequencia';
 import { theme } from '../../theme/colors';
+import { useSyncEngine } from '../../hooks/useSyncEngine';
 
 export function HomeScreen() {
     const { user, signOut } = useAuth();
     const navigation = useNavigation<AppNavigationProp>();
+    const { isSyncing, temPendentes } = useSyncEngine();
 
     return (
         <SafeAreaView style={styles.container}>
@@ -18,6 +20,17 @@ export function HomeScreen() {
                 <View style={styles.header}>
                     <Text style={styles.welcomeTitle}>Olá, {user?.nome?.split(' ')[0]}!</Text>
                     <Text style={styles.roleText}>{PapelUsuario[user?.papel || 1]}</Text>
+                    {isSyncing && (
+                        <View style={styles.syncStatus}>
+                            <ActivityIndicator size="small" color={theme.colors.primary} />
+                            <Text style={styles.syncText}>Sincronizando...</Text>
+                        </View>
+                    )}
+                    {!isSyncing && temPendentes && (
+                        <View style={styles.syncStatus}>
+                            <Text style={styles.syncPendente}>⏳ Pendente — aguardando rede</Text>
+                        </View>
+                    )}
                 </View>
 
                 <View style={styles.grid}>
@@ -29,6 +42,11 @@ export function HomeScreen() {
                     <TouchableOpacity style={[styles.card, { width: '48%' }]} onPress={() => navigation.navigate('Alertas')}>
                         <Text style={styles.cardIcon}>⚠️</Text>
                         <Text style={[styles.cardText, { color: theme.colors.error }]}>Alertas</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.card, { width: '48%' }]} onPress={() => navigation.navigate('RelatorioPresencas')}>
+                        <Text style={styles.cardIcon}>📋</Text>
+                        <Text style={styles.cardText}>Relatório</Text>
                     </TouchableOpacity>
 
                     {user?.papel === PapelUsuario.Administrador && (
@@ -55,6 +73,9 @@ const styles = StyleSheet.create({
     header: { marginBottom: 40 },
     welcomeTitle: { fontSize: 28, fontWeight: 'bold', color: theme.colors.textPrimary },
     roleText: { fontSize: 16, color: theme.colors.primary, fontWeight: 'bold', marginTop: 4 },
+    syncStatus: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 },
+    syncText: { fontSize: 12, color: theme.colors.textSecondary },
+    syncPendente: { fontSize: 12, color: theme.colors.textSecondary },
     grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
     card: { width: '100%', backgroundColor: theme.colors.surface, padding: 24, borderRadius: 16, alignItems: 'center', marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
     cardIcon: { fontSize: 32, marginBottom: 12 },

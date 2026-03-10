@@ -22,6 +22,8 @@ public record SyncPushCommand(
 
 public class SyncChanges
 {
+    public SyncTableData<TurmaOfflineSyncDto> Turmas { get; set; } = new();
+    public SyncTableData<AlunoOfflineSyncDto> Alunos { get; set; } = new();
     public SyncTableData<RegistroPresencaSyncDto> RegistrosPresenca { get; set; } = new();
 }
 
@@ -30,6 +32,34 @@ public class SyncTableData<T>
     public List<T> Created { get; set; } = [];
     public List<T> Updated { get; set; } = [];
     public List<string> Deleted { get; set; } = [];
+}
+
+// ── DTO de turma criada offline ──────────────────────────────────────────────
+
+/// <summary>
+/// Turma criada offline pelo WatermelonDB.
+/// Id é o ID local gerado pelo WatermelonDB (string alfanumérica).
+/// </summary>
+public class TurmaOfflineSyncDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Nome { get; set; } = string.Empty;
+    public string Turno { get; set; } = string.Empty;
+    public int AnoLetivo { get; set; }
+}
+
+// ── DTO de aluno criado offline ───────────────────────────────────────────────
+
+/// <summary>
+/// Aluno criado offline pelo WatermelonDB.
+/// Id é o ID local gerado pelo WatermelonDB (string alfanumérica).
+/// TurmaId é o Guid da turma (já sincronizado ou criado offline também).
+/// </summary>
+public class AlunoOfflineSyncDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Nome { get; set; } = string.Empty;
+    public string TurmaId { get; set; } = string.Empty;
 }
 
 // ── DTO unitário de presença vindo do SQLite ─────────────────────────────────
@@ -46,8 +76,8 @@ public class SyncTableData<T>
 public class RegistroPresencaSyncDto
 {
     public string Id { get; set; } = string.Empty;
-    public Guid AlunoId { get; set; }
-    public Guid TurmaId { get; set; }
+    public string AlunoId { get; set; } = string.Empty;
+    public string TurmaId { get; set; } = string.Empty;
     public long Data { get; set; }
     public string Status { get; set; } = string.Empty;
 }

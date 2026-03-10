@@ -10,9 +10,12 @@
 
 using EscolaAtenta.Application.Auth;
 using EscolaAtenta.Domain.Exceptions;
+using EscolaAtenta.Domain.Interfaces;
+using EscolaAtenta.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using MediatR;
 
 namespace EscolaAtenta.API.Controllers;
@@ -25,10 +28,17 @@ public class AuthController : ControllerBase
     private readonly IMediator _mediator;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IMediator mediator, ILogger<AuthController> logger)
+    private readonly AppDbContext _dbContext;
+    private readonly IAuthService _authService;
+    private readonly ICurrentUserService _currentUser;
+
+    public AuthController(IMediator mediator, ILogger<AuthController> logger, AppDbContext dbContext, IAuthService authService, ICurrentUserService currentUser)
     {
         _mediator = mediator;
         _logger = logger;
+        _dbContext = dbContext;
+        _authService = authService;
+        _currentUser = currentUser;
     }
 
     /// <summary>
@@ -71,9 +81,39 @@ public class AuthController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// Troca de senha — obrigatoria no primeiro login ou quando solicitado.
+    /// Requer autenticacao (JWT valido).
+    /// </summary>
+    [HttpPut("trocar-senha")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> TrocarSenha([FromBody] TrocarSenhaRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.NovaSenha) || request.NovaSenha.Length < 6)
+            return BadRequest(new { detail = "A nova senha deve ter pelo menos 6 caracteres." });
+
+        if (!_currentUser.EstaAutenticado || !Guid.TryParse(_currentUser.UsuarioId, out var usuarioId))
+            return Unauthorized();
+
+        var usuario = await _dbContext.Usuarios.FirstOrDefaultAsync(u => u.Id == usuarioId, ct);
+        if (usuario == null) return Unauthorized();
+
+        var novoHash = _authService.GerarHashSenha(request.NovaSenha);
+        usuario.AlterarSenha(novoHash);
+        await _dbContext.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Senha alterada com sucesso para {Email}", usuario.Email);
+        return NoContent();
+    }
 }
 
 /// <summary>
 /// Request de login.
 /// </summary>
 public record LoginRequest(string Email, string Senha);
+
+public record TrocarSenhaRequest(string NovaSenha);

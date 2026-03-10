@@ -8,6 +8,7 @@ import database from '../../database';
 import Aluno from '../../database/models/Aluno';
 import RegistroPresenca, { StatusPresencaLocal } from '../../database/models/RegistroPresenca';
 import { theme } from '../../theme/colors';
+import { syncWithServer } from '../../services/sync/watermelondbSync';
 
 import withObservables from '@nozbe/with-observables';
 
@@ -72,9 +73,12 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                 await database.batch(...batch);
             });
 
-            // Feedback instantâneo — sem esperar rede
-            Alert.alert('Chamada salva!', 'Os registros serão enviados ao servidor automaticamente.');
             navigation.goBack();
+
+            // Dispara sync imediatamente após salvar (em background, sem bloquear a UI)
+            syncWithServer().catch(() => {
+                // Falha silenciosa — o polling de 60s vai retentar
+            });
         } catch (error) {
             console.error('[CHAMADA] Erro ao salvar localmente:', error);
             Alert.alert('Erro', 'Falha ao salvar a chamada no dispositivo.');

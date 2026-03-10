@@ -80,24 +80,13 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
         // Projeção direta no banco — o EF faz o JOIN e traz apenas as colunas
         // necessárias para o DTO. Não carrega entidades Aluno/Turma completas.
         
-        if (!request.ApenasNaoResolvidos)
-        {
-            query = query.OrderByDescending(a => a.DataResolucao).ThenByDescending(a => a.DataAlerta);
-        }
-        else
-        {
-            query = query.OrderByDescending(a => a.DataAlerta);
-        }
-
-        var dbResult = await query
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
+        // SQLite não suporta ORDER BY em colunas DateTimeOffset via EF Core.
+        // Carrega os registros da query (já filtrada) e ordena/pagina em memória.
+        var todos = await query
             .Select(a => new
             {
                 a.Id,
                 AlunoNome = a.Aluno != null ? a.Aluno.Nome : "Desconhecido",
-                // Fallback histórico: se o alerta antigo não tinha TurmaId preenchido fisicamente,
-                // buscamos a Turma atual através do relacionamento do Aluno.
                 TurmaNome = a.Turma != null ? a.Turma.Nome :
                            (a.Aluno != null && a.Aluno.Turma != null ? a.Aluno.Turma.Nome : "Turma Não Informada"),
                 a.Nivel,
@@ -105,12 +94,22 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
                 a.DataAlerta,
                 a.Resolvido,
                 a.ObservacaoResolucao,
-                TipoNome = a.Tipo.ToString(), // "Evasao" | "Atraso"
+                TipoNome = a.Tipo.ToString(),
                 ResolvidoPorNome = a.ResolvidoPor != null ? a.ResolvidoPor.Email : null,
                 a.DataResolucao,
-                a.JustificativaResolucao
+                a.JustificativaResolucao,
+                // Contadores atuais do aluno para mensagem precisa
+                FaltasConsecutivasAtuais = a.Aluno != null ? a.Aluno.FaltasConsecutivasAtuais : 0,
+                AtrasosNoTrimestre = a.Aluno != null ? a.Aluno.AtrasosNoTrimestre : 0,
             })
             .ToListAsync(cancellationToken);
+
+        var dbResult = (!request.ApenasNaoResolvidos
+            ? todos.OrderByDescending(a => a.DataResolucao).ThenByDescending(a => a.DataAlerta)
+            : todos.OrderByDescending(a => a.DataAlerta))
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
 
         // ── Mapeamento em memória — APENAS na página atual ────────────────────
         // GetTituloAmigavel e FormatarDescricaoLimpa não são traduzíveis pelo EF.
@@ -120,12 +119,12 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
             a.AlunoNome,
             a.TurmaNome,
             a.Nivel,
-            FormatarDescricaoLimpa(a.Descricao, a.AlunoNome, a.TurmaNome, a.DataAlerta.LocalDateTime),
+            FormatarMensagem(a.TipoNome, a.AlunoNome, a.TurmaNome, a.DataAlerta.LocalDateTime, a.FaltasConsecutivasAtuais, a.AtrasosNoTrimestre),
             a.DataAlerta.UtcDateTime,
             a.Resolvido,
             a.ObservacaoResolucao,
             GetTituloAmigavel(a.Nivel, a.TipoNome),
-            FormatarDescricaoLimpa(a.Descricao, a.AlunoNome, a.TurmaNome, a.DataAlerta.LocalDateTime),
+            FormatarMensagem(a.TipoNome, a.AlunoNome, a.TurmaNome, a.DataAlerta.LocalDateTime, a.FaltasConsecutivasAtuais, a.AtrasosNoTrimestre),
             a.TipoNome,
             a.ResolvidoPorNome,
             a.DataResolucao?.UtcDateTime,
@@ -139,18 +138,22 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
     /// Formata a descrição removendo IDs e estruturas internas — retorna texto
     /// legível para o usuário final de supervisão.
     /// </summary>
-    private static string FormatarDescricaoLimpa(
-        string descricaoOriginal,
+    private static string FormatarMensagem(
+        string tipoNome,
         string alunoNome,
         string turmaNome,
-        DateTime dataInfracao)
+        DateTime dataInfracao,
+        int faltasConsecutivas,
+        int atrasosNoTrimestre)
     {
-        string tipoInfracao = descricaoOriginal.Contains("atrasos", StringComparison.OrdinalIgnoreCase)
-            ? "atrasos excedidos"
-            : "faltas consecutivas";
+        if (tipoNome == "Atraso")
+        {
+            return $"{alunoNome} ({turmaNome}) acumulou {atrasosNoTrimestre} atraso(s) no trimestre. " +
+                   $"Última ocorrência: {dataInfracao:dd/MM/yyyy HH:mm}";
+        }
 
-        return $"O aluno {alunoNome} ({turmaNome}) atingiu o limite de {tipoInfracao}. " +
-               $"Última infração: {dataInfracao:dd/MM/yyyy HH:mm}";
+        return $"{alunoNome} ({turmaNome}) está com {faltasConsecutivas} falta(s) consecutiva(s). " +
+               $"Última falta: {dataInfracao:dd/MM/yyyy HH:mm}";
     }
 
     /// <summary>
