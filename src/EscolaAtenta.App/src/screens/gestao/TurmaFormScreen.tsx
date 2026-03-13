@@ -3,10 +3,9 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityInd
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { turmasService } from '../../services/turmasService';
 import { RootStackParamList } from '../../navigation/types';
-import { TurmaDto } from '../../types/dtos';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../../theme/colors';
-import { AxiosError } from 'axios';
+import { syncWithServer } from '../../services/sync/watermelondbSync';
 
 type TurmaFormRouteProp = RouteProp<RootStackParamList, 'TurmaForm'>;
 
@@ -31,33 +30,26 @@ export function TurmaFormScreen() {
         const payload = {
             nome: nome.trim(),
             anoLetivo: parseInt(anoLetivo, 10),
-            turno: turno.trim()
+            turno: turno.trim(),
         };
 
         try {
             setLoading(true);
+
+            // Salva localmente — funciona sem Wi-Fi
             if (isEditing && turmaParaEditar.id) {
                 await turmasService.atualizar(turmaParaEditar.id, payload);
-                Alert.alert('Sucesso', 'Turma atualizada com sucesso!');
             } else {
                 await turmasService.criar(payload);
-                Alert.alert('Sucesso', 'Turma criada com sucesso!');
             }
+
+            // Tenta sincronizar em background — falha silenciosamente sem rede
+            syncWithServer().catch(() => {});
+
             navigation.goBack();
         } catch (err: unknown) {
             console.error(err);
-            if (err && typeof err === 'object' && 'isAxiosError' in err) {
-                const axiosError = err as AxiosError;
-                if (axiosError.response?.status === 404) {
-                    Alert.alert('Erro 404', 'Endpoint de atualização não encontrado na API C#.');
-                } else if (axiosError.response?.status === 400) {
-                    Alert.alert('Erro 400', 'Dados inválidos enviados para a API C#.');
-                } else {
-                    Alert.alert('Erro', 'Ocorreu um erro ao salvar a turma.');
-                }
-            } else {
-                Alert.alert('Erro', 'Ocorreu um erro ao salvar a turma.');
-            }
+            Alert.alert('Erro', 'Não foi possível salvar a turma localmente.');
         } finally {
             setLoading(false);
         }
@@ -125,5 +117,5 @@ const styles = StyleSheet.create({
     input: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 12, fontSize: 16, marginBottom: 20, color: theme.colors.textPrimary },
     saveButton: { backgroundColor: theme.colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 12 },
     saveButtonDisabled: { opacity: 0.7 },
-    saveButtonText: { color: theme.colors.surface, fontSize: 16, fontWeight: 'bold' }
+    saveButtonText: { color: theme.colors.surface, fontSize: 16, fontWeight: 'bold' },
 });

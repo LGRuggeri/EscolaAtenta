@@ -1,6 +1,8 @@
 using EscolaAtenta.Infrastructure.Data;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace EscolaAtenta.API;
@@ -12,6 +14,14 @@ public static class DataSeeder
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<AppDbContext>>();
+        var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
+
+        // Proteção crítica: DataSeeder apaga todos os dados — NUNCA executar em produção
+        if (env.IsProduction())
+        {
+            logger.LogWarning("[DATASEED] Execução bloqueada em ambiente de Produção. Dados preservados.");
+            return;
+        }
 
         try
         {

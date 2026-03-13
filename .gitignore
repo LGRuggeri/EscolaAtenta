@@ -3,6 +3,16 @@
 ##
 ## Get latest from `dotnet new gitignore`
 
+# Escola Atenta — arquivos locais
+.claude/
+.cursor/
+installer-output/
+build-temp/
+*.exe
+*.zip
+nul
+start
+
 # dotenv files
 .env
 

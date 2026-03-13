@@ -26,30 +26,44 @@ public class GetHistoricoPresencasAlunoQueryHandler : IRequestHandler<GetHistori
 
     public async Task<IEnumerable<HistoricoPresencaDto>> Handle(GetHistoricoPresencasAlunoQuery request, CancellationToken cancellationToken)
     {
-        // SEGURANÇA: Valida que o aluno existe antes de retornar lista vazia
-        var alunoExiste = await _context.Alunos.AnyAsync(a => a.Id == request.AlunoId, cancellationToken);
-        if (!alunoExiste)
-            throw new KeyNotFoundException($"Aluno com ID '{request.AlunoId}' não encontrado.");
+        // Resolve GUID real: aceita tanto GUID direto quanto ID local do WatermelonDB
+        Guid alunoGuid;
+        if (!Guid.TryParse(request.AlunoIdOuExterno, out alunoGuid))
+        {
+            // ID local do WatermelonDB — resolve via SyncLog
+            var syncLog = await _context.SyncLogs
+                .Where(s => s.IdExterno == request.AlunoIdOuExterno && s.TabelaOrigem == "alunos")
+                .Select(s => s.EntidadeId)
+                .FirstOrDefaultAsync(cancellationToken);
 
-        // TODO: [IDOR] Quando existir a tabela UsuarioTurma, adicionar validação de ownership:
-        // var aluno = await _context.Alunos.AsNoTracking().FirstOrDefaultAsync(a => a.Id == request.AlunoId);
-        // if (!await _context.UsuarioTurmas.AnyAsync(ut => ut.TurmaId == aluno.TurmaId && ut.UsuarioId == Guid.Parse(_currentUser.UsuarioId)))
-        //     throw new KeyNotFoundException($"Aluno com ID '{request.AlunoId}' não encontrado.");
+            if (syncLog == Guid.Empty)
+                return Enumerable.Empty<HistoricoPresencaDto>();
+
+            alunoGuid = syncLog;
+        }
+
+        var alunoExiste = await _context.Alunos.AnyAsync(a => a.Id == alunoGuid, cancellationToken);
+        if (!alunoExiste)
+            return Enumerable.Empty<HistoricoPresencaDto>();
 
         _logger.LogInformation(
-            "[AUDITORIA] Consulta histórico de presenças — AlunoId={AlunoId} UsuarioId={UsuarioId}",
-            request.AlunoId, _currentUser.UsuarioId);
+            "[AUDITORIA] Consulta histórico de presenças — AlunoId={AlunoId}",
+            alunoGuid);
 
+        var limite = DateTime.UtcNow.AddDays(-request.Dias);
+
+        // SQLite não suporta ORDER BY em DateTimeOffset — filtra e ordena em memória
         var historico = await _context.RegistrosPresenca
-            .Where(r => r.AlunoId == request.AlunoId)
-            .OrderByDescending(r => r.Chamada.DataHora)
+            .Where(r => r.AlunoId == alunoGuid)
             .Select(r => new HistoricoPresencaDto(
                 r.Chamada.DataHora.UtcDateTime,
                 r.Status.ToString(),
-                null // Future-proofing: the current entity doesn't have Justificativa mapped in DB
+                null
             ))
             .ToListAsync(cancellationToken);
 
-        return historico;
+        return historico
+            .Where(h => h.DataDaChamada >= limite)
+            .OrderByDescending(h => h.DataDaChamada);
     }
 }

@@ -21,7 +21,7 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
         // Email unico e indexado
         builder.HasIndex(u => u.Email)
                .IsUnique()
-               .HasFilter("\"Ativo\" = true"); // Unique parcial - apenas ativos
+               .HasFilter("[Ativo] = 1"); // Unique parcial - apenas ativos (SQLite usa 1/0 para bool)
 
         builder.Property(u => u.Email)
                .IsRequired()

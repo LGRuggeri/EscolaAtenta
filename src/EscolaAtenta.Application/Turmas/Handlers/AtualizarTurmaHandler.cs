@@ -31,9 +31,7 @@ public class AtualizarTurmaHandler : IRequestHandler<AtualizarTurmaCommand, Unit
             throw new KeyNotFoundException($"Turma com ID '{request.Id}' não encontrada.");
 
         // TODO: [IDOR] Quando existir a tabela UsuarioTurma (vínculo Professor → Turma),
-        // adicionar validação de ownership aqui:
-        // if (!await _context.UsuarioTurmas.AnyAsync(ut => ut.TurmaId == turma.Id && ut.UsuarioId == Guid.Parse(_currentUser.UsuarioId)))
-        //     throw new UnauthorizedAccessException("Você não tem permissão para alterar esta turma.");
+        // adicionar validação de ownership aqui para garantir que só o professor da turma possa alterá-la.
 
         // Log de auditoria: rastreia quem alterou qual turma
         _logger.LogInformation(

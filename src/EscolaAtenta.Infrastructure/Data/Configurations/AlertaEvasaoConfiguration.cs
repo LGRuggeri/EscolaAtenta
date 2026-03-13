@@ -68,5 +68,9 @@ public class AlertaEvasaoConfiguration : IEntityTypeConfiguration<AlertaEvasao>
         // sem Full Table Scan conforme a tabela cresce em produção.
         builder.HasIndex(a => new { a.Resolvido, a.DataResolucao, a.Tipo })
                .HasDatabaseName("IX_AlertasEvasao_Auditoria");
+
+        // Índice em DataAlerta para queries de range por data (relatórios e ordenação)
+        builder.HasIndex(a => a.DataAlerta)
+               .HasDatabaseName("IX_AlertasEvasao_DataAlerta");
     }
 }

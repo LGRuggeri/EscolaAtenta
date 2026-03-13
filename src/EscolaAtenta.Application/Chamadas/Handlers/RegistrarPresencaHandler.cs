@@ -58,6 +58,11 @@ public class RegistrarPresencaHandler : IRequestHandler<RegistrarPresencaCommand
         // ── Delega ao domínio — invariantes são verificadas aqui ───────────────
         var registro = chamada.RegistrarPresenca(request.AlunoId, request.Status);
 
+        // Garante que o EF Core rastreie o novo RegistroPresenca como Added.
+        // Sem isso, o EF Core pode inferi-lo como Modified via detecção de navegação
+        // e tentar um UPDATE em vez de INSERT, causando DbUpdateConcurrencyException.
+        _context.Entry(registro).State = Microsoft.EntityFrameworkCore.EntityState.Added;
+
         // ── Carrega o Aluno para atualizar contadores de falta ────────────────
         var aluno = await _context.Alunos
             .FirstOrDefaultAsync(a => a.Id == request.AlunoId, cancellationToken)

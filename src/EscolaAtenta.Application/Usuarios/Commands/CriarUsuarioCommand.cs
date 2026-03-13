@@ -37,7 +37,8 @@ public class CriarUsuarioHandler : IRequestHandler<CriarUsuarioCommand, UsuarioC
         var hash = BCrypt.Net.BCrypt.HashPassword(senhaAleatoria);
 
         var usuario = new Usuario(request.Nome, request.Email, hash, request.Papel);
-        
+        usuario.ExigirTrocaDeSenha(); // Senha gerada pelo admin: forcar troca no primeiro login
+
         _context.Usuarios.Add(usuario);
         await _context.SaveChangesAsync(cancellationToken);
 

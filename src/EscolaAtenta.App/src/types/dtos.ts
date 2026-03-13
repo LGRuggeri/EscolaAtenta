@@ -12,6 +12,7 @@ export interface LoginResult {
     email: string;
     papel: string;
     expiresAt: string;
+    deveAlterarSenha?: boolean;
 }
 
 export interface TurmaDto {

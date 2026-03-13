@@ -22,41 +22,30 @@ public class GetTurmasFrequenciaPerfeitaQueryHandler : IRequestHandler<GetTurmas
 
     public async Task<IEnumerable<TurmaFrequenciaPerfeitaDto>> Handle(GetTurmasFrequenciaPerfeitaQuery request, CancellationToken cancellationToken)
     {
-        // Buscamos apenas os IDs e Nomes das Turmas que satisfazem as regras
-        var turmasValidas = await _context.Turmas
+        // SQLite suporta comparação de long (UtcTicks) em LINQ — evita carregar tudo em memória
+        var inicioTicks = request.DataInicio.ToUniversalTime().Ticks;
+        var fimTicks = request.DataFim.ToUniversalTime().Ticks;
+
+        // Projeção direta no banco: conta chamadas por turma no período e verifica se há falta/atraso
+        var resultado = await _context.Turmas
             .AsNoTracking()
-            // Regra 1: Deve ter pelo menos uma chamada no período
-            .Where(t => t.Chamadas.Any(c => c.DataHora >= request.DataInicio && c.DataHora <= request.DataFim))
-            // Regra 2: Não pode conter NENHUMA falta ou atraso injustificado nesse período
-            .Where(t => !t.Chamadas
-                .Any(c => c.DataHora >= request.DataInicio && c.DataHora <= request.DataFim &&
-                     c.RegistrosPresenca.Any(rp => rp.Status == StatusPresenca.Falta || rp.Status == StatusPresenca.Atraso)))
-            .Select(t => new { t.Id, t.Nome })
-            .ToListAsync(cancellationToken);
-
-        if (!turmasValidas.Any())
-            return Enumerable.Empty<TurmaFrequenciaPerfeitaDto>();
-
-        var turmaIds = turmasValidas.Select(t => t.Id).ToList();
-
-        // Count das aulas ministradas por turma no período
-        var contagemChamadas = await _context.Chamadas
-            .AsNoTracking()
-            .Where(c => turmaIds.Contains(c.TurmaId) && c.DataHora >= request.DataInicio && c.DataHora <= request.DataFim)
-            .GroupBy(c => c.TurmaId)
-            .Select(g => new { TurmaId = g.Key, Quantidade = g.Count() })
-            .ToDictionaryAsync(g => g.TurmaId, g => g.Quantidade, cancellationToken);
-
-        var turmasPerfeitas = turmasValidas
-            .Select(t => new TurmaFrequenciaPerfeitaDto(
+            .Select(t => new
+            {
                 t.Id,
                 t.Nome,
-                contagemChamadas.ContainsKey(t.Id) ? contagemChamadas[t.Id] : 0
-            ))
-            .OrderByDescending(t => t.QuantidadeAulasMinistradas)
-            .ThenBy(t => t.NomeTurma)
-            .ToList();
+                QuantidadeChamadas = t.Chamadas
+                    .Count(c => c.DataHora.UtcTicks >= inicioTicks && c.DataHora.UtcTicks <= fimTicks),
+                TemFaltaOuAtraso = t.Chamadas
+                    .Any(c => c.DataHora.UtcTicks >= inicioTicks && c.DataHora.UtcTicks <= fimTicks
+                           && c.RegistrosPresenca.Any(rp =>
+                               rp.Status == StatusPresenca.Falta ||
+                               rp.Status == StatusPresenca.Atraso))
+            })
+            .Where(t => t.QuantidadeChamadas > 0 && !t.TemFaltaOuAtraso)
+            .OrderByDescending(t => t.QuantidadeChamadas)
+            .ThenBy(t => t.Nome)
+            .ToListAsync(cancellationToken);
 
-        return turmasPerfeitas;
+        return resultado.Select(t => new TurmaFrequenciaPerfeitaDto(t.Id, t.Nome, t.QuantidadeChamadas));
     }
 }

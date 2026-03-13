@@ -22,15 +22,18 @@ public class AppDbContext : DbContext
 {
     private readonly ICurrentUserService _currentUserService;
     private readonly IMediator _mediator;
+    private readonly IEscolaTenantProvider _escolaTenantProvider;
 
     public AppDbContext(
         DbContextOptions<AppDbContext> options,
         ICurrentUserService currentUserService,
-        IMediator mediator)
+        IMediator mediator,
+        IEscolaTenantProvider escolaTenantProvider)
         : base(options)
     {
         _currentUserService = currentUserService;
         _mediator = mediator;
+        _escolaTenantProvider = escolaTenantProvider;
     }
 
     public DbSet<Turma> Turmas => Set<Turma>();
@@ -40,6 +43,7 @@ public class AppDbContext : DbContext
     public DbSet<AlertaEvasao> AlertasEvasao => Set<AlertaEvasao>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -77,36 +81,58 @@ public class AppDbContext : DbContext
         var agora = DateTimeOffset.UtcNow;
         var usuarioAtual = _currentUserService.UsuarioId;
 
-        // ── Interceptação de Soft Delete ───────────────────────────────────────
-        // Entidades marcadas para Delete que implementam ISoftDeletable
-        // são convertidas para Modified com Ativo = false
-        foreach (var entry in ChangeTracker.Entries<ISoftDeletable>()
-                     .Where(e => e.State == EntityState.Deleted))
+        // ── Proteção contra Hard Deletes e Sincronização em Nuvem (Multi-Tenant) ──
+        
+        var deletedEntities = ChangeTracker.Entries<EntityBase>().Where(e => e.State == EntityState.Deleted).ToList();
+        foreach (var entry in deletedEntities)
         {
+            if (entry.Entity is not ISoftDeletable)
+            {
+                throw new InvalidOperationException($"Não é permitido excluir fisicamente a entidade {entry.Entity.GetType().Name} porque ela é sincronizável com a Nuvem. Implemente ISoftDeletable para exclusão lógica.");
+            }
+            
+            // É ISoftDeletable, converte Delete para Modified (Soft Delete)
             entry.State = EntityState.Modified;
             entry.CurrentValues[nameof(ISoftDeletable.Ativo)] = false;
             entry.CurrentValues[nameof(ISoftDeletable.DataExclusao)] = agora;
             entry.CurrentValues[nameof(ISoftDeletable.UsuarioExclusao)] = usuarioAtual;
+            
+            // Força o reenvio para a Nuvem
+            entry.CurrentValues[nameof(EntityBase.CloudSyncedAt)] = null;
         }
 
-        // ── Preenchimento de Auditoria ─────────────────────────────────────────
+        // ── Preenchimento de Auditoria e Multi-Tenant ─────────────────────────
         // Usamos entry.CurrentValues para contornar a restrição de acesso
         // das propriedades internal set do EntityBase (assembly diferente).
         foreach (var entry in ChangeTracker.Entries<EntityBase>())
         {
+            // Pula as entidades que acabaram de sofrer soft-delete acima para não sobresscrever auditoria duplicada, 
+            // mas processa-as no switch Modified, exceto se tomarmos cuidado (EntityState.Modified foi setado acima).
+            
             switch (entry.State)
             {
                 case EntityState.Added:
                     entry.CurrentValues[nameof(EntityBase.DataCriacao)] = agora;
                     entry.CurrentValues[nameof(EntityBase.UsuarioCriacao)] = usuarioAtual;
+                    
+                    // Preenche automaticamente o identificador do App Local (Edge Node)
+                    entry.CurrentValues[nameof(EntityBase.EscolaId)] = _escolaTenantProvider.EscolaId;
+                    entry.CurrentValues[nameof(EntityBase.CloudSyncedAt)] = null;
                     break;
 
                 case EntityState.Modified:
                     entry.CurrentValues[nameof(EntityBase.DataAtualizacao)] = agora;
                     entry.CurrentValues[nameof(EntityBase.UsuarioAtualizacao)] = usuarioAtual;
+                    
+                    // Modificou localmente, precisa enviar o delta para a Nuvem
+                    entry.CurrentValues[nameof(EntityBase.CloudSyncedAt)] = null;
+                    
                     // Protege campos de criação contra sobrescrita acidental
                     entry.Property(e => e.DataCriacao).IsModified = false;
                     entry.Property(e => e.UsuarioCriacao).IsModified = false;
+                    
+                    // Protege EscolaId (o dono nunca muda)
+                    entry.Property(e => e.EscolaId).IsModified = false;
                     break;
             }
         }

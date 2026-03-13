@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <assemblyIdentity version="1.0.0.0" name="EscolaAtenta.TrayMonitor"/>
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <!--
+          UAC: O Tray Monitor roda como usuário comum (asInvoker).
+          Isso evita que o Windows peça senha de admin toda vez que o PC ligar,
+          pois o Tray inicia automaticamente com o Windows via pasta Startup.
+          A elevação de privilégio (UAC) só é solicitada no momento de
+          reiniciar o serviço, via ProcessStartInfo com Verb = "runas".
+        -->
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10 / 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+    </application>
+  </compatibility>
+</assembly>

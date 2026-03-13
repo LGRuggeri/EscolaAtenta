@@ -10,9 +10,12 @@
 
 using EscolaAtenta.Application.Auth;
 using EscolaAtenta.Domain.Exceptions;
+using EscolaAtenta.Domain.Interfaces;
+using EscolaAtenta.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using MediatR;
 
 namespace EscolaAtenta.API.Controllers;
@@ -25,10 +28,17 @@ public class AuthController : ControllerBase
     private readonly IMediator _mediator;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IMediator mediator, ILogger<AuthController> logger)
+    private readonly AppDbContext _dbContext;
+    private readonly IAuthService _authService;
+    private readonly ICurrentUserService _currentUser;
+
+    public AuthController(IMediator mediator, ILogger<AuthController> logger, AppDbContext dbContext, IAuthService authService, ICurrentUserService currentUser)
     {
         _mediator = mediator;
         _logger = logger;
+        _dbContext = dbContext;
+        _authService = authService;
+        _currentUser = currentUser;
     }
 
     /// <summary>
@@ -71,9 +81,81 @@ public class AuthController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// Troca de senha — obrigatoria no primeiro login ou quando solicitado.
+    /// Requer autenticacao (JWT valido).
+    /// </summary>
+    [HttpPut("trocar-senha")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> TrocarSenha([FromBody] TrocarSenhaRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.NovaSenha) || request.NovaSenha.Length < 6)
+            return BadRequest(new { detail = "A nova senha deve ter pelo menos 6 caracteres." });
+
+        if (!_currentUser.EstaAutenticado || !Guid.TryParse(_currentUser.UsuarioId, out var usuarioId))
+            return Unauthorized();
+
+        var usuario = await _dbContext.Usuarios.FirstOrDefaultAsync(u => u.Id == usuarioId, ct);
+        if (usuario == null) return Unauthorized();
+
+        var novoHash = _authService.GerarHashSenha(request.NovaSenha);
+        usuario.AlterarSenha(novoHash);
+        await _dbContext.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Senha alterada com sucesso para {Email}", usuario.Email);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Renova o JWT usando um Refresh Token válido.
+    /// Implementa rotação: o refresh token antigo é revogado e um novo é emitido.
+    /// </summary>
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest request, CancellationToken ct)
+    {
+        var refreshToken = await _dbContext.RefreshTokens
+            .Include(rt => rt.Usuario)
+            .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken, ct);
+
+        if (refreshToken == null || !refreshToken.EstaValido() || !refreshToken.Usuario.PodeAcessar())
+            return Unauthorized(new { detail = "Refresh token inválido ou expirado." });
+
+        // Rotação: revoga o token atual e emite um novo
+        refreshToken.Revogado = true;
+
+        var novoRefreshToken = new EscolaAtenta.Domain.Entities.RefreshToken
+        {
+            UsuarioId = refreshToken.UsuarioId,
+            Token = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64)),
+            ExpiraEm = DateTimeOffset.UtcNow.AddDays(30)
+        };
+        _dbContext.RefreshTokens.Add(novoRefreshToken);
+        await _dbContext.SaveChangesAsync(ct);
+
+        var loginResult = _authService.GerarToken(refreshToken.Usuario);
+
+        return Ok(new LoginResponse(
+            Token: loginResult.Token,
+            Email: loginResult.Email,
+            Papel: loginResult.Papel,
+            ExpiresAt: loginResult.ExpiresAt,
+            RefreshToken: novoRefreshToken.Token
+        ));
+    }
 }
 
 /// <summary>
 /// Request de login.
 /// </summary>
 public record LoginRequest(string Email, string Senha);
+
+public record TrocarSenhaRequest(string NovaSenha);
+
+public record RefreshRequest(string RefreshToken);
