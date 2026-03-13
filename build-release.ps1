@@ -1,44 +1,59 @@
 param (
     [Parameter(Mandatory = $true)]
     [string]$Version,
-    
+
     [string]$DownloadUrl = "https://example.com/releases/update.zip"
 )
 
 $ErrorActionPreference = "Stop"
 
 $solutionDir = $PSScriptRoot
-$publishDir = Join-Path $solutionDir "publish"
 $zipPath = Join-Path $solutionDir "update.zip"
 $versionJsonPath = Join-Path $solutionDir "version.json"
 
-Write-Host "Iniciando build do release versão $Version..." -ForegroundColor Cyan
+# Caminhos de publicação (devem coincidir com os PublishProfiles e o .iss)
+$apiPublishDir = Join-Path $solutionDir "src\EscolaAtenta.API\bin\Publish\win-x64"
+$trayPublishDir = Join-Path $solutionDir "src\EscolaAtenta.TrayMonitor\bin\Publish\win-x64"
 
-# Limpar build anterior
-if (Test-Path $publishDir) { Remove-Item -Recurse -Force $publishDir }
+Write-Host "Iniciando build do release versao $Version..." -ForegroundColor Cyan
+
+# Limpar builds anteriores
+if (Test-Path $apiPublishDir) { Remove-Item -Recurse -Force $apiPublishDir }
+if (Test-Path $trayPublishDir) { Remove-Item -Recurse -Force $trayPublishDir }
 if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
 
-# Build da API (Pode não ser self-contained por default, mas é o garantido)
-Write-Host "Compilando EscolaAtenta.API..."
-dotnet publish "$solutionDir\src\EscolaAtenta.API\EscolaAtenta.API.csproj" -c Release -o "$publishDir"
+# Build da API (Self-Contained, usando PublishProfile)
+Write-Host "Compilando EscolaAtenta.API (self-contained)..."
+dotnet publish "$solutionDir\src\EscolaAtenta.API\EscolaAtenta.API.csproj" -p:PublishProfile=win-x64-selfcontained
+if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar a API" }
 
-# Build do TrayMonitor (Windows-specific)
-Write-Host "Compilando EscolaAtenta.TrayMonitor..."
-dotnet publish "$solutionDir\src\EscolaAtenta.TrayMonitor\EscolaAtenta.TrayMonitor.csproj" -c Release -o "$publishDir" -r win-x64 --self-contained false
+# Build do TrayMonitor (Self-Contained, usando PublishProfile)
+Write-Host "Compilando EscolaAtenta.TrayMonitor (self-contained)..."
+dotnet publish "$solutionDir\src\EscolaAtenta.TrayMonitor\EscolaAtenta.TrayMonitor.csproj" -p:PublishProfile=win-x64-selfcontained
+if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o TrayMonitor" }
 
-# LIMPEZA CRÍTICA DE FICHEIROS SENSÍVEIS
-Write-Host "Removendo definições de desenvolvimento e base de dados..." -ForegroundColor Yellow
+# LIMPEZA DE FICHEIROS SENSIVEIS
+Write-Host "Removendo definicoes de desenvolvimento e base de dados..." -ForegroundColor Yellow
 
-# Dev settings
-$devConfig = Join-Path $publishDir "appsettings.Development.json"
-if (Test-Path $devConfig) { Remove-Item -Force $devConfig }
+foreach ($dir in @($apiPublishDir, $trayPublishDir)) {
+    # Dev settings
+    $devConfig = Join-Path $dir "appsettings.Development.json"
+    if (Test-Path $devConfig) { Remove-Item -Force $devConfig }
 
-# Eliminar qualquer rasto de banco de dados SQLite que possa estar na pasta de build
-Get-ChildItem -Path $publishDir -Filter "*.db*" -Recurse | Remove-Item -Force
+    # Eliminar qualquer rasto de banco de dados SQLite
+    Get-ChildItem -Path $dir -Filter "*.db*" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
+}
 
-# Empacotar ZIP
+# Empacotar ZIP (ambos os projetos)
 Write-Host "Gerando pacote update.zip..."
-Compress-Archive -Path "$publishDir\*" -DestinationPath $zipPath -Force
+$tempPackDir = Join-Path $solutionDir "publish-package"
+if (Test-Path $tempPackDir) { Remove-Item -Recurse -Force $tempPackDir }
+New-Item -ItemType Directory -Path "$tempPackDir\API" -Force | Out-Null
+New-Item -ItemType Directory -Path "$tempPackDir\TrayMonitor" -Force | Out-Null
+Copy-Item -Path "$apiPublishDir\*" -Destination "$tempPackDir\API" -Recurse
+Copy-Item -Path "$trayPublishDir\*" -Destination "$tempPackDir\TrayMonitor" -Recurse
+Compress-Archive -Path "$tempPackDir\*" -DestinationPath $zipPath -Force
+Remove-Item -Recurse -Force $tempPackDir
 
 # Gerar version.json
 $versionData = @{
@@ -52,4 +67,6 @@ Write-Host "Release gerado com sucesso!" -ForegroundColor Green
 Write-Host "Ficheiros criados:"
 Write-Host "- $zipPath"
 Write-Host "- $versionJsonPath"
+Write-Host "`nPara gerar o instalador, execute:"
+Write-Host "  iscc.exe escolaatenta-installer.iss" -ForegroundColor Yellow
 Write-Host "`nLembre-se de fazer upload do update.zip para a nuvem e atualizar o downloadUrl no version.json"

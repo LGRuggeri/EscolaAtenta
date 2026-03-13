@@ -30,10 +30,11 @@ public class SyncPullHandler : IRequestHandler<SyncPullQuery, SyncPullResult>
     public async Task<SyncPullResult> Handle(SyncPullQuery request, CancellationToken ct)
     {
         var lastPulledAt = request.LastPulledAt ?? 0;
-        // SQLite não suporta comparação direta de DateTimeOffset em LINQ — usa DateTime UTC
         var sinceUtc = lastPulledAt > 0
             ? DateTimeOffset.FromUnixTimeMilliseconds(lastPulledAt).UtcDateTime
             : DateTime.MinValue;
+        // UtcTicks permite filtrar DateTimeOffset no banco SQLite sem cast — compatível com EF Core SQLite
+        var sinceUtcTicks = sinceUtc.Ticks;
 
         var isPrimeiroSync = lastPulledAt == 0;
 
@@ -70,33 +71,37 @@ public class SyncPullHandler : IRequestHandler<SyncPullQuery, SyncPullResult>
         }
         else
         {
-            // Delta com filtragem em memória — SQLite não suporta comparação de DateTimeOffset em LINQ
-            var todasTurmas = await _context.Turmas
+            // Delta: filtra diretamente no banco usando UtcTicks — compatível com EF Core SQLite
+            var turmasCriadas = await _context.Turmas
                 .AsNoTracking()
+                .Where(t => t.DataCriacao.UtcTicks > sinceUtcTicks)
                 .ToListAsync(ct);
 
-            changes.Turmas.Created = todasTurmas
-                .Where(t => t.DataCriacao.UtcDateTime > sinceUtc)
+            changes.Turmas.Created = turmasCriadas
                 .Select(t => new TurmaSyncDto { Id = ResolverIdTurma(t.Id), Nome = t.Nome, Turno = t.Turno, AnoLetivo = t.AnoLetivo })
                 .ToList();
 
-            changes.Turmas.Updated = todasTurmas
+            var turmasAtualizadas = await _context.Turmas
+                .AsNoTracking()
                 .Where(t => t.DataAtualizacao != null
-                         && t.DataAtualizacao.Value.UtcDateTime > sinceUtc
-                         && t.DataCriacao.UtcDateTime <= sinceUtc)
+                         && t.DataAtualizacao.Value.UtcTicks > sinceUtcTicks
+                         && t.DataCriacao.UtcTicks <= sinceUtcTicks)
+                .ToListAsync(ct);
+
+            changes.Turmas.Updated = turmasAtualizadas
                 .Select(t => new TurmaSyncDto { Id = ResolverIdTurma(t.Id), Nome = t.Nome, Turno = t.Turno, AnoLetivo = t.AnoLetivo })
                 .ToList();
 
-            var turmasExcluidas = await _context.Turmas
+            var turmasExcluidasIds = await _context.Turmas
                 .IgnoreQueryFilters()
                 .AsNoTracking()
-                .Where(t => !t.Ativo)
+                .Where(t => !t.Ativo
+                         && t.DataExclusao != null
+                         && t.DataExclusao.Value.UtcTicks > sinceUtcTicks)
+                .Select(t => t.Id)
                 .ToListAsync(ct);
 
-            changes.Turmas.Deleted = turmasExcluidas
-                .Where(t => t.DataExclusao != null && t.DataExclusao.Value.UtcDateTime > sinceUtc)
-                .Select(t => ResolverIdTurma(t.Id))
-                .ToList();
+            changes.Turmas.Deleted = turmasExcluidasIds.Select(ResolverIdTurma).ToList();
         }
 
         // ── ALUNOS ───────────────────────────────────────────────────────────
@@ -134,10 +139,8 @@ public class SyncPullHandler : IRequestHandler<SyncPullQuery, SyncPullResult>
         }
         else
         {
-            // Delta com filtragem em memória — SQLite não suporta comparação de DateTimeOffset em LINQ
-            var todosAlunos = await _context.Alunos
-                .AsNoTracking()
-                .ToListAsync(ct);
+            // Delta: filtra diretamente no banco usando UtcTicks (long) — compatível com SQLite
+            var idsAlunoPushOffline = syncLogsAlunos.Keys.ToHashSet();
 
             AlunoSyncDto MapAluno(Domain.Entities.Aluno a) => new()
             {
@@ -150,43 +153,43 @@ public class SyncPullHandler : IRequestHandler<SyncPullQuery, SyncPullResult>
                 AtrasosNoTrimestre = a.AtrasosNoTrimestre
             };
 
-            // Alunos criados via push offline já existem no WatermelonDB com o ID local.
-            // Se chegarem em Created novamente, o WatermelonDB ignora (ID já existe).
-            // Por isso, alunos com SyncLog (origem: push offline) devem ir em Updated no delta.
-            // syncLogsAlunos: EntidadeId (Guid) → IdExterno (string local)
-            var idsAlunoPushOffline = syncLogsAlunos.Keys.ToHashSet();
+            // Alunos genuinamente novos (não vieram de push offline)
+            var alunosCriados = await _context.Alunos
+                .AsNoTracking()
+                .Where(a => a.DataCriacao.UtcTicks > sinceUtcTicks)
+                .ToListAsync(ct);
 
-            var alunosNovos = todosAlunos.Where(a => a.DataCriacao.UtcDateTime > sinceUtc).ToList();
-
-            changes.Alunos.Created = alunosNovos
+            changes.Alunos.Created = alunosCriados
                 .Where(a => !idsAlunoPushOffline.Contains(a.Id))
                 .Select(MapAluno)
                 .ToList();
 
-            changes.Alunos.Updated = todosAlunos
+            var alunosAtualizados = await _context.Alunos
+                .AsNoTracking()
                 .Where(a => a.DataAtualizacao != null
-                         && a.DataAtualizacao.Value.UtcDateTime > sinceUtc
-                         && a.DataCriacao.UtcDateTime <= sinceUtc)
-                .Select(MapAluno)
-                .ToList();
+                         && a.DataAtualizacao.Value.UtcTicks > sinceUtcTicks
+                         && a.DataCriacao.UtcTicks <= sinceUtcTicks)
+                .ToListAsync(ct);
 
-            // Alunos criados offline cujos contadores mudaram desde o push também precisam ir em Updated
+            changes.Alunos.Updated = alunosAtualizados.Select(MapAluno).ToList();
+
+            // Alunos criados via push offline devem ir em Updated (já existem localmente com ID local)
             changes.Alunos.Updated.AddRange(
-                alunosNovos
+                alunosCriados
                     .Where(a => idsAlunoPushOffline.Contains(a.Id))
                     .Select(MapAluno)
             );
 
-            var alunosExcluidos = await _context.Alunos
+            var alunosExcluidosIds = await _context.Alunos
                 .IgnoreQueryFilters()
                 .AsNoTracking()
-                .Where(a => !a.Ativo)
+                .Where(a => !a.Ativo
+                         && a.DataExclusao != null
+                         && a.DataExclusao.Value.UtcTicks > sinceUtcTicks)
+                .Select(a => a.Id)
                 .ToListAsync(ct);
 
-            changes.Alunos.Deleted = alunosExcluidos
-                .Where(a => a.DataExclusao != null && a.DataExclusao.Value.UtcDateTime > sinceUtc)
-                .Select(a => ResolverIdAluno(a.Id))
-                .ToList();
+            changes.Alunos.Deleted = alunosExcluidosIds.Select(ResolverIdAluno).ToList();
         }
 
         // Timestamp do servidor para o próximo pull

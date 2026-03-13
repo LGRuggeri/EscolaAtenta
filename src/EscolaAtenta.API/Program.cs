@@ -118,7 +118,7 @@ try
             ValidIssuer = jwtSettings["Issuer"] ?? "EscolaAtenta",
             ValidAudience = jwtSettings["Audience"] ?? "EscolaAtenta",
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-            ClockSkew = TimeSpan.Zero // Sem tolerância para expiração
+            ClockSkew = TimeSpan.FromSeconds(30) // Tolera pequenos desvios de relógio em dispositivos escolares
         };
 
         // Permite receber o token via header Authorization: Bearer <token>
@@ -194,17 +194,38 @@ try
                 }));
 
         // AuthPolicy — Fixed Window: proteção rigorosa anti brute-force
-        // 5 requisições por janela de 1 minuto por IP
+        // Chave por email — evita bloqueio em massa em redes NAT escolares onde todos compartilham o mesmo IP.
         options.AddPolicy("AuthPolicy", httpContext =>
-            RateLimitPartition.GetFixedWindowLimiter(
-                partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        {
+            var email = string.Empty;
+            if (httpContext.Request.HasJsonContentType())
+            {
+                try
+                {
+                    httpContext.Request.EnableBuffering();
+                    var body = new System.IO.StreamReader(httpContext.Request.Body, leaveOpen: true).ReadToEnd();
+                    httpContext.Request.Body.Position = 0;
+                    using var doc = System.Text.Json.JsonDocument.Parse(body);
+                    email = doc.RootElement.TryGetProperty("email", out var emailProp)
+                        ? (emailProp.GetString() ?? string.Empty).ToLowerInvariant()
+                        : string.Empty;
+                }
+                catch { /* body inválido — fallback para IP */ }
+            }
+
+            var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var partitionKey = string.IsNullOrWhiteSpace(email) ? ip : email;
+
+            return RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: partitionKey,
                 factory: _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 5,
                     Window = TimeSpan.FromMinutes(1),
                     QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                     QueueLimit = 0
-                }));
+                });
+        });
     });
 
     // ── MediatR — Handlers de Commands e Domain Events ────────────────────────
@@ -232,9 +253,12 @@ try
     // Worker que envia sinais de "estou vivo" para a API na Nuvem a cada 15 min.
     // Se uma escola ficar 24h sem heartbeat, a equipe central é alertada.
     builder.Services.AddHostedService<HeartbeatWorker>();
-    
+
     // Worker silencioso (Standby por padrão) que egressa dados apagados ou alterados para a nuvem.
     builder.Services.AddHostedService<CloudEgressWorker>();
+
+    // Worker de limpeza diária de SyncLogs antigos (>90 dias)
+    builder.Services.AddHostedService<SyncLogCleanupWorker>();
 
     // ── Controllers ────────────────────────────────────────────────────────────
     // Configuração JSON: Enums serializados como strings para evitar quebra de contrato
@@ -257,43 +281,34 @@ try
     builder.Services.AddOpenApi();
 
     // ── CORS ───────────────────────────────────────────────────────────────────
-    // SEGURANÇA: Em produção, restrinja AllowAnyOrigin() para origens conhecidas.
-    // AllowAnyOrigin é aceitável enquanto o único cliente é o app mobile (não browser),
-    // mas será uma vulnerabilidade crítica se um painel web administrativo for adicionado.
-    // TODO: Quando existir um Dashboard Web, configurar origens explícitas via appsettings.json.
+    // Apps mobile não são afetados por CORS (não são browsers).
+    // Em produção com dashboard web, configurar Cors:AllowedOrigins no appsettings.json.
+    // Sem origens configuradas em produção: nega todos os browsers por segurança.
     builder.Services.AddCors(options =>
     {
-        if (builder.Environment.IsDevelopment())
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+
+        options.AddPolicy("AllowAll", corsBuilder =>
         {
-            options.AddPolicy("AllowAll", corsBuilder =>
+            if (builder.Environment.IsDevelopment())
             {
-                corsBuilder.AllowAnyOrigin()
+                // Dev: permissivo para facilitar testes com browser/Swagger
+                corsBuilder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+            }
+            else if (allowedOrigins is { Length: > 0 })
+            {
+                // Produção com origens configuradas (ex: dashboard web)
+                corsBuilder.WithOrigins(allowedOrigins)
                            .AllowAnyMethod()
-                           .AllowAnyHeader();
-            });
-        }
-        else
-        {
-            // Produção: restringe a origens configuradas ou bloqueia por padrão
-            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
-            options.AddPolicy("AllowAll", corsBuilder =>
+                           .AllowAnyHeader()
+                           .AllowCredentials();
+            }
+            else
             {
-                if (allowedOrigins is { Length: > 0 })
-                {
-                    corsBuilder.WithOrigins(allowedOrigins)
-                               .AllowAnyMethod()
-                               .AllowAnyHeader();
-                }
-                else
-                {
-                    // Fallback seguro: sem origem permitida em produção se não configurado
-                    // Apps mobile não usam CORS (não são browsers), então isso não os afeta
-                    corsBuilder.AllowAnyOrigin()
-                               .AllowAnyMethod()
-                               .AllowAnyHeader();
-                }
-            });
-        }
+                // Produção sem origens configuradas: nega browsers (mobile não é afetado)
+                corsBuilder.SetIsOriginAllowed(_ => false);
+            }
+        });
     });
 
     // ── Health Checks ──────────────────────────────────────────────────────────

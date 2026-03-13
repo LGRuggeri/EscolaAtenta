@@ -47,8 +47,8 @@ public class GetHistoricoPresencasAlunoQueryHandler : IRequestHandler<GetHistori
             return Enumerable.Empty<HistoricoPresencaDto>();
 
         _logger.LogInformation(
-            "[AUDITORIA] Consulta histórico de presenças — AlunoId={AlunoId} UsuarioId={UsuarioId}",
-            alunoGuid, _currentUser.UsuarioId);
+            "[AUDITORIA] Consulta histórico de presenças — AlunoId={AlunoId}",
+            alunoGuid);
 
         var limite = DateTime.UtcNow.AddDays(-request.Dias);
 

@@ -90,6 +90,9 @@ public class Turma : EntityBase, ISoftDeletable
 
         if (nome.Length > 200)
             throw new DomainException("O nome da turma não pode ter mais de 200 caracteres.");
+
+        if (nome.Any(c => char.IsControl(c)))
+            throw new DomainException("O nome da turma contém caracteres inválidos.");
     }
 
     private static void ValidarTurno(string turno)

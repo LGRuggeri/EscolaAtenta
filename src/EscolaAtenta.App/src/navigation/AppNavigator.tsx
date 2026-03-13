@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
+import { useInactivityLogout } from '../hooks/useInactivityLogout';
 import { theme } from '../theme/colors';
 
 // Telas
@@ -24,7 +25,8 @@ import { RootStackParamList } from './types';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function AppNavigator() {
-    const { signed, loading, deveAlterarSenha } = useAuth();
+    const { signed, loading, deveAlterarSenha, signOut } = useAuth();
+    const panHandlers = useInactivityLogout(signed ? signOut : () => {});
 
     if (loading) {
         return (
@@ -35,6 +37,7 @@ export function AppNavigator() {
     }
 
     return (
+        <View style={{ flex: 1 }} {...panHandlers}>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             {signed && deveAlterarSenha ? (
                 // Fluxo: logado mas precisa trocar senha antes de acessar o sistema
@@ -65,5 +68,6 @@ export function AppNavigator() {
                 </>
             )}
         </Stack.Navigator>
+        </View>
     );
 }

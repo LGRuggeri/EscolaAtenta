@@ -43,6 +43,7 @@ public class AppDbContext : DbContext
     public DbSet<AlertaEvasao> AlertasEvasao => Set<AlertaEvasao>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -21,6 +21,7 @@ public class AlternarStatusUsuarioHandler : IRequestHandler<AlternarStatusUsuari
     public async Task Handle(AlternarStatusUsuarioCommand request, CancellationToken cancellationToken)
     {
         var usuario = await _context.Usuarios
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.Id == request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Usuário com ID {request.Id} não encontrado.");
 

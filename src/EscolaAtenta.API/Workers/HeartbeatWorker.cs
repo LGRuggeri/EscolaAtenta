@@ -107,6 +107,8 @@ public class HeartbeatWorker : BackgroundService
         }
 
         var client = _httpClientFactory.CreateClient("Heartbeat");
+        client.Timeout = TimeSpan.FromSeconds(10); // Evita bloqueio indefinido se nuvem estiver lenta
+
         var apiKey = _configuration["Heartbeat:ApiKey"];
 
         if (!string.IsNullOrWhiteSpace(apiKey))

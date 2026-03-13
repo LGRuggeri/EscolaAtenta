@@ -55,13 +55,13 @@ Filename: "{app}\TrayMonitor\EscolaAtenta.TrayMonitor.exe"; Description: "Inicia
 
 [UninstallRun]
 ; Antes de desinstalar: Parar o serviço
-Filename: "sc.exe"; Parameters: "stop EscolaAtenta"; Flags: runhidden waituntilterminated
+Filename: "sc.exe"; Parameters: "stop EscolaAtenta"; Flags: runhidden waituntilterminated; RunOnceId: "StopService"
 
 ; Remover o registro do serviço do Windows
-Filename: "sc.exe"; Parameters: "delete EscolaAtenta"; Flags: runhidden waituntilterminated
+Filename: "sc.exe"; Parameters: "delete EscolaAtenta"; Flags: runhidden waituntilterminated; RunOnceId: "DeleteService"
 
 ; Encerrar o Tray Monitor se estiver rodando
-Filename: "taskkill.exe"; Parameters: "/F /IM EscolaAtenta.TrayMonitor.exe"; Flags: runhidden
+Filename: "taskkill.exe"; Parameters: "/F /IM EscolaAtenta.TrayMonitor.exe"; Flags: runhidden; RunOnceId: "KillTrayMonitor"
 
 [Dirs]
 ; Bloqueia a pasta base: Administradores e SYSTEM têm acesso total. Utilizadores comuns (Users) apenas leitura/execução.

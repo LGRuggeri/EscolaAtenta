@@ -58,12 +58,28 @@ public class LoginHandler : IRequestHandler<LoginCommand, LoginResponse>
         // Credenciais validas - gera o token JWT
         var loginResult = _authService.GerarToken(usuario);
 
+        // Gera e persiste o Refresh Token (valido por 30 dias, uso unico)
+        // Revoga tokens anteriores do usuario para evitar acumulo
+        await _dbContext.RefreshTokens
+            .Where(rt => rt.UsuarioId == usuario.Id && !rt.Revogado)
+            .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.Revogado, true), cancellationToken);
+
+        var refreshToken = new EscolaAtenta.Domain.Entities.RefreshToken
+        {
+            UsuarioId = usuario.Id,
+            Token = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64)),
+            ExpiraEm = DateTimeOffset.UtcNow.AddDays(30)
+        };
+        _dbContext.RefreshTokens.Add(refreshToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
         return new LoginResponse(
             Token: loginResult.Token,
             Email: loginResult.Email,
             Papel: loginResult.Papel,
             ExpiresAt: loginResult.ExpiresAt,
-            DeveAlterarSenha: usuario.DeveAlterarSenha
+            DeveAlterarSenha: usuario.DeveAlterarSenha,
+            RefreshToken: refreshToken.Token
         );
     }
 }

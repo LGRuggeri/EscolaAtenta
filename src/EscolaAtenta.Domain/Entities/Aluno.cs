@@ -263,6 +263,10 @@ public class Aluno : EntityBase, ISoftDeletable
 
         if (nome.Length > 200)
             throw new DomainException("O nome do aluno não pode ter mais de 200 caracteres.");
+
+        // Bloqueia caracteres de controle (ex: \0, \r, \n) que podem causar injeção ou corrupção
+        if (nome.Any(c => char.IsControl(c)))
+            throw new DomainException("O nome do aluno contém caracteres inválidos.");
     }
 
     // Matrícula é opcional — validação removida por decisão de negócio

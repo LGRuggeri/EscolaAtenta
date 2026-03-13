@@ -1,0 +1,220 @@
+================================================================================
+  ESCOLAATENTA — GUIA DE INSTALACAO E CONFIGURACAO
+  Versao: 1.0.0  |  Data: Marco/2026
+================================================================================
+
+
+PARTE 1 — COMPUTADOR DO SERVIDOR (MAQUINA DA ESCOLA)
+================================================================================
+
+Este computador ficara ligado na escola e rodara o banco de dados e a API.
+Todos os celulares se conectam a ele pela rede Wi-Fi local.
+
+REQUISITOS:
+  - Windows 10 ou superior (64 bits)
+  - Pelo menos 4 GB de RAM
+  - Conexao permanente ao roteador da escola (cabo preferencial)
+  - Firewall liberado na porta 5114 TCP
+
+
+PASSO 1 — INSTALAR O SISTEMA
+------------------------------
+1. Copie o arquivo "EscolaAtenta-Setup.exe" para o computador da escola.
+2. Clique com o botao direito → "Executar como Administrador".
+3. Siga o instalador ate o final.
+4. Ao terminar, o sistema ja inicia automaticamente.
+
+O instalador cria:
+  - C:\EscolaAtenta\API\         → API e banco de dados
+  - C:\EscolaAtenta\Logs\        → Arquivos de log diarios
+  - C:\EscolaAtenta\TrayMonitor\ → Monitor na bandeja do sistema
+  - Servico Windows "EscolaAtenta" (inicia com o PC automaticamente)
+  - Atalho na Inicializacao do Windows para o Monitor
+
+
+PASSO 2 — ANOTAR A SENHA DO ADMINISTRADOR
+------------------------------------------
+Na primeira execucao, o sistema gera uma senha automatica para o Administrador.
+Voce PRECISA anotar essa senha antes de criar outros usuarios.
+
+1. Abra a pasta: C:\EscolaAtenta\Logs\
+2. Abra o arquivo de log do dia (ex: api-20260308.log)
+3. Procure pela linha que contem: "[SECURITY] USUARIO ADMINISTRADOR CRIADO"
+4. A linha seguinte mostra a senha gerada. ANOTE-A.
+
+Exemplo do que voce vera no log:
+  Email: admin@escolaatenta.com.br
+  Senha: xK#9mPqL2vNw
+  ATENCAO: Anote esta senha. Ela nao sera exibida novamente.
+
+
+PASSO 3 — LIBERAR A PORTA NO FIREWALL
+---------------------------------------
+Execute o PowerShell como Administrador e rode o comando abaixo:
+
+  New-NetFirewallRule -DisplayName "EscolaAtenta API" -Direction Inbound -LocalPort 5114 -Protocol TCP -Action Allow
+
+Ou manualmente:
+  1. Painel de Controle → Windows Defender Firewall
+  2. Configuracoes Avancadas → Regras de Entrada → Nova Regra
+  3. Tipo: Porta | Protocolo: TCP | Porta: 5114
+  4. Acao: Permitir a conexao
+  5. Nome: EscolaAtenta API
+
+
+PASSO 4 — DESCOBRIR O IP DO COMPUTADOR
+----------------------------------------
+1. Abra o Prompt de Comando (cmd)
+2. Digite: ipconfig
+3. Procure por "Endereco IPv4" na rede usada (Ethernet ou Wi-Fi)
+4. Exemplo: 192.168.1.100
+5. ANOTE este IP — voce vai precisar para configurar os celulares.
+
+IMPORTANTE: Recomenda-se fixar o IP no roteador para que ele nao mude.
+Para isso, acesse as configuracoes do roteador e reserve o IP fixo
+usando o endereco MAC da placa de rede do computador da escola.
+
+
+PASSO 5 — VERIFICAR SE O SISTEMA ESTA RODANDO
+-----------------------------------------------
+O icone do EscolaAtenta aparecera na bandeja do sistema (canto inferior direito).
+  - Icone VERDE: sistema funcionando normalmente
+  - Icone VERMELHO: API parou — clique com o botao direito para reiniciar
+
+Para verificar via navegador no proprio computador:
+  Abra qualquer navegador e acesse: http://localhost:5114/health
+  Deve aparecer: {"status":"Healthy"}
+
+
+================================================================================
+PARTE 2 — CELULARES (MONITORES E SUPERVISORES)
+================================================================================
+
+PASSO 1 — INSTALAR O APK
+--------------------------
+1. Transfira o arquivo "app-release.apk" para o celular
+   (via cabo USB, WhatsApp, Google Drive, etc.)
+2. No celular, va em Configuracoes → Seguranca → ativar "Fontes desconhecidas"
+   (ou "Instalar apps de fontes desconhecidas")
+3. Abra o arquivo APK e confirme a instalacao
+
+
+PASSO 2 — CONFIGURAR O SERVIDOR
+---------------------------------
+1. Abra o app EscolaAtenta
+2. Na tela inicial, toque em "Configurar Servidor"
+3. No campo de endereco, digite o IP do computador da escola:
+   Exemplo: http://192.168.1.100:5114
+   ATENCAO: use http:// (nao https://)
+4. Toque em "Testar Conexao"
+5. Se aparecer "Conectado com sucesso", a configuracao esta correta
+6. Se aparecer erro:
+   - Verifique se o celular esta na mesma rede Wi-Fi da escola
+   - Verifique se o IP esta correto
+   - Verifique se o firewall esta liberado
+
+
+PASSO 3 — FAZER LOGIN
+----------------------
+1. Use as credenciais criadas pelo Administrador
+2. Na primeira vez, use:
+   Email: admin@escolaatenta.com.br
+   Senha: (a senha anotada no Passo 2 da Parte 1)
+3. Apos o login, o sistema sincronizara os dados automaticamente
+
+
+================================================================================
+PARTE 3 — CONFIGURACAO INICIAL DO SISTEMA
+================================================================================
+
+Apos instalar e conectar os celulares, siga esta ordem:
+
+1. CRIAR USUARIOS
+   - No app, va em Usuarios → Novo Usuario
+   - Crie um usuario para cada monitor com papel "Monitor"
+   - Crie usuarios para supervisores com papel "Supervisao"
+   - Distribua login e senha para cada usuario
+
+2. CADASTRAR TURMAS
+   - Va em Turmas → Nova Turma
+   - Informe: Nome (ex: "6 Serie A"), Turno e Ano Letivo
+   - Repita para todas as turmas da escola
+
+3. CADASTRAR ALUNOS
+   - Acesse cada Turma → Alunos → Novo Aluno
+   - Informe o nome do aluno
+   - Os alunos ficam vinculados a turma
+
+4. DISTRIBUIR OS CELULARES
+   - Cada monitor recebe o celular com o app ja configurado
+   - O monitor faz login com seu proprio usuario
+   - A cada dia, acessa a turma → Fazer Chamada Hoje
+
+
+================================================================================
+PARTE 4 — USO DIARIO
+================================================================================
+
+REALIZANDO A CHAMADA:
+  1. Abrir o app → Turmas → Selecionar a turma
+  2. Tocar em "Fazer Chamada Hoje"
+  3. Para cada aluno, selecionar: P (Presente), F (Falta), A (Atraso), J (Justificada)
+  4. Tocar em "Salvar Chamada"
+  5. O app funciona SEM INTERNET — os dados ficam salvos no celular
+  6. Quando houver Wi-Fi, sincroniza automaticamente em segundos
+
+VERIFICANDO ALERTAS:
+  - O supervisor acessa: Tela inicial → Alertas
+  - Alertas aparecem quando um aluno atinge o limite de faltas consecutivas
+  - Cada alerta mostra: nome, turma, quantidade de faltas e ultima data
+
+CONSULTAR HISTORICO DE UM ALUNO:
+  - Va em Turmas → selecione a turma → toque no nome do aluno
+  - O historico dos ultimos 7 dias aparece na parte inferior da tela
+
+RELATORIO POR PERIODO:
+  - Tela inicial → Relatorio
+  - Selecione turma, aluno e periodo (datas De/Ate)
+  - Exibe resumo de presenças, faltas e atrasos
+
+
+================================================================================
+PARTE 5 — MANUTENCAO E SUPORTE
+================================================================================
+
+BACKUP DO BANCO DE DADOS:
+  O banco de dados fica em: C:\EscolaAtenta\API\escolaatenta_local.db
+  Recomenda-se copiar este arquivo para um pendrive ou nuvem diariamente.
+
+SE O SISTEMA NAO INICIAR:
+  1. Verifique o icone na bandeja (canto inferior direito)
+  2. Clique com botao direito → Reiniciar servico
+  3. Se persistir, abra o log em: C:\EscolaAtenta\Logs\
+  4. Procure por mensagens de erro no arquivo do dia
+
+SE UM CELULAR PERDER A CONEXAO:
+  1. Verifique se esta na rede Wi-Fi correta
+  2. Confirme o IP do servidor (pode ter mudado se nao foi fixado)
+  3. Va em Configuracoes → Configurar Servidor e atualize o IP
+
+SE OS DADOS NAO SINCRONIZAREM:
+  1. Verifique se ha Wi-Fi disponivel
+  2. O indicador "Pendente" no app significa que ha dados aguardando sync
+  3. Quando o Wi-Fi voltar, a sync ocorre automaticamente em ate 60 segundos
+  4. Em caso extremo: Configuracoes → "Limpar banco local e ressincronizar"
+     (ATENCAO: esta opcao apaga os dados locais e baixa tudo do servidor)
+
+PORTA DO FIREWALL:
+  Protocolo: TCP
+  Porta: 5114
+  Direcao: Entrada (Inbound)
+  NAO e necessario liberar UDP.
+
+ARQUIVOS IMPORTANTES:
+  C:\EscolaAtenta\API\EscolaAtenta.API.exe    → Sistema principal
+  C:\EscolaAtenta\API\escolaatenta_local.db   → Banco de dados
+  C:\EscolaAtenta\API\appsettings.json        → Configuracoes (NAO editar)
+  C:\EscolaAtenta\Logs\                       → Logs diarios
+  C:\EscolaAtenta\TrayMonitor\               → Monitor da bandeja
+
+================================================================================

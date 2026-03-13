@@ -109,6 +109,46 @@ public class AuthController : ControllerBase
         _logger.LogInformation("Senha alterada com sucesso para {Email}", usuario.Email);
         return NoContent();
     }
+
+    /// <summary>
+    /// Renova o JWT usando um Refresh Token válido.
+    /// Implementa rotação: o refresh token antigo é revogado e um novo é emitido.
+    /// </summary>
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest request, CancellationToken ct)
+    {
+        var refreshToken = await _dbContext.RefreshTokens
+            .Include(rt => rt.Usuario)
+            .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken, ct);
+
+        if (refreshToken == null || !refreshToken.EstaValido() || !refreshToken.Usuario.PodeAcessar())
+            return Unauthorized(new { detail = "Refresh token inválido ou expirado." });
+
+        // Rotação: revoga o token atual e emite um novo
+        refreshToken.Revogado = true;
+
+        var novoRefreshToken = new EscolaAtenta.Domain.Entities.RefreshToken
+        {
+            UsuarioId = refreshToken.UsuarioId,
+            Token = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64)),
+            ExpiraEm = DateTimeOffset.UtcNow.AddDays(30)
+        };
+        _dbContext.RefreshTokens.Add(novoRefreshToken);
+        await _dbContext.SaveChangesAsync(ct);
+
+        var loginResult = _authService.GerarToken(refreshToken.Usuario);
+
+        return Ok(new LoginResponse(
+            Token: loginResult.Token,
+            Email: loginResult.Email,
+            Papel: loginResult.Papel,
+            ExpiresAt: loginResult.ExpiresAt,
+            RefreshToken: novoRefreshToken.Token
+        ));
+    }
 }
 
 /// <summary>
@@ -117,3 +157,5 @@ public class AuthController : ControllerBase
 public record LoginRequest(string Email, string Senha);
 
 public record TrocarSenhaRequest(string NovaSenha);
+
+public record RefreshRequest(string RefreshToken);

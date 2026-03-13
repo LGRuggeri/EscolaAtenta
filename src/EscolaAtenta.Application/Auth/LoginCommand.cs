@@ -22,5 +22,6 @@ public record LoginResponse(
     string Email,
     string Papel,
     DateTimeOffset ExpiresAt,
-    bool DeveAlterarSenha = false
+    bool DeveAlterarSenha = false,
+    string? RefreshToken = null
 );

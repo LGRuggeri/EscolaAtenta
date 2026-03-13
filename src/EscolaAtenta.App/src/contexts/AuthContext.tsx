@@ -77,6 +77,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     async function signIn(email: string, senha: string) {
         const response = await authService.login(email, senha);
         await authStorage.saveToken(response.token);
+        if (response.refreshToken) {
+            await authStorage.saveRefreshToken(response.refreshToken);
+        }
 
         try {
             const decoded = jwtDecode<EscolaAtentaJwtPayload>(response.token);

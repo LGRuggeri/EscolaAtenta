@@ -3,6 +3,7 @@ using System;
 using EscolaAtenta.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EscolaAtenta.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260309173346_AddIndexDataAlerta")]
+    partial class AddIndexDataAlerta
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.13");
@@ -223,35 +226,6 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                     b.HasIndex("TurmaId", "DataHora");
 
                     b.ToTable("Chamadas", (string)null);
-                });
-
-            modelBuilder.Entity("EscolaAtenta.Domain.Entities.RefreshToken", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("CriadoEm")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("ExpiraEm")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("Revogado")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("UsuarioId")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UsuarioId");
-
-                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("EscolaAtenta.Domain.Entities.RegistroPresenca", b =>
@@ -499,17 +473,6 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Turma");
-                });
-
-            modelBuilder.Entity("EscolaAtenta.Domain.Entities.RefreshToken", b =>
-                {
-                    b.HasOne("EscolaAtenta.Domain.Entities.Usuario", "Usuario")
-                        .WithMany()
-                        .HasForeignKey("UsuarioId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("EscolaAtenta.Domain.Entities.RegistroPresenca", b =>
