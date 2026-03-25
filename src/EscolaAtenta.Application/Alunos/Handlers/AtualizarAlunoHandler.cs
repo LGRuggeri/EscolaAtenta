@@ -1,4 +1,5 @@
 using EscolaAtenta.Application.Alunos.Commands;
+using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Domain.Interfaces;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
@@ -31,10 +32,14 @@ public class AtualizarAlunoHandler : IRequestHandler<AtualizarAlunoCommand, Unit
         if (aluno == null)
             throw new KeyNotFoundException($"Aluno com ID '{request.Id}' não encontrado.");
 
-        // TODO: [IDOR] Quando existir a tabela UsuarioTurma (vínculo Professor → Turma),
-        // adicionar validação de ownership via turma do aluno:
-        // if (!await _context.UsuarioTurmas.AnyAsync(ut => ut.TurmaId == aluno.TurmaId && ut.UsuarioId == Guid.Parse(_currentUser.UsuarioId)))
-        //     throw new UnauthorizedAccessException("Você não tem permissão para alterar este aluno.");
+        // IDOR: Administrador pode alterar qualquer aluno; demais papéis precisam de vínculo com a turma
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
+            && Guid.TryParse(_currentUser.UsuarioId, out var uid)
+            && !await _context.UsuarioTurmas.AnyAsync(
+                ut => ut.TurmaId == aluno.TurmaId && ut.UsuarioId == uid, cancellationToken))
+        {
+            throw new KeyNotFoundException($"Aluno com ID '{request.Id}' não encontrado.");
+        }
 
         // Log de auditoria: rastreia quem alterou qual aluno
         _logger.LogInformation(

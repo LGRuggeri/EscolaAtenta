@@ -93,8 +93,8 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> TrocarSenha([FromBody] TrocarSenhaRequest request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.NovaSenha) || request.NovaSenha.Length < 6)
-            return BadRequest(new { detail = "A nova senha deve ter pelo menos 6 caracteres." });
+        if (string.IsNullOrWhiteSpace(request.NovaSenha) || request.NovaSenha.Length < 8)
+            return BadRequest(new { detail = "A nova senha deve ter pelo menos 8 caracteres." });
 
         if (!_currentUser.EstaAutenticado || !Guid.TryParse(_currentUser.UsuarioId, out var usuarioId))
             return Unauthorized();

@@ -1,5 +1,6 @@
 using EscolaAtenta.Application.Alunos.DTOs;
 using EscolaAtenta.Application.Alunos.Queries;
+using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Domain.Interfaces;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
@@ -32,10 +33,14 @@ public class GetAlunosPorTurmaQueryHandler : IRequestHandler<GetAlunosPorTurmaQu
         if (!turmaExiste)
             throw new KeyNotFoundException($"Turma com ID '{request.TurmaId}' não encontrada.");
 
-        // TODO: [IDOR] Quando existir a tabela UsuarioTurma (vínculo Professor → Turma),
-        // adicionar validação de ownership:
-        // if (!await _context.UsuarioTurmas.AnyAsync(ut => ut.TurmaId == request.TurmaId && ut.UsuarioId == Guid.Parse(_currentUser.UsuarioId)))
-        //     throw new KeyNotFoundException($"Turma com ID '{request.TurmaId}' não encontrada."); // 404 para não revelar existência
+        // IDOR: Administrador pode consultar qualquer turma; demais papéis precisam de vínculo
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
+            && Guid.TryParse(_currentUser.UsuarioId, out var uid)
+            && !await _context.UsuarioTurmas.AnyAsync(
+                ut => ut.TurmaId == request.TurmaId && ut.UsuarioId == uid, cancellationToken))
+        {
+            throw new KeyNotFoundException($"Turma com ID '{request.TurmaId}' não encontrada.");
+        }
 
         _logger.LogInformation(
             "[AUDITORIA] Consulta alunos por turma — TurmaId={TurmaId} UsuarioId={UsuarioId}",

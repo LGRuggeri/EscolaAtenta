@@ -1,5 +1,6 @@
 using EscolaAtenta.Application.Chamadas.Commands;
 using EscolaAtenta.Domain.Entities;
+using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Domain.Exceptions;
 using EscolaAtenta.Domain.Interfaces;
 using EscolaAtenta.Infrastructure.Data;
@@ -32,9 +33,14 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
         if (!turmaExiste)
             throw new DomainException($"A turma informada '{request.TurmaId}' não existe.");
 
-        // TODO: [IDOR] Quando existir a tabela UsuarioTurma, adicionar validação de ownership:
-        // if (!await _context.UsuarioTurmas.AnyAsync(ut => ut.TurmaId == request.TurmaId && ut.UsuarioId == Guid.Parse(_currentUser.UsuarioId)))
-        //     throw new DomainException("Você não tem permissão para realizar chamada nesta turma.");
+        // IDOR: Administrador pode operar qualquer turma; demais papéis precisam de vínculo
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
+            && Guid.TryParse(_currentUser.UsuarioId, out var ownerCheck)
+            && !await _context.UsuarioTurmas.AnyAsync(
+                ut => ut.TurmaId == request.TurmaId && ut.UsuarioId == ownerCheck, cancellationToken))
+        {
+            throw new DomainException("Você não tem permissão para realizar chamada nesta turma.");
+        }
 
         // SEGURANÇA: Usa o UsuarioId do token JWT como responsável da chamada
         // Em vez de confiar cegamente no ResponsavelId enviado pelo cliente (vetor de spoofing).
