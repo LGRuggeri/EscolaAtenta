@@ -44,6 +44,7 @@ public class AppDbContext : DbContext
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<UsuarioTurma> UsuarioTurmas => Set<UsuarioTurma>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

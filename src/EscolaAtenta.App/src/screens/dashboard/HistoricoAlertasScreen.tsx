@@ -1,64 +1,52 @@
 import axios from 'axios';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    FlatList,
-    ActivityIndicator,
-    TouchableOpacity,
-    Alert,
-    TextInput,
-} from 'react-native';
+import { View, StyleSheet, FlatList, Alert } from 'react-native';
+import { Text, Searchbar, ActivityIndicator, Surface, Chip } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppNavigationProp } from '../../navigation/types';
 import { AuditoriaAlertaDto } from '../../types/dtos';
 import { TipoAlerta } from '../../types/enums';
 import { alertasService } from '../../services/alertasService';
+import { AppHeader, EmptyState, StatusChip } from '../../components/ui';
 import { theme } from '../../theme/colors';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Constantes
-// ─────────────────────────────────────────────────────────────────────────────
 const PAGE_SIZE = 20;
 const DEBOUNCE_MS = 500;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tipos de filtro de tipo para a UI
-// ─────────────────────────────────────────────────────────────────────────────
 type TipoFiltro = 'Todos' | TipoAlerta.Evasao | TipoAlerta.Atraso;
 
-const FILTROS_TIPO: { label: string; valor: TipoFiltro }[] = [
-    { label: 'Todos', valor: 'Todos' },
-    { label: '❌ Faltas', valor: TipoAlerta.Evasao },
-    { label: '⏱️ Atrasos', valor: TipoAlerta.Atraso },
+const FILTROS_TIPO: { label: string; valor: TipoFiltro; icon: string }[] = [
+    { label: 'Todos', valor: 'Todos', icon: 'filter-variant' },
+    { label: 'Faltas', valor: TipoAlerta.Evasao, icon: 'close-circle-outline' },
+    { label: 'Atrasos', valor: TipoAlerta.Atraso, icon: 'clock-alert-outline' },
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers de apresentação
-// ─────────────────────────────────────────────────────────────────────────────
-
-function getNivelColor(nivelAlerta: string, tipoAlerta: string): string {
-    if (tipoAlerta === 'Atraso') return nivelAlerta === 'Intermediario' ? theme.colors.textSecondary : theme.colors.textPrimary;
+function getNivelIcon(nivelAlerta: string, tipoAlerta: string): { name: string; color: string } {
+    if (tipoAlerta === 'Atraso') {
+        return nivelAlerta === 'Intermediario'
+            ? { name: 'alert', color: theme.colors.warning }
+            : { name: 'clock-alert', color: theme.colors.info };
+    }
     switch (nivelAlerta) {
-        case 'Preto': return theme.colors.textPrimary;
-        case 'Vermelho': return theme.colors.error;
-        case 'Intermediario': return theme.colors.primaryDark;
-        case 'Aviso': return theme.colors.primary;
-        default: return theme.colors.secondary;
+        case 'Preto': return { name: 'alert-octagon', color: theme.colors.textPrimary };
+        case 'Vermelho': return { name: 'alert-circle', color: theme.colors.error };
+        case 'Intermediario': return { name: 'alert', color: theme.colors.warning };
+        case 'Aviso': return { name: 'eye-outline', color: theme.colors.primary };
+        default: return { name: 'bell-outline', color: theme.colors.secondary };
     }
 }
 
 function getTituloExibicao(item: AuditoriaAlertaDto): string {
     if (item.tipoAlerta === 'Atraso') {
-        return item.nivelAlerta === 'Intermediario' ? '⚠️ Atrasos Reincidentes' : '⏱️ Aviso de Atrasos';
+        return item.nivelAlerta === 'Intermediario' ? 'Atrasos Reincidentes' : 'Aviso de Atrasos';
     }
     switch (item.nivelAlerta) {
-        case 'Preto': return '🛑 Risco Crítico - Ação Legal';
-        case 'Vermelho': return '🚨 Alto Risco de Evasão';
-        case 'Intermediario': return '⚠️ Alerta Intermediário';
-        case 'Aviso': return '👀 Aviso de Faltas';
+        case 'Preto': return 'Risco Crítico - Ação Legal';
+        case 'Vermelho': return 'Alto Risco de Evasão';
+        case 'Intermediario': return 'Alerta Intermediário';
+        case 'Aviso': return 'Aviso de Faltas';
         default: return 'Alerta Escolar';
     }
 }
@@ -70,124 +58,111 @@ function formatarData(isoDate: string): string {
     });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-componentes
-// ─────────────────────────────────────────────────────────────────────────────
-
-function TipoBadge({ tipo }: { tipo: string }) {
-    const isAtraso = tipo === 'Atraso';
-    return (
-        <View
-            style={[styles.tipoBadge, isAtraso ? styles.tipoBadgeAtraso : styles.tipoBadgeFalta]}
-            accessibilityLabel={isAtraso ? 'Tipo: Atraso' : 'Tipo: Falta'}
-        >
-            <Text style={[styles.tipoBadgeText, isAtraso ? styles.tipoBadgeTextAtraso : styles.tipoBadgeTextFalta]}>
-                {isAtraso ? '⏱️ Atraso' : '❌ Falta'}
-            </Text>
-        </View>
-    );
-}
-
 function AuditoriaCard({ item }: { item: AuditoriaAlertaDto }) {
-    const borderColor = getNivelColor(item.nivelAlerta, item.tipoAlerta);
+    const nivelIcon = getNivelIcon(item.nivelAlerta, item.tipoAlerta);
     const titulo = getTituloExibicao(item);
     const isAtraso = item.tipoAlerta === 'Atraso';
 
     return (
-        <View
-            style={[styles.card, { borderLeftColor: borderColor }, isAtraso && styles.cardAtraso]}
-            accessibilityRole="text"
-            accessibilityLabel={`Alerta resolvido de ${item.nomeAluno}. Resolvido por ${item.resolvidoPor}.`}
+        <Surface
+            style={[styles.card, { borderLeftColor: nivelIcon.color }]}
+            elevation={2}
         >
-            {/* Cabeçalho: título + badge de tipo */}
+            {/* Header: título + badge de tipo */}
             <View style={styles.cardHeader}>
-                <Text style={[styles.cardTitle, { color: borderColor }]} numberOfLines={1}>
-                    {titulo}
-                </Text>
-                <TipoBadge tipo={item.tipoAlerta} />
+                <View style={styles.cardTitleRow}>
+                    <MaterialCommunityIcons name={nivelIcon.name as any} size={18} color={nivelIcon.color} />
+                    <Text variant="titleSmall" style={[styles.cardTitle, { color: nivelIcon.color }]} numberOfLines={1}>
+                        {titulo}
+                    </Text>
+                </View>
+                <StatusChip
+                    label={isAtraso ? 'Atraso' : 'Falta'}
+                    variant={isAtraso ? 'warning' : 'error'}
+                />
             </View>
 
             {/* Meta: nome do aluno */}
             <View style={styles.cardMeta}>
-                <Text style={styles.cardAluno} numberOfLines={1}>{item.nomeAluno}</Text>
-                <Text style={styles.cardDataAlerta} numberOfLines={1}>
-                    Alerta: {formatarData(item.dataAlerta)}
-                </Text>
+                <Chip
+                    compact
+                    icon="account"
+                    textStyle={styles.metaChipText}
+                    style={styles.metaChip}
+                >
+                    {item.nomeAluno}
+                </Chip>
+                <Chip
+                    compact
+                    icon="calendar"
+                    textStyle={styles.metaChipText}
+                    style={styles.metaChip}
+                >
+                    {formatarData(item.dataAlerta)}
+                </Chip>
             </View>
 
-            {/* Bloco de auditoria: responsável + data + motivo */}
+            {/* Bloco de auditoria */}
             <View style={styles.auditBlock}>
                 <View style={styles.auditHeaderRow}>
-                    <Text style={styles.auditIdentificacao}>
-                        ✅ Tratado por:{' '}
-                        <Text style={styles.auditNomeUser}>{item.resolvidoPor}</Text>
+                    <View style={styles.auditIdentRow}>
+                        <MaterialCommunityIcons name="check-decagram" size={16} color={theme.colors.success} />
+                        <Text variant="bodySmall" style={styles.auditIdentText}>
+                            Tratado por: <Text style={styles.auditNomeUser}>{item.resolvidoPor}</Text>
+                        </Text>
+                    </View>
+                    <Text variant="labelSmall" style={styles.auditDate}>
+                        {formatarData(item.dataResolucao)}
                     </Text>
-                    <Text style={styles.auditDate}>{formatarData(item.dataResolucao)}</Text>
                 </View>
 
                 {item.motivoResolucao ? (
-                    <View style={styles.auditJustificativaBox}>
-                        <Text style={styles.auditJustificativaIcon}>📝</Text>
-                        <Text style={styles.auditJustificativaText} selectable>
+                    <Surface style={styles.auditJustificativaBox} elevation={0}>
+                        <MaterialCommunityIcons name="text-box-outline" size={16} color={theme.colors.textSecondary} />
+                        <Text variant="bodySmall" style={styles.auditJustificativaText} selectable>
                             "{item.motivoResolucao}"
                         </Text>
-                    </View>
+                    </Surface>
                 ) : null}
             </View>
-        </View>
+        </Surface>
     );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Tela principal
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function HistoricoAlertasScreen() {
     const navigation = useNavigation<AppNavigationProp>();
 
-    // ── Estado dos dados ──────────────────────────────────────────────────────
     const [auditoriaList, setAuditoriaList] = useState<AuditoriaAlertaDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [hasNextPage, setHasNextPage] = useState(false);
 
-    // ── Estado dos filtros ────────────────────────────────────────────────────
     const [searchQuery, setSearchQuery] = useState('');
     const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>('Todos');
 
-    // ── Referências de controle (sem causar re-render) ────────────────────────
     const isFetchingRef = useRef(false);
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
-    // Ref espelho dos filtros para callbacks estáveis sem dependências circulares
     const searchQueryRef = useRef(searchQuery);
     const tipoFiltroRef = useRef(tipoFiltro);
 
     useEffect(() => { searchQueryRef.current = searchQuery; }, [searchQuery]);
     useEffect(() => { tipoFiltroRef.current = tipoFiltro; }, [tipoFiltro]);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Fetch centralizado — sempre recebe os filtros como argumento
-    // para evitar closure stale (captura de valores antigos em callbacks).
-    // ─────────────────────────────────────────────────────────────────────────
     const fetchAuditoria = useCallback(async (
         page: number,
         nome: string,
         tipo: TipoFiltro,
-        append: boolean  // true = infinite scroll, false = reset de lista
+        append: boolean,
     ) => {
-        // Controle de Race Condition: cancela requisição anterior se for uma nova busca
         if (!append) {
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
+            if (abortControllerRef.current) abortControllerRef.current.abort();
             abortControllerRef.current = new AbortController();
         } else if (isFetchingRef.current) {
             return;
         }
 
-        // Armazena a referência local para o finally block verificar
         const currentSignal = abortControllerRef.current?.signal;
 
         try {
@@ -203,16 +178,11 @@ export function HistoricoAlertasScreen() {
                 signal: currentSignal,
             });
 
-            setAuditoriaList(prev =>
-                append ? [...prev, ...resultado.items] : resultado.items
-            );
+            setAuditoriaList(prev => append ? [...prev, ...resultado.items] : resultado.items);
             setCurrentPage(page);
             setHasNextPage(resultado.hasNextPage);
         } catch (err: any) {
-            if (axios.isCancel(err)) {
-                console.log('Requisição abortada (Race condition evitada)');
-                return;
-            }
+            if (axios.isCancel(err)) return;
             if (err?.response?.status === 403) {
                 Alert.alert('Acesso negado', 'Você não tem permissão para acessar a auditoria.');
             } else {
@@ -220,8 +190,6 @@ export function HistoricoAlertasScreen() {
             }
             console.error(err);
         } finally {
-            // Só reseta loading states se ESTA chamada não foi abortada, 
-            // evitando que o cancelamento desligue o state da nova requisição em andamento
             if (!currentSignal?.aborted) {
                 setLoading(false);
                 setLoadingMore(false);
@@ -230,9 +198,6 @@ export function HistoricoAlertasScreen() {
         }
     }, []);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Carga inicial / recarregar ao retornar ao foco da tela
-    // ─────────────────────────────────────────────────────────────────────────
     useFocusEffect(
         useCallback(() => {
             setAuditoriaList([]);
@@ -241,16 +206,9 @@ export function HistoricoAlertasScreen() {
         }, [fetchAuditoria])
     );
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Debounce no campo de busca por nome (500ms)
-    // — dispara apenas quando o usuário PAROU de digitar,
-    //   não a cada tecla pressionada.
-    // ─────────────────────────────────────────────────────────────────────────
     const handleSearchChange = useCallback((texto: string) => {
         setSearchQuery(texto);
-
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
-
         debounceTimer.current = setTimeout(() => {
             setAuditoriaList([]);
             setCurrentPage(1);
@@ -258,29 +216,19 @@ export function HistoricoAlertasScreen() {
         }, DEBOUNCE_MS);
     }, [fetchAuditoria]);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Troca de filtro de tipo — reset imediato de página e lista
-    // ─────────────────────────────────────────────────────────────────────────
     const handleTipoChange = useCallback((novoTipo: TipoFiltro) => {
-        if (novoTipo === tipoFiltroRef.current) return; // Sem mudança — não dispara
+        if (novoTipo === tipoFiltroRef.current) return;
         setTipoFiltro(novoTipo);
         setAuditoriaList([]);
         setCurrentPage(1);
         fetchAuditoria(1, searchQueryRef.current, novoTipo, false);
     }, [fetchAuditoria]);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Infinite Scroll — carrega próxima página ao chegar no final da lista
-    // ─────────────────────────────────────────────────────────────────────────
     const handleEndReached = useCallback(() => {
         if (!hasNextPage || isFetchingRef.current || loading) return;
-        const nextPage = currentPage + 1;
-        fetchAuditoria(nextPage, searchQueryRef.current, tipoFiltroRef.current, true);
+        fetchAuditoria(currentPage + 1, searchQueryRef.current, tipoFiltroRef.current, true);
     }, [hasNextPage, currentPage, loading, fetchAuditoria]);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Renders da FlatList
-    // ─────────────────────────────────────────────────────────────────────────
     const renderItem = useCallback(
         ({ item }: { item: AuditoriaAlertaDto }) => <AuditoriaCard item={item} />,
         []
@@ -290,108 +238,51 @@ export function HistoricoAlertasScreen() {
         if (!loadingMore) return null;
         return (
             <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={styles.footerLoaderText}>Carregando mais...</Text>
+                <ActivityIndicator size="small" />
+                <Text variant="labelSmall" style={styles.footerText}>Carregando mais...</Text>
             </View>
         );
     };
 
-    const renderListaVazia = () => {
-        if (loading) return null;
-        return (
-            <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>🗄️</Text>
-                <Text style={styles.emptyTitle}>Nenhum registro encontrado</Text>
-                <Text style={styles.emptyText}>
-                    {searchQuery.trim()
-                        ? `Nenhum alerta resolvido para "${searchQuery}".`
-                        : 'Nenhum alerta resolvido no histórico.'}
-                </Text>
-            </View>
-        );
-    };
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Render
-    // ─────────────────────────────────────────────────────────────────────────
     return (
-        <SafeAreaView style={styles.container}>
-            {/* ── Cabeçalho ─────────────────────────────────────────────────── */}
-            <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={styles.backButton}
-                    accessibilityRole="button"
-                    accessibilityLabel="Voltar"
-                >
-                    <Text style={styles.backButtonText}>← Voltar</Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Auditoria de Alertas</Text>
-                <View style={{ width: 60 }} />
-            </View>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <AppHeader title="Auditoria de Alertas" onBack={() => navigation.goBack()} />
 
-            {/* ── Barra de Filtros ────────────────────────────────────────── */}
+            {/* Filtros */}
             <View style={styles.filtersContainer}>
-                {/* Busca por nome com debounce */}
-                <View
-                    style={styles.searchBox}
-                    accessibilityLabel="Campo de busca por aluno"
-                >
-                    <Text style={styles.searchIcon}>🔍</Text>
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Buscar por nome do aluno..."
-                        placeholderTextColor={COLORS.textMuted}
-                        value={searchQuery}
-                        onChangeText={handleSearchChange}
-                        returnKeyType="search"
-                        autoCorrect={false}
-                        autoCapitalize="words"
-                        accessibilityLabel="Campo de busca por nome do aluno"
-                    />
-                    {searchQuery.length > 0 && (
-                        <TouchableOpacity
-                            onPress={() => handleSearchChange('')}
-                            accessibilityRole="button"
-                            accessibilityLabel="Limpar busca"
-                        >
-                            <Text style={styles.searchClear}>✕</Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
+                <Searchbar
+                    placeholder="Buscar por nome do aluno..."
+                    value={searchQuery}
+                    onChangeText={handleSearchChange}
+                    style={styles.searchBar}
+                    inputStyle={styles.searchInput}
+                />
 
-                {/* Filtros de tipo — toggles */}
-                <View
-                    style={styles.tipoFilterRow}
-                    accessibilityRole="toolbar"
-                    accessibilityLabel="Filtrar por tipo de alerta"
-                >
-                    {FILTROS_TIPO.map(({ label, valor }) => {
+                <View style={styles.tipoFilterRow}>
+                    {FILTROS_TIPO.map(({ label, valor, icon }) => {
                         const ativo = tipoFiltro === valor;
                         return (
-                            <TouchableOpacity
+                            <Chip
                                 key={valor}
-                                style={[styles.tipoFilterBtn, ativo && styles.tipoFilterBtnAtivo]}
+                                selected={ativo}
+                                showSelectedOverlay
+                                icon={icon as any}
                                 onPress={() => handleTipoChange(valor)}
-                                accessibilityRole="button"
-                                accessibilityState={{ selected: ativo }}
-                                accessibilityLabel={`Filtrar por ${label}`}
-                                activeOpacity={0.7}
+                                style={[styles.filterChip, ativo && styles.filterChipActive]}
+                                textStyle={[styles.filterChipText, ativo && styles.filterChipTextActive]}
                             >
-                                <Text style={[styles.tipoFilterText, ativo && styles.tipoFilterTextAtivo]}>
-                                    {label}
-                                </Text>
-                            </TouchableOpacity>
+                                {label}
+                            </Chip>
                         );
                     })}
                 </View>
             </View>
 
-            {/* ── Lista de Auditoria ──────────────────────────────────────── */}
+            {/* Lista */}
             {loading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={COLORS.primary} />
-                    <Text style={styles.loadingText}>Carregando auditoria...</Text>
+                    <ActivityIndicator size="large" />
+                    <Text variant="bodyMedium" style={styles.loadingText}>Carregando auditoria...</Text>
                 </View>
             ) : (
                 <FlatList
@@ -402,7 +293,14 @@ export function HistoricoAlertasScreen() {
                         styles.listContainer,
                         auditoriaList.length === 0 && styles.listContainerEmpty,
                     ]}
-                    ListEmptyComponent={renderListaVazia}
+                    ListEmptyComponent={
+                        <EmptyState
+                            icon="archive-outline"
+                            title={searchQuery.trim()
+                                ? `Nenhum resultado para "${searchQuery}"`
+                                : 'Nenhum alerta resolvido no histórico'}
+                        />
+                    }
                     ListFooterComponent={renderListFooter}
                     onEndReached={handleEndReached}
                     onEndReachedThreshold={0.5}
@@ -416,171 +314,135 @@ export function HistoricoAlertasScreen() {
     );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Design System — Tokens de cor (padrões institucionais do projeto)
-// ─────────────────────────────────────────────────────────────────────────────
-const COLORS = {
-    bg: theme.colors.background,
-    white: theme.colors.surface,
-    primary: theme.colors.primary,         // Azul institucional
-    primaryLight: theme.colors.surface,
-    primaryBorder: theme.colors.border,
-    indigo: theme.colors.primary,
-    indigoLight: theme.colors.background,
-    red: theme.colors.error,
-    textPrimary: theme.colors.textPrimary,
-    textSecondary: theme.colors.textSecondary,
-    textMuted: theme.colors.textSecondary,
-    border: theme.colors.border,
-    inputBg: theme.colors.surface,
-};
-
 const styles = StyleSheet.create({
-    // ── Layout base ──────────────────────────────────────────────────────────
-    container: { flex: 1, backgroundColor: COLORS.bg },
+    container: { flex: 1, backgroundColor: theme.colors.background },
 
-    // ── Header ───────────────────────────────────────────────────────────────
-    header: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 20, paddingVertical: 16,
-        backgroundColor: COLORS.white,
-        elevation: 3, shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3,
-    },
-    backButton: {},
-    backButtonText: { fontSize: 16, color: COLORS.textSecondary, fontWeight: '600' },
-    headerTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.textPrimary },
-
-    // ── Filtros ───────────────────────────────────────────────────────────────
+    // Filtros
     filtersContainer: {
-        backgroundColor: COLORS.white,
-        paddingHorizontal: 16,
-        paddingTop: 12,
-        paddingBottom: 8,
+        backgroundColor: theme.colors.surface,
+        paddingHorizontal: theme.spacing.md,
+        paddingTop: theme.spacing.sm,
+        paddingBottom: theme.spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
-        gap: 10,
+        borderBottomColor: theme.colors.border,
+        gap: theme.spacing.sm,
     },
-    searchBox: {
+    searchBar: {
+        backgroundColor: theme.colors.background,
+        borderRadius: theme.borderRadius.md,
+        elevation: 0,
+    },
+    searchInput: { fontSize: 15 },
+    tipoFilterRow: {
         flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: COLORS.bg,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        paddingHorizontal: 12,
-        height: 44,
-        gap: 8,
+        gap: theme.spacing.sm,
     },
-    searchIcon: { fontSize: 16 },
-    searchInput: {
+    filterChip: {
         flex: 1,
-        fontSize: 15,
-        color: COLORS.textPrimary,
-        paddingVertical: 0,
+        backgroundColor: theme.colors.background,
     },
-    searchClear: { fontSize: 18, color: COLORS.textMuted, paddingHorizontal: 4 },
+    filterChipActive: {
+        backgroundColor: theme.colors.primaryLight,
+    },
+    filterChipText: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    filterChipTextActive: {
+        color: theme.colors.primary,
+        fontWeight: '700',
+    },
 
-    tipoFilterRow: { flexDirection: 'row', gap: 8 },
-    tipoFilterBtn: {
-        flex: 1,
-        paddingVertical: 8,
-        borderRadius: 8,
-        alignItems: 'center',
-        backgroundColor: COLORS.bg,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    tipoFilterBtnAtivo: {
-        backgroundColor: COLORS.primaryLight,
-        borderColor: COLORS.primary,
-    },
-    tipoFilterText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
-    tipoFilterTextAtivo: { fontSize: 13, color: COLORS.primary, fontWeight: '700' },
-
-    // ── Loading / Empty ───────────────────────────────────────────────────────
+    // Loading / Empty
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    loadingText: { marginTop: 12, color: COLORS.textMuted, fontSize: 14 },
+    loadingText: { color: theme.colors.textSecondary, marginTop: theme.spacing.md },
     footerLoader: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        paddingVertical: 16, gap: 8,
+        paddingVertical: theme.spacing.md, gap: theme.spacing.sm,
     },
-    footerLoaderText: { fontSize: 13, color: COLORS.textMuted },
-    emptyContainer: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 32 },
-    emptyIcon: { fontSize: 48, marginBottom: 12 },
-    emptyTitle: { fontSize: 17, fontWeight: '700', color: COLORS.textSecondary, marginBottom: 6 },
-    emptyText: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', lineHeight: 20 },
+    footerText: { color: theme.colors.textSecondary },
 
-    // ── Lista ─────────────────────────────────────────────────────────────────
-    listContainer: { paddingHorizontal: 16, paddingBottom: 40, paddingTop: 16 },
+    // Lista
+    listContainer: { padding: theme.spacing.md, paddingBottom: theme.spacing.xxl },
     listContainerEmpty: { flex: 1, justifyContent: 'center' },
 
-    // ── Card de auditoria ─────────────────────────────────────────────────────
+    // Card
     card: {
-        backgroundColor: COLORS.white,
-        padding: 16,
-        borderRadius: 10,
-        marginBottom: 12,
+        backgroundColor: theme.colors.surface,
+        padding: theme.spacing.md,
+        borderRadius: theme.borderRadius.md,
+        marginBottom: theme.spacing.sm + 4,
         borderLeftWidth: 5,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 3,
     },
-    cardAtraso: { backgroundColor: COLORS.indigoLight },
     cardHeader: {
-        flexDirection: 'row', justifyContent: 'space-between',
-        alignItems: 'center', marginBottom: 8, gap: 8,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: theme.spacing.sm,
+        gap: theme.spacing.sm,
     },
-    cardTitle: { fontSize: 15, fontWeight: 'bold', flex: 1 },
+    cardTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        flex: 1,
+    },
+    cardTitle: { fontWeight: 'bold', flex: 1 },
     cardMeta: {
-        flexDirection: 'row', gap: 8, marginBottom: 12,
-        flexWrap: 'wrap', alignItems: 'center',
+        flexDirection: 'row',
+        gap: theme.spacing.sm,
+        marginBottom: theme.spacing.sm,
+        flexWrap: 'wrap',
     },
-    cardAluno: {
-        fontSize: 13, fontWeight: '700', color: COLORS.textSecondary,
-        backgroundColor: theme.colors.background, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6,
+    metaChip: {
+        backgroundColor: theme.colors.background,
     },
-    cardDataAlerta: {
-        fontSize: 12, color: COLORS.textMuted,
-        backgroundColor: theme.colors.background, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6,
+    metaChipText: {
+        fontSize: 12,
+        color: theme.colors.textSecondary,
     },
 
-    // ── Badge de tipo ─────────────────────────────────────────────────────────
-    tipoBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-    tipoBadgeFalta: { backgroundColor: COLORS.red },
-    tipoBadgeAtraso: { backgroundColor: COLORS.indigoLight },
-    tipoBadgeText: { fontSize: 11, fontWeight: '700' },
-    tipoBadgeTextFalta: { color: theme.colors.surface },
-    tipoBadgeTextAtraso: { color: COLORS.indigo },
-
-    // ── Bloco de auditoria dentro do card ─────────────────────────────────────
+    // Auditoria block
     auditBlock: {
-        marginTop: 8,
-        paddingTop: 12,
+        marginTop: theme.spacing.sm,
+        paddingTop: theme.spacing.sm,
         borderTopWidth: 1,
         borderTopColor: theme.colors.border,
     },
     auditHeaderRow: {
-        flexDirection: 'row', justifyContent: 'space-between',
-        alignItems: 'center', marginBottom: 8,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: theme.spacing.sm,
     },
-    auditIdentificacao: { fontSize: 13, color: COLORS.textSecondary, flex: 1, marginRight: 8 },
-    auditNomeUser: { fontWeight: 'bold', color: COLORS.textPrimary },
-    auditDate: { fontSize: 12, color: COLORS.textMuted },
+    auditIdentRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        flex: 1,
+        marginRight: theme.spacing.sm,
+    },
+    auditIdentText: {
+        color: theme.colors.textSecondary,
+    },
+    auditNomeUser: {
+        fontWeight: 'bold',
+        color: theme.colors.textPrimary,
+    },
+    auditDate: {
+        color: theme.colors.textMuted,
+    },
     auditJustificativaBox: {
         flexDirection: 'row',
-        backgroundColor: COLORS.bg,
-        padding: 10,
-        borderRadius: 8,
+        backgroundColor: theme.colors.background,
+        padding: theme.spacing.sm,
+        borderRadius: theme.borderRadius.sm,
         borderLeftWidth: 3,
         borderLeftColor: theme.colors.border,
+        gap: theme.spacing.xs,
     },
-    auditJustificativaIcon: { fontSize: 14, marginRight: 6, marginTop: 2 },
     auditJustificativaText: {
         flex: 1,
-        fontSize: 13,
         color: theme.colors.textPrimary,
         fontStyle: 'italic',
         lineHeight: 18,

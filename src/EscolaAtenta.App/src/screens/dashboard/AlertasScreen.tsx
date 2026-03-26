@@ -1,16 +1,24 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
     View,
-    Text,
     StyleSheet,
     FlatList,
-    ActivityIndicator,
-    TouchableOpacity,
     Alert,
-    Modal,
-    TextInput,
     Pressable,
 } from 'react-native';
+import {
+    Text,
+    Button,
+    ActivityIndicator,
+    Surface,
+    Modal,
+    Portal,
+    TextInput,
+    Chip,
+    SegmentedButtons,
+    Badge,
+} from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppNavigationProp } from '../../navigation/types';
@@ -18,38 +26,17 @@ import { AlertaDto } from '../../types/dtos';
 import { NivelAlertaFalta, PapelUsuario, TipoAlerta, parseNivelAlertaFalta } from '../../types/enums';
 import { alertasService } from '../../services/alertasService';
 import { useAuth } from '../../hooks/useAuth';
-import { theme } from '../../theme/colors';
-
-// ── Constantes de Paginação ───────────────────────────────────────────────────
+import { AppHeader, StatusChip } from '../../components/ui';
+import { theme, palette } from '../../theme/colors';
 
 const PAGE_SIZE = 20;
 
-// ── Tipos Locais ───────────────────────────────────────────────────────────────
-
 type FiltroAtivo = 'TODOS' | 'FALTAS' | 'ATRASOS';
 
-interface FiltroTab {
-    key: FiltroAtivo;
-    label: string;
-    icon: string;
-}
-
-const FILTROS: FiltroTab[] = [
-    { key: 'TODOS', label: 'Todos', icon: '📋' },
-    { key: 'FALTAS', label: 'Faltas', icon: '❌' },
-    { key: 'ATRASOS', label: 'Atrasos', icon: '⏱️' },
-];
-
-// ── Helpers (fora do componente — não recriados a cada render) ─────────────────
-
-/**
- * Retorna a cor de destaque baseada no tipo e nível do alerta.
- * Alertas de Atraso sempre recebem paleta índigo — sinaliza natureza diferente.
- */
 function getBorderColor(item: AlertaDto): string {
     if (item.tipo === TipoAlerta.Atraso) {
         const nivel = parseNivelAlertaFalta(item.nivel);
-        return nivel >= 2 ? theme.colors.primaryDark : theme.colors.border;
+        return nivel >= 2 ? theme.colors.warning : theme.colors.border;
     }
     const nivel = parseNivelAlertaFalta(item.nivel);
     if (nivel >= 5) return theme.colors.primaryDark;
@@ -62,30 +49,22 @@ function getBorderColor(item: AlertaDto): string {
     }
 }
 
-/**
- * Retorna título amigável, priorizando o campo do backend.
- * Fallback local tipado por TipoAlerta enum — sem magic strings.
- */
 function getTituloExibicao(item: AlertaDto): string {
     if (item.tituloAmigavel) return item.tituloAmigavel;
     if (item.tipo === TipoAlerta.Atraso) {
         const nivel = parseNivelAlertaFalta(item.nivel);
-        return nivel >= 2 ? '⚠️ Atrasos Reincidentes' : '⏱️ Aviso de Atrasos';
+        return nivel >= 2 ? 'Atrasos Reincidentes' : 'Aviso de Atrasos';
     }
     const nivel = parseNivelAlertaFalta(item.nivel);
-    if (nivel >= 5) return '🛑 Risco Crítico - Ação Legal';
+    if (nivel >= 5) return 'Risco Crítico - Ação Legal';
     switch (nivel) {
-        case NivelAlertaFalta.Aviso: return '👀 Aviso de Faltas';
-        case NivelAlertaFalta.Intermediario: return '⚠️ Alerta Intermediário';
-        case NivelAlertaFalta.Vermelho: return '🚨 Alto Risco de Evasão';
+        case NivelAlertaFalta.Aviso: return 'Aviso de Faltas';
+        case NivelAlertaFalta.Intermediario: return 'Alerta Intermediário';
+        case NivelAlertaFalta.Vermelho: return 'Alto Risco de Evasão';
         default: return 'Alerta Escolar';
     }
 }
 
-/**
- * Placeholder do TextInput no modal — sensível ao tipo da infração.
- * Usa TipoAlerta enum: sem magic strings.
- */
 function getPlaceholderTratativa(tipo: TipoAlerta | undefined): string {
     if (tipo === TipoAlerta.Atraso) {
         return 'Descreva a orientação dada ao aluno sobre pontualidade e regras da escola...';
@@ -100,68 +79,50 @@ function formatData(isoDate: string): string {
     });
 }
 
-// ── TipoBadge — Componente Presentacional ────────────────────────────────────
-
-interface TipoBadgeProps { tipo: TipoAlerta }
-
-function TipoBadge({ tipo }: TipoBadgeProps) {
-    const isAtraso = tipo === TipoAlerta.Atraso;
-    return (
-        <View style={[styles.tipoBadge, isAtraso ? styles.tipoBadgeAtraso : styles.tipoBadgeFalta]}>
-            <Text style={[styles.tipoBadgeText, isAtraso ? styles.tipoBadgeTextAtraso : styles.tipoBadgeTextFalta]}>
-                {isAtraso ? '⏱️ Atraso' : '❌ Falta'}
-            </Text>
-        </View>
-    );
+function getAlertIcon(item: AlertaDto): keyof typeof MaterialCommunityIcons.glyphMap {
+    if (item.tipo === TipoAlerta.Atraso) return 'clock-alert-outline';
+    const nivel = parseNivelAlertaFalta(item.nivel);
+    if (nivel >= 5) return 'alert-octagon';
+    if (nivel >= NivelAlertaFalta.Vermelho) return 'alert-circle';
+    if (nivel >= NivelAlertaFalta.Intermediario) return 'alert';
+    return 'information-outline';
 }
-
-// ── Componente Principal ───────────────────────────────────────────────────────
 
 export function AlertasScreen() {
     const { user } = useAuth();
     const navigation = useNavigation<AppNavigationProp>();
 
-    // ── Estado: dados e paginação ─────────────────────────────────────────────
     const [alertas, setAlertas] = useState<AlertaDto[]>([]);
     const [loading, setLoading] = useState(true);
-    const [loadingMore, setLoadingMore] = useState(false);  // Indicador do rodapé
+    const [loadingMore, setLoadingMore] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [hasNextPage, setHasNextPage] = useState(false);
     const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>('TODOS');
     const [subFiltroNivel, setSubFiltroNivel] = useState<NivelAlertaFalta | null>(null);
 
-    // Limpa o subfiltro se sair da aba Faltas
     useEffect(() => {
-        if (filtroAtivo !== 'FALTAS') {
-            setSubFiltroNivel(null);
-        }
+        if (filtroAtivo !== 'FALTAS') setSubFiltroNivel(null);
     }, [filtroAtivo]);
 
-    // Ref para evitar chamadas duplicadas em onEndReached (React Native pode disparar twice)
     const isFetchingRef = useRef(false);
 
-    // ── Estado: modal ─────────────────────────────────────────────────────────
     const [modalVisible, setModalVisible] = useState(false);
     const [alertaSelecionado, setAlertaSelecionado] = useState<AlertaDto | null>(null);
     const [tratativa, setTratativa] = useState('');
     const [resolvendo, setResolvendo] = useState(false);
 
-    // ── Derivação de dados ────────────────────────────────────────────────────
-    // useMemo garante que FlatList não receba novo array reference a cada render
     const alertasFiltrados = useMemo(() => {
         if (filtroAtivo === 'FALTAS') return alertas.filter(a => a.tipo === TipoAlerta.Evasao);
         if (filtroAtivo === 'ATRASOS') return alertas.filter(a => a.tipo === TipoAlerta.Atraso);
         return alertas;
     }, [alertas, filtroAtivo]);
 
-    // Contadores para os badges nas abas — derivados em único useMemo
     const contadores = useMemo(() => ({
         todos: alertas.length,
         faltas: alertas.filter(a => a.tipo === TipoAlerta.Evasao).length,
         atrasos: alertas.filter(a => a.tipo === TipoAlerta.Atraso).length,
     }), [alertas]);
 
-    // ── Carregamento inicial (página 1) ───────────────────────────────────────
     const carregarAlertas = useCallback(async () => {
         try {
             setLoading(true);
@@ -190,9 +151,7 @@ export function AlertasScreen() {
         }
     }, [subFiltroNivel, filtroAtivo]);
 
-    // ── Carregamento da próxima página (Infinite Scroll) ─────────────────────
     const carregarProximaPagina = useCallback(async () => {
-        // Guards: evita chamadas duplicadas, chamadas sem mais páginas e durante load inicial
         if (isFetchingRef.current || !hasNextPage || loading) return;
 
         try {
@@ -211,8 +170,6 @@ export function AlertasScreen() {
             }
 
             const resultado = await alertasService.obterPaginados(params);
-
-            // Concatena ao final — não substitui a lista (Infinite Scroll acumulativo)
             setAlertas(prev => [...prev, ...resultado.items]);
             setCurrentPage(nextPage);
             setHasNextPage(resultado.hasNextPage);
@@ -225,14 +182,12 @@ export function AlertasScreen() {
         }
     }, [hasNextPage, currentPage, loading, subFiltroNivel, filtroAtivo]);
 
-    // Recarrega sempre que a tela ganha foco ou os filtros de API mudarem
     useFocusEffect(
         useCallback(() => {
             carregarAlertas();
         }, [carregarAlertas])
     );
 
-    // ── Modal ─────────────────────────────────────────────────────────────────
     const openModal = (alerta: AlertaDto) => {
         setAlertaSelecionado(alerta);
         setTratativa('');
@@ -254,7 +209,6 @@ export function AlertasScreen() {
         try {
             setResolvendo(true);
             await alertasService.resolver(alertaSelecionado.id, tratativa);
-            // Atualização otimista — remove da lista sem novo fetch
             setAlertas(prev => prev.filter(a => a.id !== alertaSelecionado.id));
             Alert.alert('Sucesso', 'Alerta resolvido com sucesso!');
             closeModal();
@@ -266,183 +220,143 @@ export function AlertasScreen() {
         }
     };
 
-    // ── Renderização de Item ──────────────────────────────────────────────────
+    // ── Subfiltro de Nível (Chips) ───────────────────────────────
+    const FILTROS_NIVEL: { key: NivelAlertaFalta; label: string; variant: 'success' | 'warning' | 'error' | 'info' }[] = [
+        { key: NivelAlertaFalta.Aviso, label: 'Alerta', variant: 'warning' },
+        { key: NivelAlertaFalta.Intermediario, label: 'Intermediário', variant: 'info' },
+        { key: NivelAlertaFalta.Vermelho, label: 'Crítico', variant: 'error' },
+        { key: NivelAlertaFalta.Preto, label: 'Ação Legal', variant: 'error' },
+    ];
+
     const renderItem = ({ item }: { item: AlertaDto }) => {
         const borderColor = getBorderColor(item);
         const tituloExibicao = getTituloExibicao(item);
         const isAtraso = item.tipo === TipoAlerta.Atraso;
+        const alertIcon = getAlertIcon(item);
 
         return (
-            <TouchableOpacity
-                style={[
-                    styles.card,
-                    { borderLeftColor: borderColor },
-                    isAtraso && styles.cardAtraso,
-                ]}
-                onPress={() => openModal(item)}
-                accessibilityRole="button"
-                accessibilityLabel={`Alerta de ${isAtraso ? 'atraso' : 'falta'} para ${item.nomeAluno}. Toque para resolver.`}
-            >
-                <View style={styles.cardHeader}>
-                    <Text style={[styles.cardTitle, { color: borderColor }]} numberOfLines={1}>
-                        {tituloExibicao}
+            <Pressable onPress={() => openModal(item)}>
+                <Surface
+                    style={[styles.alertCard, { borderLeftColor: borderColor }]}
+                    elevation={1}
+                >
+                    <View style={styles.alertHeader}>
+                        <View style={styles.alertTitleRow}>
+                            <MaterialCommunityIcons name={alertIcon} size={18} color={borderColor} />
+                            <Text variant="titleSmall" style={[styles.alertTitle, { color: borderColor }]} numberOfLines={1}>
+                                {tituloExibicao}
+                            </Text>
+                        </View>
+                        <Text variant="labelSmall" style={styles.alertDate}>{formatData(item.dataAlerta)}</Text>
+                    </View>
+
+                    <View style={styles.alertMeta}>
+                        <Chip compact icon="account" textStyle={styles.metaChipText} style={styles.metaChip}>
+                            {item.nomeAluno}
+                        </Chip>
+                        <Chip compact icon="google-classroom" textStyle={styles.metaChipText} style={styles.metaChip}>
+                            {item.nomeTurma}
+                        </Chip>
+                    </View>
+
+                    <Text variant="bodySmall" style={styles.alertDesc} numberOfLines={2}>
+                        {item.mensagemAcao || item.descricao}
                     </Text>
-                    <Text style={styles.cardDate}>{formatData(item.dataAlerta)}</Text>
-                </View>
 
-                <View style={styles.cardMeta}>
-                    <Text style={styles.cardAluno} numberOfLines={1}>{item.nomeAluno}</Text>
-                    <Text style={styles.cardTurma} numberOfLines={1}>{item.nomeTurma}</Text>
-                </View>
-
-                <Text style={styles.cardDescricao} numberOfLines={2}>
-                    {item.mensagemAcao || item.descricao}
-                </Text>
-
-                <View style={styles.cardFooter}>
-                    <TipoBadge tipo={item.tipo} />
-                    <View style={styles.resolverBadge}>
-                        <Text style={styles.resolverBadgeText}>
-                            {user?.papel === PapelUsuario.Monitor ? 'Toque para Visualizar' : 'Toque para Resolver'}
+                    <View style={styles.alertFooter}>
+                        <StatusChip
+                            label={isAtraso ? 'Atraso' : 'Falta'}
+                            variant={isAtraso ? 'warning' : 'error'}
+                            icon={isAtraso ? 'clock-alert-outline' : 'close-circle-outline'}
+                        />
+                        <Text variant="labelSmall" style={styles.tapHint}>
+                            {user?.papel === PapelUsuario.Monitor ? 'Visualizar' : 'Resolver'}
                         </Text>
                     </View>
-                </View>
-            </TouchableOpacity>
+                </Surface>
+            </Pressable>
         );
     };
 
-    // ── Rodapé da FlatList: spinner de "carregando mais" ─────────────────────
     const renderListFooter = () => {
         if (!loadingMore) return null;
         return (
             <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={styles.footerLoaderText}>Carregando mais alertas...</Text>
+                <ActivityIndicator size="small" />
+                <Text variant="labelSmall" style={styles.footerText}>Carregando mais...</Text>
             </View>
         );
     };
 
-    // ── Segmented Control ─────────────────────────────────────────────────────
-    const renderSegmentedControl = () => (
-        <View style={styles.segmentedContainer} accessibilityRole="tablist">
-            {FILTROS.map((filtro) => {
-                const isActive = filtroAtivo === filtro.key;
-                const contador = filtro.key === 'TODOS'
-                    ? contadores.todos
-                    : filtro.key === 'FALTAS'
-                        ? contadores.faltas
-                        : contadores.atrasos;
-
-                return (
-                    <Pressable
-                        key={filtro.key}
-                        style={[styles.segmentedTab, isActive && styles.segmentedTabActive]}
-                        onPress={() => setFiltroAtivo(filtro.key)}
-                        accessibilityRole="tab"
-                        accessibilityState={{ selected: isActive }}
-                        accessibilityLabel={`${filtro.label}, ${contador} alertas`}
-                    >
-                        <Text style={[styles.segmentedTabText, isActive && styles.segmentedTabTextActive]}>
-                            {filtro.icon} {filtro.label}
-                        </Text>
-                        {contador > 0 && (
-                            <View style={[styles.tabBadge, isActive && styles.tabBadgeActive]}>
-                                <Text style={[styles.tabBadgeText, isActive && styles.tabBadgeTextActive]}>
-                                    {contador}
-                                </Text>
-                            </View>
-                        )}
-                    </Pressable>
-                );
-            })}
-        </View>
-    );
-
-    // ── Subfiltro de Nível (Pílulas) ───────────────────────────────────────────
-    const FILTROS_NIVEL = [
-        { key: NivelAlertaFalta.Aviso, label: 'Alerta', color: COLORS.secondaryLight, textColor: COLORS.primaryDark },
-        { key: NivelAlertaFalta.Intermediario, label: 'Intermediário', color: COLORS.primary, textColor: COLORS.surface },
-        { key: NivelAlertaFalta.Vermelho, label: 'Crítico', color: COLORS.error, textColor: COLORS.surface },
-        { key: NivelAlertaFalta.Preto, label: 'Ação Legal', color: COLORS.primaryDark, textColor: COLORS.surface },
-    ];
-
-    const renderSubfiltroNivel = () => {
-        if (filtroAtivo !== 'FALTAS') return null;
-
-        return (
-            <View style={styles.subfiltroContainer} accessibilityRole="tablist">
-                {FILTROS_NIVEL.map((item) => {
-                    const isActive = subFiltroNivel === item.key;
-                    return (
-                        <Pressable
-                            key={item.key}
-                            style={[
-                                styles.subfiltroTab,
-                                { backgroundColor: isActive ? item.color : COLORS.white },
-                                isActive && styles.subfiltroTabActiveObj
-                            ]}
-                            onPress={() => setSubFiltroNivel(isActive ? null : item.key)}
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: isActive }}
-                        >
-                            <Text style={[
-                                styles.subfiltroTabText,
-                                { color: isActive ? item.textColor : COLORS.textMuted },
-                                isActive && styles.subfiltroTabTextActiveObj
-                            ]}>
-                                {item.label}
-                            </Text>
-                        </Pressable>
-                    );
-                })}
-            </View>
-        );
-    };
-
-    // ── Empty State contextual por filtro ─────────────────────────────────────
-    const renderListaVazia = () => {
-        const mensagens: Record<FiltroAtivo, { icon: string; texto: string }> = {
-            TODOS: { icon: '✅', texto: 'Nenhuma situação de risco detectada.' },
-            FALTAS: {
-                icon: subFiltroNivel !== null ? '🔍' : '📗',
-                texto: subFiltroNivel !== null
-                    ? `Nenhum alerta ${FILTROS_NIVEL.find(f => f.key === subFiltroNivel)?.label.toLowerCase()} encontrado.`
-                    : 'Nenhum alerta de falta pendente.'
-            },
-            ATRASOS: { icon: '🕐', texto: 'Nenhum alerta de atraso pendente.' },
+    const renderEmptyState = () => {
+        const configs: Record<FiltroAtivo, { icon: keyof typeof MaterialCommunityIcons.glyphMap; text: string }> = {
+            TODOS: { icon: 'check-circle-outline', text: 'Nenhuma situação de risco detectada.' },
+            FALTAS: { icon: 'book-check-outline', text: 'Nenhum alerta de falta pendente.' },
+            ATRASOS: { icon: 'clock-check-outline', text: 'Nenhum alerta de atraso pendente.' },
         };
-        const { icon, texto } = mensagens[filtroAtivo];
+        const { icon, text } = configs[filtroAtivo];
         return (
             <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>{icon}</Text>
-                <Text style={styles.emptyText}>{texto}</Text>
+                <MaterialCommunityIcons name={icon} size={56} color={theme.colors.success} style={{ opacity: 0.7 }} />
+                <Text variant="titleMedium" style={styles.emptyText}>{text}</Text>
             </View>
         );
     };
 
-    // ── Render Principal ──────────────────────────────────────────────────────
     return (
-        <SafeAreaView style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Text style={styles.backButtonText}>← Voltar</Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Alertas Escolares</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('HistoricoAlertas')} style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 14, color: COLORS.primary, fontWeight: 'bold' }}>Auditoria</Text>
-                </TouchableOpacity>
-            </View>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <AppHeader
+                title="Alertas Escolares"
+                onBack={() => navigation.goBack()}
+                rightActions={[{
+                    icon: 'history',
+                    onPress: () => navigation.navigate('HistoricoAlertas'),
+                    label: 'Auditoria'
+                }]}
+            />
 
-            {/* Segmented Control */}
-            {!loading && renderSegmentedControl()}
-            {!loading && renderSubfiltroNivel()}
+            {/* Segmented Tabs */}
+            {!loading && (
+                <View style={styles.segmentedWrapper}>
+                    <SegmentedButtons
+                        value={filtroAtivo}
+                        onValueChange={(v) => setFiltroAtivo(v as FiltroAtivo)}
+                        buttons={[
+                            { value: 'TODOS', label: `Todos (${contadores.todos})`, icon: 'format-list-bulleted' },
+                            { value: 'FALTAS', label: `Faltas (${contadores.faltas})`, icon: 'close-circle-outline' },
+                            { value: 'ATRASOS', label: `Atrasos (${contadores.atrasos})`, icon: 'clock-alert-outline' },
+                        ]}
+                        style={styles.segmented}
+                    />
+                </View>
+            )}
 
-            {/* Lista com Infinite Scroll */}
+            {/* Subfiltro Chips */}
+            {!loading && filtroAtivo === 'FALTAS' && (
+                <View style={styles.subfiltroRow}>
+                    {FILTROS_NIVEL.map((item) => {
+                        const isActive = subFiltroNivel === item.key;
+                        return (
+                            <Chip
+                                key={item.key}
+                                selected={isActive}
+                                showSelectedOverlay
+                                onPress={() => setSubFiltroNivel(isActive ? null : item.key)}
+                                compact
+                                style={styles.subfiltroChip}
+                            >
+                                {item.label}
+                            </Chip>
+                        );
+                    })}
+                </View>
+            )}
+
+            {/* Lista */}
             {loading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={COLORS.primary} />
-                    <Text style={styles.loadingText}>Buscando situações de risco...</Text>
+                    <ActivityIndicator size="large" />
+                    <Text variant="bodyMedium" style={styles.loadingText}>Buscando situações de risco...</Text>
                 </View>
             ) : (
                 <FlatList
@@ -453,12 +367,10 @@ export function AlertasScreen() {
                         styles.listContainer,
                         alertasFiltrados.length === 0 && styles.listContainerEmpty,
                     ]}
-                    ListEmptyComponent={renderListaVazia}
+                    ListEmptyComponent={renderEmptyState}
                     ListFooterComponent={renderListFooter}
-                    // ── Infinite Scroll ──────────────────────────────────────
                     onEndReached={carregarProximaPagina}
-                    onEndReachedThreshold={0.5}  // Dispara quando 50% do final é visível
-                    // ── Otimizações de Performance ───────────────────────────
+                    onEndReachedThreshold={0.5}
                     removeClippedSubviews
                     initialNumToRender={10}
                     maxToRenderPerBatch={10}
@@ -467,248 +379,177 @@ export function AlertasScreen() {
             )}
 
             {/* Modal de Resolução */}
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={modalVisible}
-                onRequestClose={closeModal}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Resolver Alerta</Text>
-                            {alertaSelecionado && <TipoBadge tipo={alertaSelecionado.tipo} />}
-                        </View>
-
+            <Portal>
+                <Modal
+                    visible={modalVisible}
+                    onDismiss={closeModal}
+                    contentContainerStyle={styles.modalContent}
+                >
+                    <View style={styles.modalHeader}>
+                        <Text variant="titleLarge" style={styles.modalTitle}>Resolver Alerta</Text>
                         {alertaSelecionado && (
-                            <View style={[
-                                styles.modalAlertaInfo,
-                                { borderLeftColor: getBorderColor(alertaSelecionado) }
-                            ]}>
-                                <Text style={styles.modalAlertaNome}>
-                                    {alertaSelecionado.nomeAluno} · {alertaSelecionado.nomeTurma}
-                                </Text>
-                                <Text style={styles.modalAlertaDesc}>
-                                    {alertaSelecionado.mensagemAcao || alertaSelecionado.descricao}
-                                </Text>
-                            </View>
-                        )}
-
-                        {user?.papel === PapelUsuario.Monitor ? (
-                            <>
-                                <View style={styles.monitorAvisoContainer}>
-                                    <Text style={styles.monitorAvisoText}>
-                                        📌 Apenas a supervisão pode registrar a tratativa e resolver este alerta.
-                                    </Text>
-                                </View>
-                                <View style={styles.modalActions}>
-                                    <TouchableOpacity style={[styles.modalButton, styles.modalButtonCancel]} onPress={closeModal}>
-                                        <Text style={styles.modalButtonCancelText}>Fechar</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </>
-                        ) : (
-                            <>
-                                <Text style={styles.inputLabel}>Tratativa / Ação Tomada:</Text>
-                                <TextInput
-                                    style={styles.textInput}
-                                    multiline
-                                    numberOfLines={4}
-                                    // Placeholder dinâmico — sensível ao contexto da infração
-                                    // getPlaceholderTratativa usa TipoAlerta enum (sem magic strings)
-                                    placeholder={getPlaceholderTratativa(alertaSelecionado?.tipo)}
-                                    value={tratativa}
-                                    onChangeText={setTratativa}
-                                    maxLength={500}
-                                    accessibilityLabel="Campo de tratativa do alerta"
-                                />
-
-                                <View style={styles.modalActions}>
-                                    <TouchableOpacity
-                                        style={[styles.modalButton, styles.modalButtonCancel]}
-                                        onPress={closeModal}
-                                        disabled={resolvendo}
-                                    >
-                                        <Text style={styles.modalButtonCancelText}>Cancelar</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.modalButton, styles.modalButtonConfirm, resolvendo && { opacity: 0.7 }]}
-                                        onPress={handleResolver}
-                                        disabled={resolvendo}
-                                        accessibilityState={{ disabled: resolvendo, busy: resolvendo }}
-                                    >
-                                        {resolvendo
-                                            ? <ActivityIndicator color={COLORS.surface} />
-                                            : <Text style={styles.modalButtonConfirmText}>Confirmar</Text>
-                                        }
-                                    </TouchableOpacity>
-                                </View>
-                            </>
+                            <StatusChip
+                                label={alertaSelecionado.tipo === TipoAlerta.Atraso ? 'Atraso' : 'Falta'}
+                                variant={alertaSelecionado.tipo === TipoAlerta.Atraso ? 'warning' : 'error'}
+                            />
                         )}
                     </View>
-                </View>
-            </Modal>
+
+                    {alertaSelecionado && (
+                        <Surface style={[styles.modalAlertInfo, { borderLeftColor: getBorderColor(alertaSelecionado) }]} elevation={0}>
+                            <Text variant="labelMedium" style={styles.modalAlertNome}>
+                                {alertaSelecionado.nomeAluno} · {alertaSelecionado.nomeTurma}
+                            </Text>
+                            <Text variant="bodySmall" style={styles.modalAlertDesc}>
+                                {alertaSelecionado.mensagemAcao || alertaSelecionado.descricao}
+                            </Text>
+                        </Surface>
+                    )}
+
+                    {user?.papel === PapelUsuario.Monitor ? (
+                        <>
+                            <Surface style={styles.monitorAviso} elevation={0}>
+                                <MaterialCommunityIcons name="information" size={20} color={theme.colors.primary} />
+                                <Text variant="bodySmall" style={styles.monitorAvisoText}>
+                                    Apenas a supervisão pode registrar a tratativa e resolver este alerta.
+                                </Text>
+                            </Surface>
+                            <Button mode="outlined" onPress={closeModal}>Fechar</Button>
+                        </>
+                    ) : (
+                        <>
+                            <TextInput
+                                label="Tratativa / Ação Tomada"
+                                value={tratativa}
+                                onChangeText={setTratativa}
+                                multiline
+                                numberOfLines={4}
+                                placeholder={getPlaceholderTratativa(alertaSelecionado?.tipo)}
+                                maxLength={500}
+                                mode="outlined"
+                                style={styles.treatmentInput}
+                            />
+
+                            <View style={styles.modalActions}>
+                                <Button
+                                    mode="text"
+                                    onPress={closeModal}
+                                    disabled={resolvendo}
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button
+                                    mode="contained"
+                                    onPress={handleResolver}
+                                    loading={resolvendo}
+                                    disabled={resolvendo}
+                                    icon="check"
+                                    buttonColor={theme.colors.secondary}
+                                >
+                                    Confirmar
+                                </Button>
+                            </View>
+                        </>
+                    )}
+                </Modal>
+            </Portal>
         </SafeAreaView>
     );
 }
 
-// ── Estilos ────────────────────────────────────────────────────────────────────
-
-const COLORS = {
-    bg: theme.colors.background,
-    white: theme.colors.surface,
-    surface: theme.colors.surface,
-    primary: theme.colors.primary,
-    primaryDark: theme.colors.primaryDark,
-    secondary: theme.colors.secondary,
-    secondaryLight: theme.colors.secondaryLight,
-    textPrimary: theme.colors.textPrimary,
-    textSecondary: theme.colors.textSecondary,
-    border: theme.colors.border,
-    error: theme.colors.error,
-    textMuted: '#6B7280', // Mantido temporário se for diferente de textSecondary, mas deve ser adaptado
-};
-
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.bg },
+    container: { flex: 1, backgroundColor: theme.colors.background },
 
-    // ── Header ──────────────────────────────────────────────────────────────
-    header: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        padding: 20, backgroundColor: COLORS.white,
-        elevation: 2, shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2,
-    },
-    backButton: {},
-    backButtonText: { fontSize: 16, color: COLORS.textSecondary, fontWeight: '600' },
-    headerTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.textPrimary },
+    segmentedWrapper: { paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.sm },
+    segmented: {},
 
-    // ── Subfiltro (Pílulas) ──────────────────────────────────────────────────
-    subfiltroContainer: {
-        flexDirection: 'row', paddingHorizontal: 16, marginBottom: 12, gap: 8,
+    subfiltroRow: {
+        flexDirection: 'row',
+        paddingHorizontal: theme.spacing.md,
+        marginBottom: theme.spacing.sm,
+        gap: theme.spacing.sm,
         justifyContent: 'center',
     },
-    subfiltroTab: {
-        paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16,
-        borderWidth: 1, borderColor: COLORS.border,
-        elevation: 0,
-    },
-    subfiltroTabActiveObj: {
-        borderColor: 'transparent',
-    },
-    subfiltroTabText: {
-        fontSize: 12, fontWeight: '700',
-    },
-    subfiltroTabTextActiveObj: {
-        fontWeight: 'bold',
-    },
+    subfiltroChip: { backgroundColor: theme.colors.surface },
 
-    // ── Segmented Control ────────────────────────────────────────────────────
-    segmentedContainer: {
-        flexDirection: 'row', margin: 16,
-        backgroundColor: COLORS.white, borderRadius: 12, padding: 4,
-        elevation: 1, shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 2,
-    },
-    segmentedTab: {
-        flex: 1, flexDirection: 'row', alignItems: 'center',
-        justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 8,
-        borderRadius: 10, gap: 4,
-    },
-    segmentedTabActive: { backgroundColor: COLORS.primary },
-    segmentedTabText: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted },
-    segmentedTabTextActive: { color: COLORS.white },
-    tabBadge: {
-        backgroundColor: COLORS.border, borderRadius: 10,
-        minWidth: 20, height: 20, alignItems: 'center',
-        justifyContent: 'center', paddingHorizontal: 5,
-    },
-    tabBadgeActive: { backgroundColor: 'rgba(255,255,255,0.3)' },
-    tabBadgeText: { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary },
-    tabBadgeTextActive: { color: COLORS.white },
-
-    // ── Loading ──────────────────────────────────────────────────────────────
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    loadingText: { marginTop: 12, color: COLORS.textMuted },
+    loadingText: { color: theme.colors.textSecondary, marginTop: theme.spacing.md },
 
-    // ── Rodapé: Infinite Scroll Indicator ────────────────────────────────────
     footerLoader: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        paddingVertical: 16, gap: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: theme.spacing.md,
+        gap: theme.spacing.sm,
     },
-    footerLoaderText: { fontSize: 13, color: COLORS.textMuted },
+    footerText: { color: theme.colors.textSecondary },
 
-    // ── Lista ────────────────────────────────────────────────────────────────
-    listContainer: { paddingHorizontal: 16, paddingBottom: 40 },
+    listContainer: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl },
     listContainerEmpty: { flex: 1, justifyContent: 'center' },
 
-    // ── Card ─────────────────────────────────────────────────────────────────
-    card: {
-        backgroundColor: COLORS.surface, padding: 16, borderRadius: 10,
-        marginBottom: 12, borderLeftWidth: 5,
-        elevation: 2, shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3,
+    alertCard: {
+        backgroundColor: theme.colors.surface,
+        padding: theme.spacing.md,
+        borderRadius: theme.borderRadius.md,
+        marginBottom: theme.spacing.sm + 4,
+        borderLeftWidth: 4,
     },
-    cardAtraso: { backgroundColor: COLORS.bg },
-    cardHeader: {
-        flexDirection: 'row', justifyContent: 'space-between',
-        alignItems: 'flex-start', marginBottom: 8, gap: 8,
+    alertHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: theme.spacing.sm,
     },
-    cardTitle: { fontSize: 15, fontWeight: 'bold', flex: 1 },
-    cardDate: { fontSize: 11, color: COLORS.textMuted, flexShrink: 0 },
-    cardMeta: { flexDirection: 'row', gap: 6, marginBottom: 6, flexWrap: 'wrap' },
-    cardAluno: {
-        fontSize: 13, fontWeight: '700', color: COLORS.textSecondary,
-        backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6,
+    alertTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        flex: 1,
     },
-    cardTurma: {
-        fontSize: 13, color: COLORS.textMuted,
-        backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6,
-    },
-    cardDescricao: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 19, marginBottom: 12 },
-    cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    alertTitle: { fontWeight: 'bold', flex: 1 },
+    alertDate: { color: theme.colors.textMuted, flexShrink: 0 },
+    alertMeta: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.sm, flexWrap: 'wrap' },
+    metaChip: { backgroundColor: theme.colors.surfaceVariant },
+    metaChipText: { fontSize: 12 },
+    alertDesc: { color: theme.colors.textSecondary, lineHeight: 19, marginBottom: theme.spacing.sm + 4 },
+    alertFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    tapHint: { color: theme.colors.textMuted },
 
-    // ── TipoBadge ────────────────────────────────────────────────────────────
-    tipoBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, alignSelf: 'flex-start' },
-    tipoBadgeFalta: { backgroundColor: COLORS.error },
-    tipoBadgeAtraso: { backgroundColor: COLORS.border },
-    tipoBadgeText: { fontSize: 11, fontWeight: '700' },
-    tipoBadgeTextFalta: { color: COLORS.surface },
-    tipoBadgeTextAtraso: { color: COLORS.textPrimary },
+    emptyContainer: { alignItems: 'center', paddingVertical: theme.spacing.xxl },
+    emptyText: { color: theme.colors.secondary, fontWeight: '600', marginTop: theme.spacing.md, textAlign: 'center' },
 
-    // ── Resolver Badge ────────────────────────────────────────────────────────
-    resolverBadge: { backgroundColor: '#F3F4F6', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16 },
-    resolverBadgeText: { fontSize: 11, color: '#4B5563', fontWeight: '600' },
-
-    // ── Empty State ───────────────────────────────────────────────────────────
-    emptyContainer: { alignItems: 'center', paddingVertical: 48 },
-    emptyIcon: { fontSize: 48, marginBottom: 16 },
-    emptyText: { fontSize: 16, fontWeight: '600', color: COLORS.secondary, textAlign: 'center' },
-
-    // ── Modal ─────────────────────────────────────────────────────────────────
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
     modalContent: {
-        backgroundColor: COLORS.white, borderRadius: 16, padding: 24,
-        elevation: 5, shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4,
+        backgroundColor: theme.colors.surface,
+        margin: theme.spacing.lg,
+        padding: theme.spacing.lg,
+        borderRadius: theme.borderRadius.xl,
     },
-    modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-    modalTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.textPrimary },
-    modalAlertaInfo: { backgroundColor: '#F9FAFB', padding: 12, borderRadius: 8, marginBottom: 16, borderLeftWidth: 4 },
-    modalAlertaNome: { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary, marginBottom: 4 },
-    modalAlertaDesc: { fontSize: 14, color: '#4B5563', lineHeight: 20 },
-    inputLabel: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 8 },
-    textInput: {
-        borderWidth: 1, borderColor: COLORS.border, borderRadius: 8,
-        padding: 12, fontSize: 14, color: COLORS.textPrimary,
-        textAlignVertical: 'top', minHeight: 100, marginBottom: 20,
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: theme.spacing.md,
     },
-    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
-    modalButton: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, minWidth: 100, alignItems: 'center' },
-    modalButtonCancel: { backgroundColor: COLORS.bg },
-    modalButtonCancelText: { color: COLORS.textSecondary, fontWeight: '600' },
-    modalButtonConfirm: { backgroundColor: COLORS.secondary },
-    modalButtonConfirmText: { color: COLORS.surface, fontWeight: 'bold' },
-    monitorAvisoContainer: { backgroundColor: COLORS.secondaryLight, padding: 12, borderRadius: 8, marginBottom: 20 },
-    monitorAvisoText: { color: COLORS.primaryDark, fontSize: 14, lineHeight: 20 },
+    modalTitle: { fontWeight: 'bold', color: theme.colors.textPrimary },
+    modalAlertInfo: {
+        backgroundColor: theme.colors.surfaceVariant,
+        padding: theme.spacing.md,
+        borderRadius: theme.borderRadius.sm,
+        marginBottom: theme.spacing.md,
+        borderLeftWidth: 4,
+    },
+    modalAlertNome: { fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 4 },
+    modalAlertDesc: { color: theme.colors.textMuted, lineHeight: 20 },
+    treatmentInput: { marginBottom: theme.spacing.md, backgroundColor: theme.colors.surface },
+    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: theme.spacing.sm },
+    monitorAviso: {
+        flexDirection: 'row',
+        backgroundColor: theme.colors.infoLight,
+        padding: theme.spacing.md,
+        borderRadius: theme.borderRadius.sm,
+        marginBottom: theme.spacing.md,
+        gap: theme.spacing.sm,
+        alignItems: 'flex-start',
+    },
+    monitorAvisoText: { color: theme.colors.primary, flex: 1, lineHeight: 20 },
 });

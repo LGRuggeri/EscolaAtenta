@@ -296,4 +296,48 @@ public class AlunoTests
         acao.Should().Throw<DomainException>()
             .WithMessage("*já pertence*");
     }
+
+    // ── Testes de VerificarEReiniciarCicloTrimestral ─────────────────────────
+
+    [Fact]
+    public void VerificarEReiniciarCicloTrimestral_AntesDe90Dias_NaoDeveResetarContadores()
+    {
+        // Arrange: aluno com faltas e atrasos acumulados
+        var aluno = CriarAlunoValido();
+        var agora = DateTime.UtcNow;
+        aluno.RegistrarFalta(agora);
+        aluno.RegistrarFalta(agora);
+        aluno.RegistrarAtraso(agora);
+        aluno.ClearDomainEvents();
+
+        // Act: avança 89 dias (dentro do ciclo)
+        aluno.VerificarEReiniciarCicloTrimestral(agora.AddDays(89));
+
+        // Assert: contadores devem permanecer inalterados
+        aluno.FaltasConsecutivasAtuais.Should().Be(2);
+        aluno.TotalFaltas.Should().Be(2);
+        aluno.AtrasosNoTrimestre.Should().Be(1);
+    }
+
+    [Fact]
+    public void VerificarEReiniciarCicloTrimestral_Apos90Dias_DeveResetarContadores()
+    {
+        // Arrange: aluno com faltas e atrasos acumulados
+        var aluno = CriarAlunoValido();
+        var agora = DateTime.UtcNow;
+        aluno.RegistrarFalta(agora);
+        aluno.RegistrarFalta(agora);
+        aluno.RegistrarAtraso(agora);
+        aluno.ClearDomainEvents();
+
+        // Act: avança 90 dias (novo ciclo)
+        aluno.VerificarEReiniciarCicloTrimestral(agora.AddDays(90));
+
+        // Assert: contadores de trimestre devem zerar
+        aluno.FaltasConsecutivasAtuais.Should().Be(0);
+        aluno.FaltasNoTrimestre.Should().Be(0);
+        aluno.AtrasosNoTrimestre.Should().Be(0);
+        // TotalFaltas é histórico — NÃO zera
+        aluno.TotalFaltas.Should().Be(2);
+    }
 }

@@ -365,28 +365,52 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         var novos = alunos.Where(a => !idsJaSincronizados.Contains(a.Id)).ToList();
         if (novos.Count == 0) return 0;
 
+        // Pré-carrega SyncLogs de turmas locais (IDs que não são Guid) — evita N+1
+        var turmaIdsLocais = novos
+            .Where(a => !Guid.TryParse(a.TurmaId, out _))
+            .Select(a => a.TurmaId)
+            .Distinct()
+            .ToList();
+
+        var syncLogsTurma = turmaIdsLocais.Count > 0
+            ? await _context.SyncLogs
+                .Where(s => turmaIdsLocais.Contains(s.IdExterno))
+                .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, ct)
+            : new Dictionary<string, Guid>();
+
+        // Coleta todos os turmaGuids candidatos para validar existência em batch
+        var turmaGuidsCandidatos = new HashSet<Guid>();
+        foreach (var dto in novos)
+        {
+            if (Guid.TryParse(dto.TurmaId, out var g))
+                turmaGuidsCandidatos.Add(g);
+            else if (syncLogsTurma.TryGetValue(dto.TurmaId, out var mapped))
+                turmaGuidsCandidatos.Add(mapped);
+        }
+
+        var turmasExistentes = turmaGuidsCandidatos.Count > 0
+            ? await _context.Turmas
+                .Where(t => turmaGuidsCandidatos.Contains(t.Id))
+                .Select(t => t.Id)
+                .ToHashSetAsync(ct)
+            : new HashSet<Guid>();
+
         int criados = 0;
 
         foreach (var dto in novos)
         {
             // TurmaId pode ser um Guid real (sync'd) ou um ID local (WatermelonDB)
-            // Tenta primeiro como Guid real, depois consulta SyncLog
             Guid turmaGuid;
             if (!Guid.TryParse(dto.TurmaId, out turmaGuid))
             {
-                // ID local — busca no SyncLog o Guid real
-                var syncLog = await _context.SyncLogs
-                    .FirstOrDefaultAsync(s => s.IdExterno == dto.TurmaId, ct);
-                if (syncLog == null)
+                if (!syncLogsTurma.TryGetValue(dto.TurmaId, out turmaGuid))
                 {
                     _logger.LogWarning("[SYNC-ALUNO] TurmaId {TurmaId} não encontrado. Aluno {Nome} ignorado.", dto.TurmaId, dto.Nome);
                     continue;
                 }
-                turmaGuid = syncLog.EntidadeId;
             }
 
-            var turmaExiste = await _context.Turmas.AnyAsync(t => t.Id == turmaGuid, ct);
-            if (!turmaExiste)
+            if (!turmasExistentes.Contains(turmaGuid))
             {
                 _logger.LogWarning("[SYNC-ALUNO] Turma {TurmaId} não existe no servidor. Aluno {Nome} ignorado.", turmaGuid, dto.Nome);
                 continue;

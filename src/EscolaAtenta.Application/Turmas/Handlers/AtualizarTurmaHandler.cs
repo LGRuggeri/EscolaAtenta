@@ -1,7 +1,9 @@
 using EscolaAtenta.Application.Turmas.Commands;
+using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Domain.Interfaces;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace EscolaAtenta.Application.Turmas.Handlers;
@@ -30,8 +32,14 @@ public class AtualizarTurmaHandler : IRequestHandler<AtualizarTurmaCommand, Unit
         if (turma == null)
             throw new KeyNotFoundException($"Turma com ID '{request.Id}' não encontrada.");
 
-        // TODO: [IDOR] Quando existir a tabela UsuarioTurma (vínculo Professor → Turma),
-        // adicionar validação de ownership aqui para garantir que só o professor da turma possa alterá-la.
+        // IDOR: Administrador pode alterar qualquer turma; demais papéis precisam de vínculo
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
+            && Guid.TryParse(_currentUser.UsuarioId, out var uid)
+            && !await _context.UsuarioTurmas.AnyAsync(
+                ut => ut.TurmaId == request.Id && ut.UsuarioId == uid, cancellationToken))
+        {
+            throw new KeyNotFoundException($"Turma com ID '{request.Id}' não encontrada.");
+        }
 
         // Log de auditoria: rastreia quem alterou qual turma
         _logger.LogInformation(

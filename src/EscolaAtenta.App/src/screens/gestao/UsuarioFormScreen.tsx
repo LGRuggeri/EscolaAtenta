@@ -1,30 +1,22 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import {
-    ScrollView,
-    View,
-    Text,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    Alert,
-    ActivityIndicator,
-    Modal,
-} from 'react-native';
+import { ScrollView, View, StyleSheet, Alert } from 'react-native';
+import { TextInput, Button, Text, Surface, RadioButton, ActivityIndicator, Portal, Modal } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { theme } from '../../theme/colors';
+import { AppHeader } from '../../components/ui';
+import { theme, palette } from '../../theme/colors';
 import { PapelUsuario } from '../../types/enums';
 import { usuariosService, UsuarioCriadoResult } from '../../services/usuariosService';
 import { RootStackParamList } from '../../navigation/types';
 
 const PAPEIS = [
-    { valor: PapelUsuario.Monitor, label: 'Monitor' },
-    { valor: PapelUsuario.Supervisao, label: 'Supervisao / Diretoria' },
-    { valor: PapelUsuario.Administrador, label: 'Administrador' },
+    { valor: PapelUsuario.Monitor, label: 'Monitor', icon: 'eye-outline' },
+    { valor: PapelUsuario.Supervisao, label: 'Supervisão / Diretoria', icon: 'shield-account' },
+    { valor: PapelUsuario.Administrador, label: 'Administrador', icon: 'cog' },
 ] as const;
 
-// Mapeia string do backend (ex: "Monitor") para o valor numérico do enum
 function parsePapelFromString(papelStr: string): PapelUsuario {
     switch (papelStr) {
         case 'Administrador': return PapelUsuario.Administrador;
@@ -48,22 +40,17 @@ export function UsuarioFormScreen() {
     const [loading, setLoading] = useState(false);
     const [loadingDados, setLoadingDados] = useState(isEdicao);
 
-    // Estado do modal de senha gerada (apenas criação)
     const [resultado, setResultado] = useState<UsuarioCriadoResult | null>(null);
     const [copiado, setCopiado] = useState(false);
 
-    // ── Carregar dados para edição ────────────────────────────────────────────
     useEffect(() => {
         if (!editId) return;
-
         let cancelled = false;
-
         (async () => {
             try {
                 setLoadingDados(true);
                 const usuario = await usuariosService.getUsuarioById(editId);
                 if (cancelled) return;
-
                 setNome(usuario.nome);
                 setEmail(usuario.email);
                 setPapel(parsePapelFromString(usuario.papel));
@@ -76,62 +63,35 @@ export function UsuarioFormScreen() {
                 if (!cancelled) setLoadingDados(false);
             }
         })();
-
         return () => { cancelled = true; };
     }, [editId, navigation]);
 
-    // ── Criar ─────────────────────────────────────────────────────────────────
     const handleCriar = useCallback(async () => {
-        if (!nome.trim()) {
-            Alert.alert('Atenção', 'O nome completo é obrigatório.');
-            return;
-        }
-        if (!email.trim()) {
-            Alert.alert('Atenção', 'O e-mail é obrigatório.');
-            return;
-        }
-
+        if (!nome.trim()) { Alert.alert('Atenção', 'O nome completo é obrigatório.'); return; }
+        if (!email.trim()) { Alert.alert('Atenção', 'O e-mail é obrigatório.'); return; }
         try {
             setLoading(true);
-            const result = await usuariosService.criarUsuario({
-                nome: nome.trim(),
-                email: email.trim(),
-                papel,
-            });
+            const result = await usuariosService.criarUsuario({ nome: nome.trim(), email: email.trim(), papel });
             setResultado(result);
         } catch (error: any) {
-            const msg =
-                error?.response?.data?.message ||
-                error?.response?.data ||
-                'Ocorreu um erro ao criar o usuário.';
+            const msg = error?.response?.data?.message || error?.response?.data || 'Ocorreu um erro ao criar o usuário.';
             Alert.alert('Erro', typeof msg === 'string' ? msg : JSON.stringify(msg));
         } finally {
             setLoading(false);
         }
     }, [nome, email, papel]);
 
-    // ── Atualizar ─────────────────────────────────────────────────────────────
     const handleAtualizar = useCallback(async () => {
         if (!editId) return;
-        if (!nome.trim()) {
-            Alert.alert('Atenção', 'O nome completo é obrigatório.');
-            return;
-        }
-
+        if (!nome.trim()) { Alert.alert('Atenção', 'O nome completo é obrigatório.'); return; }
         try {
             setLoading(true);
-            await usuariosService.atualizarUsuario(editId, {
-                nome: nome.trim(),
-                papel,
-            });
+            await usuariosService.atualizarUsuario(editId, { nome: nome.trim(), papel });
             Alert.alert('Sucesso', 'Usuário atualizado com sucesso.', [
                 { text: 'OK', onPress: () => navigation.goBack() },
             ]);
         } catch (error: any) {
-            const msg =
-                error?.response?.data?.message ||
-                error?.response?.data?.detail ||
-                'Ocorreu um erro ao atualizar o usuário.';
+            const msg = error?.response?.data?.message || error?.response?.data?.detail || 'Ocorreu um erro ao atualizar o usuário.';
             Alert.alert('Erro', typeof msg === 'string' ? msg : JSON.stringify(msg));
         } finally {
             setLoading(false);
@@ -140,7 +100,6 @@ export function UsuarioFormScreen() {
 
     const handleSalvar = isEdicao ? handleAtualizar : handleCriar;
 
-    // ── Modal senha (só criação) ──────────────────────────────────────────────
     const handleCopiarSenha = useCallback(async () => {
         if (!resultado) return;
         await Clipboard.setStringAsync(resultado.senhaInicial);
@@ -154,351 +113,162 @@ export function UsuarioFormScreen() {
         navigation.goBack();
     }, [navigation]);
 
-    // ── Loading inicial (edição) ──────────────────────────────────────────────
     if (loadingDados) {
         return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Text style={styles.backButtonText}>← Voltar</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Editar Usuário</Text>
-                </View>
+            <SafeAreaView style={styles.container} edges={['top']}>
+                <AppHeader title="Editar Usuário" onBack={() => navigation.goBack()} />
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={theme.colors.primary} />
-                    <Text style={styles.loadingText}>Carregando dados...</Text>
+                    <ActivityIndicator size="large" />
+                    <Text variant="bodyMedium" style={styles.loadingText}>Carregando dados...</Text>
                 </View>
             </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Text style={styles.backButtonText}>← Voltar</Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>
-                    {isEdicao ? 'Editar Usuário' : 'Novo Usuário'}
-                </Text>
-            </View>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <AppHeader
+                title={isEdicao ? 'Editar Usuário' : 'Novo Usuário'}
+                onBack={() => navigation.goBack()}
+            />
 
             <ScrollView contentContainerStyle={styles.form}>
-                <Text style={styles.label}>Nome Completo *</Text>
                 <TextInput
-                    style={styles.input}
+                    label="Nome Completo *"
                     placeholder="Ex: Maria da Silva"
-                    placeholderTextColor={theme.colors.textSecondary}
                     value={nome}
                     onChangeText={setNome}
-                    editable={!loading}
+                    mode="outlined"
+                    left={<TextInput.Icon icon="account" />}
+                    disabled={loading}
+                    style={styles.input}
                 />
 
-                <Text style={styles.label}>E-mail {isEdicao ? '' : '*'}</Text>
                 <TextInput
-                    style={[styles.input, isEdicao && styles.inputDisabled]}
+                    label={`E-mail ${isEdicao ? '' : '*'}`}
                     placeholder="Ex: maria@escola.edu.br"
-                    placeholderTextColor={theme.colors.textSecondary}
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
                     autoCapitalize="none"
-                    editable={!isEdicao && !loading}
+                    mode="outlined"
+                    left={<TextInput.Icon icon="email" />}
+                    disabled={isEdicao || loading}
+                    style={styles.input}
                 />
 
-                <Text style={styles.label}>Papel do Usuário *</Text>
-                <View style={styles.papelGroup}>
-                    {PAPEIS.map((item) => {
-                        const selecionado = papel === item.valor;
-                        return (
-                            <TouchableOpacity
-                                key={item.valor}
-                                style={[styles.papelOption, selecionado && styles.papelOptionSelecionado]}
-                                onPress={() => setPapel(item.valor)}
+                <Text variant="labelLarge" style={styles.sectionLabel}>Papel do Usuário *</Text>
+                <RadioButton.Group onValueChange={(v) => setPapel(Number(v) as PapelUsuario)} value={String(papel)}>
+                    {PAPEIS.map((item) => (
+                        <Surface key={item.valor} style={[styles.radioCard, papel === item.valor && styles.radioCardSelected]} elevation={papel === item.valor ? 2 : 0}>
+                            <RadioButton.Item
+                                label={item.label}
+                                value={String(item.valor)}
                                 disabled={loading}
-                            >
-                                <Text
-                                    style={[
-                                        styles.papelOptionText,
-                                        selecionado && styles.papelOptionTextSelecionado,
-                                    ]}
-                                >
-                                    {item.label}
-                                </Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
+                                labelStyle={styles.radioLabel}
+                            />
+                        </Surface>
+                    ))}
+                </RadioButton.Group>
 
-                <TouchableOpacity
-                    style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+                <Button
+                    mode="contained"
                     onPress={handleSalvar}
+                    loading={loading}
                     disabled={loading}
+                    icon={isEdicao ? 'content-save' : 'account-plus'}
+                    style={styles.saveButton}
+                    contentStyle={styles.saveButtonContent}
                 >
-                    {loading ? (
-                        <ActivityIndicator color={theme.colors.surface} />
-                    ) : (
-                        <Text style={styles.saveButtonText}>
-                            {isEdicao ? 'Salvar Alterações' : 'Criar Usuário'}
-                        </Text>
-                    )}
-                </TouchableOpacity>
+                    {isEdicao ? 'Salvar Alterações' : 'Criar Usuário'}
+                </Button>
             </ScrollView>
 
-            {/* Modal de Senha Gerada — apenas no fluxo de criação */}
-            <Modal visible={!!resultado} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalCard}>
-                        <View style={styles.modalIconContainer}>
-                            <Text style={styles.modalIcon}>✓</Text>
-                        </View>
-
-                        <Text style={styles.modalTitle}>Usuário criado com sucesso!</Text>
-                        <Text style={styles.modalSubtitle}>
-                            Uma senha inicial foi gerada automaticamente. Copie e entregue ao
-                            novo usuário.
-                        </Text>
-
-                        <View style={styles.senhaContainer}>
-                            <Text style={styles.senhaLabel}>Senha Inicial</Text>
-                            <Text style={styles.senhaValor} selectable>
-                                {resultado?.senhaInicial}
-                            </Text>
-                        </View>
-
-                        <TouchableOpacity
-                            style={[styles.copiarButton, copiado && styles.copiarButtonCopiado]}
-                            onPress={handleCopiarSenha}
-                        >
-                            <Text style={styles.copiarButtonText}>
-                                {copiado ? 'Copiada!' : 'Copiar Senha'}
-                            </Text>
-                        </TouchableOpacity>
-
-                        <Text style={styles.modalAviso}>
-                            Atenção: esta senha não será exibida novamente.
-                        </Text>
-
-                        <TouchableOpacity style={styles.concluirButton} onPress={handleConcluir}>
-                            <Text style={styles.concluirButtonText}>Concluir</Text>
-                        </TouchableOpacity>
+            {/* Modal de Senha Gerada */}
+            <Portal>
+                <Modal visible={!!resultado} onDismiss={() => {}} contentContainerStyle={styles.modalContent}>
+                    <View style={styles.modalIconCircle}>
+                        <MaterialCommunityIcons name="check" size={32} color={palette.white} />
                     </View>
-                </View>
-            </Modal>
+                    <Text variant="titleLarge" style={styles.modalTitle}>Usuário criado!</Text>
+                    <Text variant="bodyMedium" style={styles.modalSubtitle}>
+                        Uma senha inicial foi gerada automaticamente. Copie e entregue ao novo usuário.
+                    </Text>
+
+                    <Surface style={styles.senhaBox} elevation={0}>
+                        <Text variant="labelSmall" style={styles.senhaLabel}>SENHA INICIAL</Text>
+                        <Text variant="headlineMedium" style={styles.senhaValor} selectable>
+                            {resultado?.senhaInicial}
+                        </Text>
+                    </Surface>
+
+                    <Button
+                        mode="contained"
+                        onPress={handleCopiarSenha}
+                        icon={copiado ? 'check' : 'content-copy'}
+                        buttonColor={copiado ? theme.colors.success : theme.colors.primary}
+                        style={styles.copiarButton}
+                    >
+                        {copiado ? 'Copiada!' : 'Copiar Senha'}
+                    </Button>
+
+                    <Text variant="labelSmall" style={styles.avisoText}>
+                        Esta senha não será exibida novamente.
+                    </Text>
+
+                    <Button mode="outlined" onPress={handleConcluir} style={styles.concluirButton}>
+                        Concluir
+                    </Button>
+                </Modal>
+            </Portal>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: theme.colors.background,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 20,
-        paddingTop: 20,
-        backgroundColor: theme.colors.surface,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-    },
-    backButton: {
-        marginRight: 16,
-    },
-    backButtonText: {
-        fontSize: 16,
-        color: theme.colors.primary,
-        fontWeight: '600',
-    },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: theme.colors.textPrimary,
-    },
-    form: {
-        padding: 20,
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: theme.colors.textSecondary,
-        marginBottom: 8,
-    },
-    input: {
-        backgroundColor: theme.colors.surface,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        borderRadius: 8,
-        padding: 12,
-        fontSize: 16,
-        marginBottom: 20,
-        color: theme.colors.textPrimary,
-    },
-    inputDisabled: {
-        backgroundColor: '#e9ecef',
-        color: theme.colors.textSecondary,
-    },
-
-    // Loading
+    container: { flex: 1, backgroundColor: theme.colors.background },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    loadingText: { marginTop: 12, color: theme.colors.textSecondary, fontSize: 14 },
-
-    // Toggle de papéis
-    papelGroup: {
-        flexDirection: 'column',
-        gap: 10,
-        marginBottom: 24,
-    },
-    papelOption: {
+    loadingText: { color: theme.colors.textSecondary, marginTop: theme.spacing.md },
+    form: { padding: theme.spacing.lg },
+    input: { marginBottom: theme.spacing.md, backgroundColor: theme.colors.surface },
+    sectionLabel: { color: theme.colors.textSecondary, marginBottom: theme.spacing.sm },
+    radioCard: {
+        borderRadius: theme.borderRadius.sm,
+        marginBottom: theme.spacing.sm,
+        backgroundColor: theme.colors.surface,
         borderWidth: 1,
         borderColor: theme.colors.border,
-        borderRadius: 8,
-        padding: 14,
+    },
+    radioCardSelected: { borderColor: theme.colors.primary },
+    radioLabel: { fontSize: 15 },
+    saveButton: { marginTop: theme.spacing.md, borderRadius: theme.borderRadius.md },
+    saveButtonContent: { paddingVertical: theme.spacing.xs },
+    modalContent: {
         backgroundColor: theme.colors.surface,
+        margin: theme.spacing.lg,
+        padding: theme.spacing.lg + 4,
+        borderRadius: theme.borderRadius.xl,
         alignItems: 'center',
     },
-    papelOptionSelecionado: {
-        borderColor: theme.colors.primary,
-        backgroundColor: theme.colors.primary,
+    modalIconCircle: {
+        width: 56, height: 56, borderRadius: 28,
+        backgroundColor: theme.colors.success,
+        alignItems: 'center', justifyContent: 'center',
+        marginBottom: theme.spacing.md,
     },
-    papelOptionText: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: theme.colors.textPrimary,
-    },
-    papelOptionTextSelecionado: {
-        color: theme.colors.surface,
-    },
-
-    // Botão salvar
-    saveButton: {
-        backgroundColor: theme.colors.primary,
-        padding: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginTop: 12,
-    },
-    saveButtonDisabled: {
-        opacity: 0.7,
-    },
-    saveButtonText: {
-        color: theme.colors.surface,
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-
-    // Modal
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-    },
-    modalCard: {
-        backgroundColor: theme.colors.surface,
-        borderRadius: 16,
-        padding: 28,
+    modalTitle: { fontWeight: 'bold', color: theme.colors.textPrimary, marginBottom: theme.spacing.sm },
+    modalSubtitle: { color: theme.colors.textSecondary, textAlign: 'center', marginBottom: theme.spacing.lg, lineHeight: 20 },
+    senhaBox: {
+        backgroundColor: theme.colors.surfaceVariant,
+        borderRadius: theme.borderRadius.md,
+        padding: theme.spacing.md,
         width: '100%',
         alignItems: 'center',
+        marginBottom: theme.spacing.md,
     },
-    modalIconContainer: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: theme.colors.secondary,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    modalIcon: {
-        fontSize: 28,
-        color: theme.colors.surface,
-        fontWeight: 'bold',
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: theme.colors.textPrimary,
-        textAlign: 'center',
-        marginBottom: 8,
-    },
-    modalSubtitle: {
-        fontSize: 14,
-        color: theme.colors.textSecondary,
-        textAlign: 'center',
-        marginBottom: 20,
-        lineHeight: 20,
-    },
-    senhaContainer: {
-        backgroundColor: theme.colors.background,
-        borderRadius: 12,
-        padding: 16,
-        width: '100%',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    senhaLabel: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: theme.colors.textSecondary,
-        marginBottom: 8,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    senhaValor: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        fontFamily: 'monospace',
-        color: theme.colors.textPrimary,
-        letterSpacing: 2,
-    },
-
-    // Botão copiar
-    copiarButton: {
-        backgroundColor: theme.colors.primary,
-        paddingVertical: 14,
-        paddingHorizontal: 32,
-        borderRadius: 10,
-        width: '100%',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    copiarButtonCopiado: {
-        backgroundColor: theme.colors.secondary,
-    },
-    copiarButtonText: {
-        color: theme.colors.surface,
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-
-    // Aviso
-    modalAviso: {
-        fontSize: 12,
-        color: theme.colors.error,
-        textAlign: 'center',
-        marginBottom: 16,
-        fontWeight: '600',
-    },
-
-    // Botão concluir
-    concluirButton: {
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        paddingVertical: 14,
-        paddingHorizontal: 32,
-        borderRadius: 10,
-        width: '100%',
-        alignItems: 'center',
-    },
-    concluirButtonText: {
-        color: theme.colors.textSecondary,
-        fontSize: 16,
-        fontWeight: '600',
-    },
+    senhaLabel: { color: theme.colors.textMuted, letterSpacing: 1, marginBottom: theme.spacing.sm },
+    senhaValor: { fontWeight: 'bold', color: theme.colors.textPrimary, letterSpacing: 2 },
+    copiarButton: { width: '100%', borderRadius: theme.borderRadius.sm, marginBottom: theme.spacing.sm },
+    avisoText: { color: theme.colors.error, fontWeight: '600', marginBottom: theme.spacing.md },
+    concluirButton: { width: '100%', borderRadius: theme.borderRadius.sm },
 });

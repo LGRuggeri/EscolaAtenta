@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, StyleSheet, Alert, ScrollView } from 'react-native';
+import { TextInput, Button, Text, Surface } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { theme } from '../../theme/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppHeader } from '../../components/ui';
+import { theme, palette } from '../../theme/colors';
 import { serverConfig } from '../../services/serverConfig';
 import { loadServerUrl } from '../../services/api';
 import { AppNavigationProp } from '../../navigation/types';
@@ -20,7 +23,6 @@ export function ConfiguracaoServidorScreen() {
     useEffect(() => {
         serverConfig.getUrl().then((saved) => {
             if (saved) {
-                // Extrai IP e porta da URL salva (http://192.168.x.x:5114)
                 try {
                     const match = saved.match(/^https?:\/\/([^:]+):(\d+)/);
                     if (match) {
@@ -35,11 +37,7 @@ export function ConfiguracaoServidorScreen() {
     const buildUrl = () => `http://${ip.trim()}:${porta.trim() || PORTA_PADRAO}`;
 
     const handleTestar = async () => {
-        if (!ip.trim()) {
-            Alert.alert('Erro', 'Digite o IP do servidor.');
-            return;
-        }
-
+        if (!ip.trim()) { Alert.alert('Erro', 'Digite o IP do servidor.'); return; }
         setTestando(true);
         setResultado(null);
         const result = await serverConfig.testConnection(buildUrl());
@@ -50,7 +48,7 @@ export function ConfiguracaoServidorScreen() {
     const handleLimparBanco = () => {
         Alert.alert(
             'Limpar banco local',
-            'Isso apagará todos os dados locais (turmas, alunos, presenças) e sincronizará tudo do servidor novamente. Dados não sincronizados serão perdidos.\n\nDeseja continuar?',
+            'Isso apagará todos os dados locais e sincronizará tudo do servidor. Dados não sincronizados serão perdidos.\n\nDeseja continuar?',
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
@@ -72,14 +70,8 @@ export function ConfiguracaoServidorScreen() {
     };
 
     const handleSalvar = async () => {
-        if (!ip.trim()) {
-            Alert.alert('Erro', 'Digite o IP do servidor.');
-            return;
-        }
-
+        if (!ip.trim()) { Alert.alert('Erro', 'Digite o IP do servidor.'); return; }
         const url = buildUrl();
-
-        // Testa antes de salvar
         setTestando(true);
         setResultado(null);
         const result = await serverConfig.testConnection(url);
@@ -87,7 +79,7 @@ export function ConfiguracaoServidorScreen() {
         setTestando(false);
 
         if (!result.ok) {
-            Alert.alert('Falha na conexao', 'Nao foi possivel conectar ao servidor. Deseja salvar mesmo assim?', [
+            Alert.alert('Falha na conexão', 'Não foi possível conectar ao servidor. Deseja salvar mesmo assim?', [
                 { text: 'Cancelar', style: 'cancel' },
                 {
                     text: 'Salvar mesmo assim',
@@ -109,217 +101,110 @@ export function ConfiguracaoServidorScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color={theme.colors.primary} />
-                </TouchableOpacity>
-                <Text style={styles.title}>Configurar Servidor</Text>
-            </View>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <AppHeader title="Configurar Servidor" onBack={() => navigation.goBack()} />
 
-            <View style={styles.content}>
-                <Ionicons name="server-outline" size={48} color={theme.colors.primary} style={styles.icon} />
+            <ScrollView contentContainerStyle={styles.content}>
+                <View style={styles.iconContainer}>
+                    <MaterialCommunityIcons name="server-network" size={48} color={theme.colors.primary} />
+                </View>
 
-                <Text style={styles.label}>IP do servidor da escola</Text>
-                <Text style={styles.hint}>
-                    Digite o IP do computador onde o EscolaAtenta esta instalado.{'\n'}
+                <Text variant="bodyMedium" style={styles.hint}>
+                    Digite o IP do computador onde o EscolaAtenta está instalado.{'\n'}
                     Exemplo: 192.168.1.100
                 </Text>
 
                 <TextInput
-                    style={styles.input}
+                    label="IP do Servidor"
                     placeholder="192.168.1.100"
                     value={ip}
-                    onChangeText={(text) => {
-                        setIp(text);
-                        setResultado(null);
-                    }}
+                    onChangeText={(text) => { setIp(text); setResultado(null); }}
+                    mode="outlined"
+                    left={<TextInput.Icon icon="ip-network" />}
+                    keyboardType="numeric"
                     autoCapitalize="none"
                     autoCorrect={false}
-                    keyboardType="numeric"
+                    style={styles.input}
                 />
 
-                <Text style={styles.label}>Porta</Text>
                 <TextInput
-                    style={styles.input}
+                    label="Porta"
                     placeholder={PORTA_PADRAO}
                     value={porta}
-                    onChangeText={(text) => {
-                        setPorta(text);
-                        setResultado(null);
-                    }}
+                    onChangeText={(text) => { setPorta(text); setResultado(null); }}
+                    mode="outlined"
+                    left={<TextInput.Icon icon="dock-window" />}
+                    keyboardType="numeric"
                     autoCapitalize="none"
                     autoCorrect={false}
-                    keyboardType="numeric"
+                    style={styles.input}
                 />
 
                 {resultado && (
-                    <View style={[styles.resultBox, resultado.ok ? styles.resultOk : styles.resultError]}>
-                        <Ionicons
-                            name={resultado.ok ? 'checkmark-circle' : 'close-circle'}
+                    <Surface
+                        style={[styles.resultBox, { backgroundColor: resultado.ok ? theme.colors.successLight : theme.colors.errorLight }]}
+                        elevation={0}
+                    >
+                        <MaterialCommunityIcons
+                            name={resultado.ok ? 'check-circle' : 'close-circle'}
                             size={20}
-                            color={resultado.ok ? theme.colors.secondary : theme.colors.error}
+                            color={resultado.ok ? theme.colors.success : theme.colors.error}
                         />
-                        <Text style={[styles.resultText, resultado.ok ? styles.resultTextOk : styles.resultTextError]}>
+                        <Text variant="bodySmall" style={{ color: resultado.ok ? theme.colors.success : theme.colors.error, flex: 1 }}>
                             {resultado.message}
                         </Text>
-                    </View>
+                    </Surface>
                 )}
 
-                <TouchableOpacity
-                    style={styles.testButton}
+                <Button
+                    mode="outlined"
                     onPress={handleTestar}
+                    loading={testando}
                     disabled={testando}
+                    icon="wifi"
+                    style={styles.testButton}
                 >
-                    {testando ? (
-                        <ActivityIndicator color={theme.colors.primary} />
-                    ) : (
-                        <>
-                            <Ionicons name="wifi" size={18} color={theme.colors.primary} />
-                            <Text style={styles.testButtonText}>Testar Conexao</Text>
-                        </>
-                    )}
-                </TouchableOpacity>
+                    Testar Conexão
+                </Button>
 
-                <TouchableOpacity
-                    style={styles.saveButton}
+                <Button
+                    mode="contained"
                     onPress={handleSalvar}
                     disabled={testando}
+                    icon="content-save"
+                    style={styles.saveButton}
+                    contentStyle={styles.saveButtonContent}
                 >
-                    <Text style={styles.saveButtonText}>SALVAR</Text>
-                </TouchableOpacity>
+                    SALVAR
+                </Button>
 
-                <TouchableOpacity
-                    style={styles.resetButton}
+                <Button
+                    mode="outlined"
                     onPress={handleLimparBanco}
+                    icon="database-remove"
+                    textColor={theme.colors.error}
+                    style={styles.resetButton}
                 >
-                    <Ionicons name="trash-outline" size={18} color={theme.colors.error} />
-                    <Text style={styles.resetButtonText}>Limpar banco local e ressincronizar</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
+                    Limpar banco local e ressincronizar
+                </Button>
+            </ScrollView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: theme.colors.background,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingTop: 56,
-        paddingHorizontal: 16,
-        paddingBottom: 16,
-        backgroundColor: theme.colors.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border,
-    },
-    backButton: {
-        padding: 8,
-        marginRight: 8,
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: theme.colors.primary,
-    },
-    content: {
-        flex: 1,
-        padding: 24,
-    },
-    icon: {
-        alignSelf: 'center',
-        marginBottom: 24,
-    },
-    label: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: theme.colors.textPrimary,
-        marginBottom: 8,
-    },
-    hint: {
-        fontSize: 14,
-        color: theme.colors.textSecondary,
-        marginBottom: 16,
-        lineHeight: 20,
-    },
-    input: {
-        backgroundColor: theme.colors.surface,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        borderRadius: 8,
-        padding: 16,
-        fontSize: 16,
-        color: theme.colors.textPrimary,
-        marginBottom: 16,
-    },
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    content: { padding: theme.spacing.lg },
+    iconContainer: { alignItems: 'center', marginBottom: theme.spacing.lg },
+    hint: { color: theme.colors.textSecondary, textAlign: 'center', marginBottom: theme.spacing.lg, lineHeight: 22 },
+    input: { marginBottom: theme.spacing.md, backgroundColor: theme.colors.surface },
     resultBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 16,
-        gap: 8,
+        flexDirection: 'row', alignItems: 'center',
+        padding: theme.spacing.md, borderRadius: theme.borderRadius.sm,
+        marginBottom: theme.spacing.md, gap: theme.spacing.sm,
     },
-    resultOk: {
-        backgroundColor: '#e8f5e9',
-    },
-    resultError: {
-        backgroundColor: '#fce4ec',
-    },
-    resultText: {
-        fontSize: 14,
-        flex: 1,
-    },
-    resultTextOk: {
-        color: theme.colors.secondary,
-    },
-    resultTextError: {
-        color: theme.colors.error,
-    },
-    testButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 14,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: theme.colors.primary,
-        marginBottom: 12,
-        gap: 8,
-    },
-    testButtonText: {
-        color: theme.colors.primary,
-        fontSize: 15,
-        fontWeight: '600',
-    },
-    saveButton: {
-        backgroundColor: theme.colors.primary,
-        padding: 16,
-        borderRadius: 8,
-        alignItems: 'center',
-    },
-    saveButtonText: {
-        color: theme.colors.surface,
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    resetButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 14,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: theme.colors.error,
-        marginTop: 12,
-        gap: 8,
-    },
-    resetButtonText: {
-        color: theme.colors.error,
-        fontSize: 14,
-        fontWeight: '600',
-    },
+    testButton: { marginBottom: theme.spacing.sm + 4, borderRadius: theme.borderRadius.sm },
+    saveButton: { borderRadius: theme.borderRadius.sm, marginBottom: theme.spacing.sm + 4 },
+    saveButtonContent: { paddingVertical: theme.spacing.xs },
+    resetButton: { borderColor: theme.colors.error, borderRadius: theme.borderRadius.sm, marginTop: theme.spacing.sm },
 });
