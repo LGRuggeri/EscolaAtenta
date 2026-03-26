@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "EscolaAtenta.App",
+    "name": "Escola Atenta",
     "slug": "EscolaAtenta.App",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/ea-icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/ea-splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1B2A4A"
     },
     "ios": {
       "supportsTablet": true
@@ -17,15 +17,13 @@
     "android": {
       "package": "com.escolaatenta.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/ea-adaptive-foreground.png",
+        "backgroundColor": "#FFFFFF"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/ea-favicon.png"
     },
     "plugins": [
       "expo-secure-store",
