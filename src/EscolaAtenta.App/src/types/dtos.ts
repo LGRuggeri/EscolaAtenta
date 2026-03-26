@@ -13,6 +13,7 @@ export interface LoginResult {
     papel: string;
     expiresAt: string;
     deveAlterarSenha?: boolean;
+    refreshToken?: string;
 }
 
 export interface TurmaDto {

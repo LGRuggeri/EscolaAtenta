@@ -1,70 +1,44 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    FlatList,
-    ActivityIndicator,
-    TouchableOpacity,
-    TextInput,
-    Alert,
-} from 'react-native';
+import { View, StyleSheet, FlatList, Alert } from 'react-native';
+import { Text, Searchbar, ActivityIndicator, Card, Chip, IconButton, Button } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppNavigationProp } from '../../navigation/types';
 import { usuariosService, UsuarioDto } from '../../services/usuariosService';
+import { AppHeader, EmptyState, StatusChip } from '../../components/ui';
 import { theme } from '../../theme/colors';
-
-// ── Constantes ───────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 20;
 const DEBOUNCE_MS = 500;
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function getPapelBadge(papel: string): { label: string; bg: string; text: string } {
+function getPapelConfig(papel: string): { variant: 'info' | 'success' | 'warning' | 'error' | 'neutral'; label: string } {
     switch (papel) {
-        case 'Administrador':
-            return { label: 'Admin', bg: theme.colors.primary, text: theme.colors.surface };
-        case 'Supervisao':
-            return { label: 'Supervisão', bg: theme.colors.secondaryLight, text: theme.colors.primaryDark };
-        case 'Monitor':
-            return { label: 'Monitor', bg: theme.colors.secondary, text: theme.colors.surface };
-        default:
-            return { label: papel, bg: theme.colors.border, text: theme.colors.textPrimary };
+        case 'Administrador': return { variant: 'info', label: 'Admin' };
+        case 'Supervisao': return { variant: 'warning', label: 'Supervisão' };
+        case 'Monitor': return { variant: 'success', label: 'Monitor' };
+        default: return { variant: 'neutral', label: papel };
     }
 }
-
-// ── Componente Principal ─────────────────────────────────────────────────────
 
 export function UsuariosScreen() {
     const navigation = useNavigation<AppNavigationProp>();
 
-    // ── Estado: dados e paginação ────────────────────────────────────────────
     const [usuarios, setUsuarios] = useState<UsuarioDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [hasNextPage, setHasNextPage] = useState(false);
-
-    // ── Estado: busca ────────────────────────────────────────────────────────
     const [searchQuery, setSearchQuery] = useState('');
 
-    // ── Refs de controle ─────────────────────────────────────────────────────
     const isFetchingRef = useRef(false);
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const searchQueryRef = useRef(searchQuery);
 
     useEffect(() => { searchQueryRef.current = searchQuery; }, [searchQuery]);
 
-    // ── Fetch centralizado ───────────────────────────────────────────────────
-    const fetchUsuarios = useCallback(async (
-        page: number,
-        term: string,
-        append: boolean,
-    ) => {
+    const fetchUsuarios = useCallback(async (page: number, term: string, append: boolean) => {
         if (append && isFetchingRef.current) return;
-
         try {
             isFetchingRef.current = true;
             if (page === 1) setLoading(true);
@@ -89,18 +63,15 @@ export function UsuariosScreen() {
         }
     }, []);
 
-    // ── Recarrega ao ganhar foco (pós-criação) ──────────────────────────────
     useFocusEffect(
         useCallback(() => {
             fetchUsuarios(1, searchQueryRef.current, false);
         }, [fetchUsuarios])
     );
 
-    // ── Debounce na busca ────────────────────────────────────────────────────
     const handleSearchChange = useCallback((texto: string) => {
         setSearchQuery(texto);
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
-
         debounceTimer.current = setTimeout(() => {
             setUsuarios([]);
             setCurrentPage(1);
@@ -108,13 +79,11 @@ export function UsuariosScreen() {
         }, DEBOUNCE_MS);
     }, [fetchUsuarios]);
 
-    // ── Infinite Scroll ──────────────────────────────────────────────────────
     const handleEndReached = useCallback(() => {
         if (!hasNextPage || isFetchingRef.current || loading) return;
         fetchUsuarios(currentPage + 1, searchQueryRef.current, true);
     }, [hasNextPage, currentPage, loading, fetchUsuarios]);
 
-    // ── Alternar status (soft delete) ────────────────────────────────────────
     const handleAlternarStatus = useCallback((usuario: UsuarioDto) => {
         const acao = usuario.ativo ? 'desativar' : 'reativar';
         Alert.alert(
@@ -128,11 +97,8 @@ export function UsuariosScreen() {
                     onPress: async () => {
                         try {
                             await usuariosService.alternarStatusUsuario(usuario.id);
-                            // Atualiza estado local sem reload completo
                             setUsuarios(prev =>
-                                prev.map(u =>
-                                    u.id === usuario.id ? { ...u, ativo: !u.ativo } : u
-                                )
+                                prev.map(u => u.id === usuario.id ? { ...u, ativo: !u.ativo } : u)
                             );
                         } catch (error) {
                             Alert.alert('Erro', `Não foi possível ${acao} o usuário.`);
@@ -144,122 +110,79 @@ export function UsuariosScreen() {
         );
     }, []);
 
-    // ── Render de item ───────────────────────────────────────────────────────
     const renderItem = useCallback(({ item }: { item: UsuarioDto }) => {
-        const badge = getPapelBadge(item.papel);
+        const papelConfig = getPapelConfig(item.papel);
 
         return (
-            <View style={[styles.card, !item.ativo && styles.cardInativo]}>
-                <View style={styles.cardTop}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={[styles.cardNome, !item.ativo && styles.textInativo]} numberOfLines={1}>
-                            {item.nome}
-                        </Text>
-                        <Text style={styles.cardEmail} numberOfLines={1}>{item.email}</Text>
-                    </View>
-                    <View style={[styles.papelBadge, { backgroundColor: badge.bg }]}>
-                        <Text style={[styles.papelBadgeText, { color: badge.text }]}>{badge.label}</Text>
-                    </View>
-                </View>
-                <View style={styles.cardBottom}>
-                    <View style={[styles.statusBadge, item.ativo ? styles.statusAtivo : styles.statusInativo]}>
-                        <Text style={[styles.statusText, item.ativo ? styles.statusTextoAtivo : styles.statusTextoInativo]}>
-                            {item.ativo ? 'Ativo' : 'Inativo'}
-                        </Text>
-                    </View>
-                    <View style={styles.cardActions}>
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => navigation.navigate('UsuarioForm', { id: item.id })}
-                        >
-                            <Text style={styles.actionButtonText}>Editar</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.actionButton, item.ativo ? styles.actionButtonDanger : styles.actionButtonSuccess]}
-                            onPress={() => handleAlternarStatus(item)}
-                        >
-                            <Text style={[styles.actionButtonText, item.ativo ? styles.actionTextDanger : styles.actionTextSuccess]}>
-                                {item.ativo ? 'Bloquear' : 'Desbloquear'}
+            <Card style={[styles.card, !item.ativo && styles.cardInativo]} mode="elevated">
+                <Card.Content>
+                    <View style={styles.cardTop}>
+                        <View style={styles.cardInfo}>
+                            <Text variant="titleMedium" style={[styles.cardNome, !item.ativo && styles.textInativo]}>
+                                {item.nome}
                             </Text>
-                        </TouchableOpacity>
+                            <Text variant="bodySmall" style={styles.cardEmail}>{item.email}</Text>
+                        </View>
+                        <StatusChip label={papelConfig.label} variant={papelConfig.variant} />
                     </View>
-                </View>
-            </View>
+                    <View style={styles.cardBottom}>
+                        <Chip
+                            compact
+                            icon={item.ativo ? 'check-circle' : 'close-circle'}
+                            textStyle={{ fontSize: 11, fontWeight: '700', color: item.ativo ? theme.colors.success : theme.colors.textSecondary }}
+                            style={{ backgroundColor: item.ativo ? theme.colors.successLight : theme.colors.surfaceVariant }}
+                        >
+                            {item.ativo ? 'Ativo' : 'Inativo'}
+                        </Chip>
+                        <View style={styles.cardActions}>
+                            <IconButton
+                                icon="pencil-outline"
+                                size={18}
+                                onPress={() => navigation.navigate('UsuarioForm', { id: item.id })}
+                            />
+                            <IconButton
+                                icon={item.ativo ? 'account-lock' : 'account-check'}
+                                size={18}
+                                iconColor={item.ativo ? theme.colors.error : theme.colors.success}
+                                onPress={() => handleAlternarStatus(item)}
+                            />
+                        </View>
+                    </View>
+                </Card.Content>
+            </Card>
         );
     }, [navigation, handleAlternarStatus]);
 
-    // ── Footer spinner ───────────────────────────────────────────────────────
     const renderListFooter = () => {
         if (!loadingMore) return null;
         return (
             <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-                <Text style={styles.footerLoaderText}>Carregando mais...</Text>
+                <ActivityIndicator size="small" />
+                <Text variant="labelSmall" style={styles.footerText}>Carregando mais...</Text>
             </View>
         );
     };
 
-    // ── Empty State ──────────────────────────────────────────────────────────
-    const renderListaVazia = () => {
-        if (loading) return null;
-        return (
-            <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>👥</Text>
-                <Text style={styles.emptyText}>
-                    {searchQuery.trim()
-                        ? `Nenhum usuário encontrado para "${searchQuery}".`
-                        : 'Nenhum usuário cadastrado.'}
-                </Text>
-            </View>
-        );
-    };
-
-    // ── Render ───────────────────────────────────────────────────────────────
     return (
-        <SafeAreaView style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Text style={styles.backButtonText}>← Voltar</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Usuários</Text>
-                </View>
-                <TouchableOpacity
-                    style={styles.addButton}
-                    onPress={() => navigation.navigate('UsuarioForm')}
-                >
-                    <Text style={styles.addButtonText}>+ Novo</Text>
-                </TouchableOpacity>
-            </View>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <AppHeader
+                title="Usuários"
+                onBack={() => navigation.goBack()}
+                rightActions={[{ icon: 'account-plus', onPress: () => navigation.navigate('UsuarioForm'), label: 'Novo usuário' }]}
+            />
 
-            {/* Barra de busca */}
-            <View style={styles.searchContainer}>
-                <View style={styles.searchBox}>
-                    <Text style={styles.searchIcon}>🔍</Text>
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Buscar por nome ou e-mail..."
-                        placeholderTextColor={theme.colors.textSecondary}
-                        value={searchQuery}
-                        onChangeText={handleSearchChange}
-                        returnKeyType="search"
-                        autoCorrect={false}
-                        autoCapitalize="none"
-                    />
-                    {searchQuery.length > 0 && (
-                        <TouchableOpacity onPress={() => handleSearchChange('')}>
-                            <Text style={styles.searchClear}>✕</Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
-            </View>
+            <Searchbar
+                placeholder="Buscar por nome ou e-mail..."
+                value={searchQuery}
+                onChangeText={handleSearchChange}
+                style={styles.searchBar}
+                inputStyle={styles.searchInput}
+            />
 
-            {/* Lista */}
             {loading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={theme.colors.primary} />
-                    <Text style={styles.loadingText}>Carregando usuários...</Text>
+                    <ActivityIndicator size="large" />
+                    <Text variant="bodyMedium" style={styles.loadingText}>Carregando usuários...</Text>
                 </View>
             ) : (
                 <FlatList
@@ -270,7 +193,12 @@ export function UsuariosScreen() {
                         styles.listContainer,
                         usuarios.length === 0 && styles.listContainerEmpty,
                     ]}
-                    ListEmptyComponent={renderListaVazia}
+                    ListEmptyComponent={
+                        <EmptyState
+                            icon="account-group"
+                            title={searchQuery.trim() ? `Nenhum resultado para "${searchQuery}"` : 'Nenhum usuário cadastrado'}
+                        />
+                    }
                     ListFooterComponent={renderListFooter}
                     onEndReached={handleEndReached}
                     onEndReachedThreshold={0.5}
@@ -284,110 +212,41 @@ export function UsuariosScreen() {
     );
 }
 
-// ── Estilos ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
-
-    // Header
-    header: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        padding: 20, paddingTop: 20, backgroundColor: theme.colors.surface,
-        elevation: 2, shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2,
+    searchBar: {
+        margin: theme.spacing.md,
+        marginBottom: 0,
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.borderRadius.md,
     },
-    headerLeft: { flexDirection: 'row', alignItems: 'center' },
-    backButton: { marginRight: 12 },
-    backButtonText: { fontSize: 16, color: theme.colors.primary, fontWeight: '600' },
-    headerTitle: { fontSize: 24, fontWeight: 'bold', color: theme.colors.textPrimary },
-    addButton: {
-        backgroundColor: theme.colors.primary, paddingHorizontal: 16,
-        paddingVertical: 8, borderRadius: 20,
-    },
-    addButtonText: { color: theme.colors.surface, fontWeight: 'bold', fontSize: 14 },
-
-    // Busca
-    searchContainer: {
-        backgroundColor: theme.colors.surface, paddingHorizontal: 16,
-        paddingTop: 12, paddingBottom: 12,
-        borderBottomWidth: 1, borderBottomColor: theme.colors.border,
-    },
-    searchBox: {
-        flexDirection: 'row', alignItems: 'center',
-        backgroundColor: theme.colors.background, borderRadius: 10,
-        borderWidth: 1, borderColor: theme.colors.border,
-        paddingHorizontal: 12, height: 44, gap: 8,
-    },
-    searchIcon: { fontSize: 16 },
-    searchInput: {
-        flex: 1, fontSize: 15, color: theme.colors.textPrimary, paddingVertical: 0,
-    },
-    searchClear: { fontSize: 18, color: theme.colors.textSecondary, paddingHorizontal: 4 },
-
-    // Loading
+    searchInput: { fontSize: 15 },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    loadingText: { marginTop: 12, color: theme.colors.textSecondary, fontSize: 14 },
-
-    // Footer
+    loadingText: { color: theme.colors.textSecondary, marginTop: theme.spacing.md },
     footerLoader: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        paddingVertical: 16, gap: 8,
+        paddingVertical: theme.spacing.md, gap: theme.spacing.sm,
     },
-    footerLoaderText: { fontSize: 13, color: theme.colors.textSecondary },
-
-    // Lista
-    listContainer: { paddingHorizontal: 16, paddingBottom: 40, paddingTop: 12 },
+    footerText: { color: theme.colors.textSecondary },
+    listContainer: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
     listContainerEmpty: { flex: 1, justifyContent: 'center' },
-
-    // Card
     card: {
-        backgroundColor: theme.colors.surface, padding: 16, borderRadius: 12,
-        marginBottom: 10, elevation: 2, shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3,
+        marginBottom: theme.spacing.sm + 4,
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.borderRadius.md,
     },
     cardInativo: { opacity: 0.6 },
     cardTop: {
         flexDirection: 'row', justifyContent: 'space-between',
-        alignItems: 'flex-start', gap: 12,
+        alignItems: 'flex-start', gap: theme.spacing.sm,
     },
-    cardNome: { fontSize: 16, fontWeight: 'bold', color: theme.colors.textPrimary },
+    cardInfo: { flex: 1 },
+    cardNome: { fontWeight: 'bold', color: theme.colors.textPrimary },
     textInativo: { textDecorationLine: 'line-through' },
-    cardEmail: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 2 },
-    cardBottom: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
-
-    // Badge Papel
-    papelBadge: {
-        paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
-        flexShrink: 0,
+    cardEmail: { color: theme.colors.textSecondary, marginTop: 2 },
+    cardBottom: {
+        flexDirection: 'row', alignItems: 'center',
+        marginTop: theme.spacing.sm, justifyContent: 'space-between',
     },
-    papelBadgeText: { fontSize: 11, fontWeight: '700' },
-
-    // Badge Status
-    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-    statusAtivo: { backgroundColor: theme.colors.secondary },
-    statusInativo: { backgroundColor: theme.colors.border },
-    statusText: { fontSize: 11, fontWeight: '700' },
-    statusTextoAtivo: { color: theme.colors.surface },
-    statusTextoInativo: { color: theme.colors.textSecondary },
-
-    // Ações do card
-    cardActions: {
-        flexDirection: 'row', marginLeft: 'auto', gap: 8,
-    },
-    actionButton: {
-        paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
-        borderWidth: 1, borderColor: theme.colors.primary,
-    },
-    actionButtonText: {
-        fontSize: 12, fontWeight: '700', color: theme.colors.primary,
-    },
-    actionButtonDanger: { borderColor: theme.colors.error },
-    actionTextDanger: { color: theme.colors.error },
-    actionButtonSuccess: { borderColor: theme.colors.secondary },
-    actionTextSuccess: { color: theme.colors.secondary },
-
-    // Empty
-    emptyContainer: { alignItems: 'center', paddingVertical: 48 },
-    emptyIcon: { fontSize: 48, marginBottom: 16 },
-    emptyText: { fontSize: 16, fontWeight: '600', color: theme.colors.textSecondary, textAlign: 'center' },
+    cardActions: { flexDirection: 'row' },
 });

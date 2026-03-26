@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Alert, ScrollView } from 'react-native';
+import { TextInput, Button } from 'react-native-paper';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { turmasService } from '../../services/turmasService';
 import { RootStackParamList } from '../../navigation/types';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppHeader } from '../../components/ui';
 import { theme } from '../../theme/colors';
-import { formStyles as styles } from '../../theme/formStyles';
 import { syncWithServer } from '../../services/sync/watermelondbSync';
 
 type TurmaFormRouteProp = RouteProp<RootStackParamList, 'TurmaForm'>;
@@ -36,17 +37,12 @@ export function TurmaFormScreen() {
 
         try {
             setLoading(true);
-
-            // Salva localmente — funciona sem Wi-Fi
             if (isEditing && turmaParaEditar.id) {
                 await turmasService.atualizar(turmaParaEditar.id, payload);
             } else {
                 await turmasService.criar(payload);
             }
-
-            // Tenta sincronizar em background — falha silenciosamente sem rede
             syncWithServer().catch(() => {});
-
             navigation.goBack();
         } catch (err: unknown) {
             console.error(err);
@@ -57,53 +53,64 @@ export function TurmaFormScreen() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Text style={styles.backButtonText}>← Voltar</Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>{isEditing ? 'Editar Turma' : 'Nova Turma'}</Text>
-            </View>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <AppHeader
+                title={isEditing ? 'Editar Turma' : 'Nova Turma'}
+                onBack={() => navigation.goBack()}
+            />
 
-            <View style={styles.form}>
-                <Text style={styles.label}>Nome da Turma *</Text>
+            <ScrollView contentContainerStyle={styles.form}>
                 <TextInput
-                    style={styles.input}
+                    label="Nome da Turma *"
                     placeholder="Ex: 5º Série A"
                     value={nome}
                     onChangeText={setNome}
+                    mode="outlined"
+                    left={<TextInput.Icon icon="google-classroom" />}
+                    style={styles.input}
                 />
 
-                <Text style={styles.label}>Ano Letivo *</Text>
                 <TextInput
-                    style={styles.input}
+                    label="Ano Letivo *"
                     placeholder="Ex: 2026"
                     keyboardType="numeric"
                     value={anoLetivo}
                     onChangeText={setAnoLetivo}
+                    mode="outlined"
+                    left={<TextInput.Icon icon="calendar" />}
+                    style={styles.input}
                 />
 
-                <Text style={styles.label}>Turno *</Text>
                 <TextInput
-                    style={styles.input}
+                    label="Turno *"
                     placeholder="Ex: Matutino, Vespertino, Noturno"
                     value={turno}
                     onChangeText={setTurno}
+                    mode="outlined"
+                    left={<TextInput.Icon icon="weather-sunset-up" />}
+                    style={styles.input}
                 />
 
-                <TouchableOpacity
-                    style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+                <Button
+                    mode="contained"
                     onPress={handleSave}
+                    loading={loading}
                     disabled={loading}
+                    icon="content-save"
+                    style={styles.saveButton}
+                    contentStyle={styles.saveButtonContent}
                 >
-                    {loading ? (
-                        <ActivityIndicator color={theme.colors.surface} />
-                    ) : (
-                        <Text style={styles.saveButtonText}>Salvar Turma</Text>
-                    )}
-                </TouchableOpacity>
-            </View>
+                    Salvar Turma
+                </Button>
+            </ScrollView>
         </SafeAreaView>
     );
 }
 
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    form: { padding: theme.spacing.lg },
+    input: { marginBottom: theme.spacing.md, backgroundColor: theme.colors.surface },
+    saveButton: { marginTop: theme.spacing.sm, borderRadius: theme.borderRadius.md },
+    saveButtonContent: { paddingVertical: theme.spacing.xs },
+});

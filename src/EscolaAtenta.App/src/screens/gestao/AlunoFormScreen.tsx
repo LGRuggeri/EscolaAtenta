@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { ScrollView, View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, Alert, ScrollView } from 'react-native';
+import { TextInput, Button } from 'react-native-paper';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { alunosService } from '../../services/alunosService';
 import { RootStackParamList } from '../../navigation/types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HistoricoPresencasTimeline } from '../../components/domain/HistoricoPresencasTimeline';
+import { AppHeader } from '../../components/ui';
 import { theme } from '../../theme/colors';
-import { formStyles as styles } from '../../theme/formStyles';
 import { syncWithServer } from '../../services/sync/watermelondbSync';
 
 type AlunoFormRouteProp = RouteProp<RootStackParamList, 'AlunoForm'>;
@@ -31,8 +32,6 @@ export function AlunoFormScreen() {
 
         try {
             setLoading(true);
-
-            // Salva localmente — funciona sem Wi-Fi
             if (isEditing && alunoParaEditar.id) {
                 await alunosService.atualizar(alunoParaEditar.id, {
                     id: alunoParaEditar.id,
@@ -41,10 +40,7 @@ export function AlunoFormScreen() {
             } else {
                 await alunosService.criar({ nome: nome.trim(), turmaId });
             }
-
-            // Tenta sincronizar em background — falha silenciosamente sem rede
             syncWithServer().catch(() => {});
-
             navigation.goBack();
         } catch (err) {
             console.error('[AlunoForm]', err);
@@ -55,34 +51,34 @@ export function AlunoFormScreen() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Text style={styles.backButtonText}>← Voltar</Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>{isEditing ? 'Editar Aluno' : 'Novo Aluno'}</Text>
-            </View>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <AppHeader
+                title={isEditing ? 'Editar Aluno' : 'Novo Aluno'}
+                onBack={() => navigation.goBack()}
+            />
 
             <ScrollView contentContainerStyle={styles.form}>
-                <Text style={styles.label}>Nome do Aluno *</Text>
                 <TextInput
-                    style={styles.input}
+                    label="Nome do Aluno *"
                     placeholder="Ex: João da Silva"
                     value={nome}
                     onChangeText={setNome}
+                    mode="outlined"
+                    left={<TextInput.Icon icon="account" />}
+                    style={styles.input}
                 />
 
-                <TouchableOpacity
-                    style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+                <Button
+                    mode="contained"
                     onPress={handleSave}
+                    loading={loading}
                     disabled={loading}
+                    icon="content-save"
+                    style={styles.saveButton}
+                    contentStyle={styles.saveButtonContent}
                 >
-                    {loading ? (
-                        <ActivityIndicator color={theme.colors.surface} />
-                    ) : (
-                        <Text style={styles.saveButtonText}>Salvar Aluno</Text>
-                    )}
-                </TouchableOpacity>
+                    Salvar Aluno
+                </Button>
 
                 {isEditing && alunoParaEditar?.id && (
                     <HistoricoPresencasTimeline alunoId={alunoParaEditar.id} />
@@ -92,3 +88,10 @@ export function AlunoFormScreen() {
     );
 }
 
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    form: { padding: theme.spacing.lg },
+    input: { marginBottom: theme.spacing.md, backgroundColor: theme.colors.surface },
+    saveButton: { marginTop: theme.spacing.sm, borderRadius: theme.borderRadius.md, marginBottom: theme.spacing.lg },
+    saveButtonContent: { paddingVertical: theme.spacing.xs },
+});

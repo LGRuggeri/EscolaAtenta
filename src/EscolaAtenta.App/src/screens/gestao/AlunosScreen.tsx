@@ -1,15 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, FlatList } from 'react-native';
+import { Text, FAB, ActivityIndicator, Card, Surface } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { AppNavigationProp, RootStackParamList } from '../../navigation/types';
 import { AlunoDto } from '../../types/dtos';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppHeader, EmptyState } from '../../components/ui';
 import { theme } from '../../theme/colors';
 import database from '../../database';
 import Aluno from '../../database/models/Aluno';
 import { Q } from '@nozbe/watermelondb';
 
 type AlunosRouteProp = RouteProp<RootStackParamList, 'Alunos'>;
+
+function StatBadge({ icon, label, value, color }: { icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string; value: number; color: string }) {
+    return (
+        <View style={[styles.statBadge, { backgroundColor: color + '15' }]}>
+            <MaterialCommunityIcons name={icon} size={14} color={color} />
+            <Text variant="labelSmall" style={{ color, fontWeight: '600' }}>{value}</Text>
+            <Text variant="labelSmall" style={{ color: theme.colors.textMuted, fontSize: 10 }}>{label}</Text>
+        </View>
+    );
+}
 
 export function AlunosScreen() {
     const navigation = useNavigation<AppNavigationProp>();
@@ -20,10 +33,7 @@ export function AlunosScreen() {
     const [alunos, setAlunos] = useState<AlunoDto[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Assinatura reativa: atualiza a lista sempre que o WatermelonDB mudar (ex: após sync)
     useEffect(() => {
-        // observeWithColumns garante que o observer dispara quando qualquer
-        // uma dessas colunas muda em registros existentes (ex: após sync de contadores)
         const subscription = database
             .get<Aluno>('alunos')
             .query(Q.where('turma_id', turmaId))
@@ -51,87 +61,110 @@ export function AlunosScreen() {
     }, [turmaId]);
 
     const renderItem = ({ item }: { item: AlunoDto }) => (
-        <TouchableOpacity
+        <Card
             style={styles.card}
+            mode="elevated"
             onPress={() => navigation.navigate('AlunoForm', { turmaId, aluno: item })}
         >
-            <View style={styles.cardHeader}>
-                <View>
-                    <Text style={styles.cardTitle}>{item.nome}</Text>
-                    <Text style={styles.cardSubtitle}>Matrícula: {item.matricula || 'N/A'}</Text>
+            <Card.Content>
+                <View style={styles.cardTop}>
+                    <View style={styles.avatarCircle}>
+                        <Text variant="titleMedium" style={styles.avatarText}>
+                            {item.nome.charAt(0).toUpperCase()}
+                        </Text>
+                    </View>
+                    <View style={styles.cardInfo}>
+                        <Text variant="titleMedium" style={styles.cardTitle}>{item.nome}</Text>
+                        <Text variant="bodySmall" style={styles.cardSubtitle}>
+                            Matrícula: {item.matricula || 'N/A'}
+                        </Text>
+                    </View>
                 </View>
-                <View style={styles.estatisticasContainer}>
-                    <Text style={styles.statsText}>🔴 Seq. Atual: {item.faltasConsecutivasAtuais}</Text>
-                    <Text style={styles.statsText}>📅 Faltas (Trimestre): {item.faltasNoTrimestre}</Text>
-                    <Text style={styles.statsText}>⏰ Atrasos (Trimestre): {item.atrasosNoTrimestre}</Text>
+                <View style={styles.statsRow}>
+                    <StatBadge icon="alert-circle" label="Seq." value={item.faltasConsecutivasAtuais} color={theme.colors.error} />
+                    <StatBadge icon="calendar-remove" label="Trim." value={item.faltasNoTrimestre} color={theme.colors.warning} />
+                    <StatBadge icon="clock-alert" label="Atrasos" value={item.atrasosNoTrimestre} color={theme.colors.info} />
                 </View>
-            </View>
-        </TouchableOpacity>
+            </Card.Content>
+        </Card>
     );
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Text style={styles.backButtonText}>← Voltar</Text>
-                    </TouchableOpacity>
-                    <View>
-                        <Text style={styles.headerTitle}>Alunos</Text>
-                        <Text style={styles.headerSubtitle}>{turmaNome}</Text>
-                    </View>
-                </View>
-                <TouchableOpacity
-                    style={styles.addButton}
-                    onPress={() => navigation.navigate('AlunoForm', { turmaId })}
-                >
-                    <Text style={styles.addButtonText}>+ Novo</Text>
-                </TouchableOpacity>
-            </View>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <AppHeader
+                title="Alunos"
+                subtitle={turmaNome}
+                onBack={() => navigation.goBack()}
+                rightActions={[{ icon: 'account-plus', onPress: () => navigation.navigate('AlunoForm', { turmaId }), label: 'Novo aluno' }]}
+            />
 
             {loading ? (
-                <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 50 }} />
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" />
+                </View>
             ) : (
                 <FlatList
                     data={alunos}
                     keyExtractor={(item) => item.id}
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContainer}
-                    ListEmptyComponent={<Text style={styles.emptyText}>Nenhum aluno cadastrado nesta turma.</Text>}
+                    ListEmptyComponent={
+                        <EmptyState
+                            icon="account-school"
+                            title="Nenhum aluno cadastrado"
+                            subtitle="Toque no + para adicionar alunos"
+                        />
+                    }
                 />
             )}
 
-            <View style={[styles.fabWrapper, { bottom: Math.max(insets.bottom + 30, 40) }]}>
-                <TouchableOpacity
-                    style={styles.fab}
-                    onPress={() => navigation.navigate('ChamadaOperacao', { turmaId, turmaNome })}
-                >
-                    <Text style={styles.fabText}>📋 Fazer Chamada Hoje</Text>
-                </TouchableOpacity>
-            </View>
+            <FAB
+                icon="clipboard-check-outline"
+                style={[styles.fab, { bottom: Math.max(insets.bottom + 16, 24) }]}
+                onPress={() => navigation.navigate('ChamadaOperacao', { turmaId, turmaNome })}
+                label="Fazer Chamada"
+                color={theme.colors.surface}
+            />
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, paddingTop: 20, backgroundColor: theme.colors.surface, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
-    headerLeft: { flexDirection: 'row', alignItems: 'center' },
-    backButton: { marginRight: 12 },
-    backButtonText: { fontSize: 16, color: theme.colors.primary, fontWeight: '600' },
-    headerTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.textPrimary },
-    headerSubtitle: { fontSize: 12, color: theme.colors.textSecondary },
-    addButton: { backgroundColor: theme.colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-    addButtonText: { color: theme.colors.surface, fontWeight: 'bold', fontSize: 14 },
-    listContainer: { padding: 16, paddingBottom: 40 },
-    card: { backgroundColor: theme.colors.surface, padding: 20, borderRadius: 12, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    cardTitle: { fontSize: 16, fontWeight: 'bold', color: theme.colors.textPrimary },
-    cardSubtitle: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 4 },
-    estatisticasContainer: { marginTop: 8, padding: 8, backgroundColor: theme.colors.background, borderRadius: 8 },
-    statsText: { fontSize: 12, color: theme.colors.textSecondary, marginBottom: 2 },
-    emptyText: { textAlign: 'center', color: theme.colors.textSecondary, marginTop: 32, fontSize: 16 },
-    fabWrapper: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
-    fab: { backgroundColor: theme.colors.secondary, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 30, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84, flexDirection: 'row', alignItems: 'center' },
-    fabText: { color: theme.colors.surface, fontWeight: 'bold', fontSize: 16 }
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    listContainer: { padding: theme.spacing.md, paddingBottom: 100 },
+    card: {
+        marginBottom: theme.spacing.sm + 4,
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.borderRadius.md,
+    },
+    cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.sm + 4 },
+    avatarCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: theme.colors.primary + '15',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: theme.spacing.md,
+    },
+    avatarText: { color: theme.colors.primary, fontWeight: 'bold' },
+    cardInfo: { flex: 1 },
+    cardTitle: { fontWeight: 'bold', color: theme.colors.textPrimary },
+    cardSubtitle: { color: theme.colors.textSecondary, marginTop: 2 },
+    statsRow: { flexDirection: 'row', gap: theme.spacing.sm },
+    statBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: theme.spacing.sm + 2,
+        paddingVertical: theme.spacing.xs,
+        borderRadius: theme.borderRadius.full,
+    },
+    fab: {
+        position: 'absolute',
+        right: theme.spacing.md,
+        backgroundColor: theme.colors.secondary,
+        borderRadius: theme.borderRadius.lg,
+    },
 });
