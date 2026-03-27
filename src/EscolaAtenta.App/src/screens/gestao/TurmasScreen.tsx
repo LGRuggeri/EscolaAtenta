@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     fab: {
         position: 'absolute',
         right: theme.spacing.md,
-        bottom: theme.spacing.lg,
+        bottom: theme.spacing.xxl,
         backgroundColor: theme.colors.primary,
         borderRadius: theme.borderRadius.lg,
     },

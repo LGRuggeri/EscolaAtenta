@@ -126,7 +126,7 @@ export function HomeScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
-    scrollContent: { flexGrow: 1, paddingBottom: theme.spacing.xl },
+    scrollContent: { flexGrow: 1, paddingBottom: theme.spacing.xxl + 24 },
     headerGradient: {
         paddingTop: theme.spacing.lg,
         paddingBottom: theme.spacing.xl + 8,

@@ -295,7 +295,7 @@ export function RelatorioPresencasScreen() {
                                 keyboardType="numeric"
                                 maxLength={10}
                                 mode="outlined"
-                                left={<TextInput.Icon icon="calendar-start" />}
+                                right={<TextInput.Icon icon="calendar-start" size={18} />}
                                 style={styles.dateInput}
                             />
                             <TextInput
@@ -306,7 +306,7 @@ export function RelatorioPresencasScreen() {
                                 keyboardType="numeric"
                                 maxLength={10}
                                 mode="outlined"
-                                left={<TextInput.Icon icon="calendar-end" />}
+                                right={<TextInput.Icon icon="calendar-end" size={18} />}
                                 style={styles.dateInput}
                             />
                         </View>
@@ -475,12 +475,13 @@ const styles = StyleSheet.create({
     },
     row: {
         flexDirection: 'row',
-        gap: theme.spacing.sm,
+        gap: theme.spacing.md,
         marginBottom: theme.spacing.md,
     },
     dateInput: {
         flex: 1,
         backgroundColor: theme.colors.surface,
+        fontSize: 15,
     },
     resumo: {
         flexDirection: 'row',
