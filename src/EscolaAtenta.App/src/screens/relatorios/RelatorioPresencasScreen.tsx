@@ -295,7 +295,6 @@ export function RelatorioPresencasScreen() {
                                 keyboardType="numeric"
                                 maxLength={10}
                                 mode="outlined"
-                                right={<TextInput.Icon icon="calendar-start" size={18} />}
                                 style={styles.dateInput}
                             />
                             <TextInput
@@ -306,7 +305,6 @@ export function RelatorioPresencasScreen() {
                                 keyboardType="numeric"
                                 maxLength={10}
                                 mode="outlined"
-                                right={<TextInput.Icon icon="calendar-end" size={18} />}
                                 style={styles.dateInput}
                             />
                         </View>
