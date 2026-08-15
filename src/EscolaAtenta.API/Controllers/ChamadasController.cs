@@ -37,16 +37,23 @@ public class ChamadasController : ControllerBase
     /// <summary>
     /// Consulta a chamada de uma turma em uma data específica.
     /// Retorna os registros de presença e indica se a chamada ainda pode ser editada.
+    /// A data pode ser enviada em qualquer formato ISO 8601 suportado por DateTime.Parse (ex: 2026-01-15T00:00:00Z).
     /// </summary>
-    [HttpGet("turma/{turmaId:guid}/dia/{data:datetime}")]
+    [HttpGet("turma/{turmaId:guid}/dia/{data}")]
     [ProducesResponseType(typeof(ChamadaPorDiaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ObterChamadaPorDia(Guid turmaId, DateTime data, CancellationToken ct)
+    public async Task<IActionResult> ObterChamadaPorDia(Guid turmaId, string data, CancellationToken ct)
     {
-        var result = await _mediator.Send(new ObterChamadaPorTurmaEDiaQuery(turmaId, data), ct);
+        if (!DateTime.TryParse(data, out var dataParsed))
+        {
+            return BadRequest(new { mensagem = $"Data inválida: '{data}'." });
+        }
+
+        var result = await _mediator.Send(new ObterChamadaPorTurmaEDiaQuery(turmaId, dataParsed), ct);
 
         if (result is null)
-            return NotFound(new { mensagem = $"Nenhuma chamada encontrada para a turma no dia {data:dd/MM/yyyy}." });
+            return NotFound(new { mensagem = $"Nenhuma chamada encontrada para a turma no dia {dataParsed:dd/MM/yyyy}." });
 
         return Ok(result);
     }

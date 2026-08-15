@@ -375,4 +375,30 @@ public class AlunoTests
         aluno.FaltasConsecutivasAtuais.Should().Be(0);
         aluno.TotalFaltas.Should().Be(0, "com ambos os dias presentes, não há faltas");
     }
+
+    [Fact]
+    public void RecalcularEstatisticas_ComEventosPendentes_DeveLimparEventosAntesDeRecomputar()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        // Gera eventos de faltas consecutivas (simulando um batch anterior que já os enfileirou)
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data.AddDays(-2));
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data.AddDays(-1));
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data);
+        aluno.DomainEvents.Should().NotBeEmpty("faltas consecutivas devem ter gerado eventos");
+
+        // Agora recalcula considerando apenas presenças: os eventos antigos devem ser limpos
+        // e nenhum novo evento deve ser gerado.
+        var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data), TurmaId, Guid.NewGuid());
+        var registro = chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Presente);
+
+        // Act
+        aluno.RecalcularEstatisticas(new[] { registro });
+
+        // Assert: eventos prévios foram removidos e, como houve apenas presença, não há novos eventos
+        aluno.DomainEvents.Should().BeEmpty();
+        aluno.FaltasConsecutivasAtuais.Should().Be(0);
+    }
 }

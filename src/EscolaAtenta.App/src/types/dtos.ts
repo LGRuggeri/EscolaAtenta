@@ -48,6 +48,21 @@ export interface RealizarChamadaPayload {
     data?: string;
 }
 
+export interface ChamadaPorDiaDto {
+    chamadaId: string;
+    dataHora: string;
+    responsavelId: string;
+    podeEditar: boolean;
+    registros: RegistroPorDiaDto[];
+}
+
+export interface RegistroPorDiaDto {
+    alunoId: string;
+    nomeAluno: string;
+    /** Status da presença como string (Presente, Falta, Atraso, FaltaJustificada). */
+    status: string;
+}
+
 export interface AlertaDto {
     id: string;
     nomeAluno: string;

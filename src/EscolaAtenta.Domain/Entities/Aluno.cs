@@ -177,12 +177,16 @@ public class Aluno : EntityBase, ISoftDeletable
 
     /// <summary>
     /// Recalcula todas as estatísticas do aluno a partir do histórico de presenças.
-    /// Usado quando uma chamada é corrigida, garantindo consistência dos contadores.
+    /// Limpa eventos pendentes para evitar duplicar alertas quando o recálculo
+    /// é executado após outras operações do mesmo batch já terem enfileirado eventos.
     /// </summary>
     public void RecalcularEstatisticas(IEnumerable<RegistroPresenca> historico)
     {
         if (historico == null)
             throw new DomainException("O histórico de presenças não pode ser nulo.");
+
+        // Evita que eventos de domínio previamente enfileirados sejam publicados em duplicata
+        ClearDomainEvents();
 
         var ordenado = historico
             .Where(r => r.Chamada != null)

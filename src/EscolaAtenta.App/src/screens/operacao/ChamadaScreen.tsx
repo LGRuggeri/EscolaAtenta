@@ -13,6 +13,8 @@ import RegistroPresenca, { StatusPresencaLocal } from '../../database/models/Reg
 import { AppHeader } from '../../components/ui';
 import { theme, palette } from '../../theme/colors';
 import { syncWithServer } from '../../services/sync/watermelondbSync';
+import { chamadasService } from '../../services/chamadasService';
+import { ChamadaPorDiaDto } from '../../types/dtos';
 
 import withObservables from '@nozbe/with-observables';
 
@@ -78,6 +80,8 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
     const [statusMap, setStatusMap] = useState<Record<string, StatusPresencaLocal>>({});
     const [somenteLeitura, setSomenteLeitura] = useState(false);
     const [modoEdicao, setModoEdicao] = useState(false);
+    // null = ainda não verificou no servidor; true/false = resultado da verificação
+    const [podeEditarServidor, setPodeEditarServidor] = useState<boolean | null>(null);
 
     useEffect(() => {
         if (alunos.length > 0 && !somenteLeitura && Object.keys(statusMap).length === 0) {
@@ -126,6 +130,48 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         setStatusMap(novoMap);
     };
 
+    const aplicarStatusDoServidor = (chamada: ChamadaPorDiaDto) => {
+        const novoMap: Record<string, StatusPresencaLocal> = {};
+        chamada.registros.forEach((r) => {
+            if (STATUS_OPTIONS.some((opt) => opt.key === r.status)) {
+                novoMap[r.alunoId] = r.status as StatusPresencaLocal;
+            }
+        });
+        // Alunos ausentes no servidor (ex: criados offline) ficam como Presente
+        alunos.forEach((a) => {
+            if (!(a.id in novoMap)) {
+                novoMap[a.id] = 'Presente';
+            }
+        });
+        setStatusMap(novoMap);
+    };
+
+    const criarRegistrosLocaisDoServidor = async (chamada: ChamadaPorDiaDto) => {
+        const registrosCollection = database.get<RegistroPresenca>('registros_presenca');
+        const statusPorAluno: Record<string, StatusPresencaLocal> = {};
+        chamada.registros.forEach((r) => {
+            if (STATUS_OPTIONS.some((opt) => opt.key === r.status)) {
+                statusPorAluno[r.alunoId] = r.status as StatusPresencaLocal;
+            }
+        });
+
+        await database.write(async () => {
+            const batch = alunos.map((aluno) =>
+                registrosCollection.prepareCreate((record) => {
+                    record.alunoId = aluno.id;
+                    record.turmaId = turmaId;
+                    record.data = dataSelecionada;
+                    record.status = statusPorAluno[aluno.id] ?? 'Presente';
+                    // Já existe no servidor, então inicia sincronizado
+                    record.sincronizado = true;
+                })
+            );
+            await database.batch(...batch);
+        });
+
+        setStatusMap(statusPorAluno);
+    };
+
     const handleDataChange = (texto: string) => {
         setDataTexto(texto);
         const data = parseDataBrasil(texto);
@@ -133,6 +179,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             setDataSelecionada(data);
             setSomenteLeitura(false);
             setModoEdicao(false);
+            setPodeEditarServidor(null);
             setStatusMap({}); // Reseta para recarregar padrões
         }
     };
@@ -143,6 +190,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         setDataSelecionada(hoje);
         setSomenteLeitura(false);
         setModoEdicao(false);
+        setPodeEditarServidor(null);
         setStatusMap({});
     };
 
@@ -199,6 +247,75 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         syncWithServer().catch(() => {});
     };
 
+    const mostrarAlertaConflitoLocal = (registrosExistentes: RegistroPresenca[]) => {
+        Alert.alert(
+            'Chamada já realizada',
+            `Já existe uma chamada local para o dia ${dataTexto}. O que deseja fazer?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Visualizar',
+                    onPress: () => {
+                        setSomenteLeitura(true);
+                        setModoEdicao(false);
+                    },
+                },
+                {
+                    text: 'Atualizar',
+                    onPress: async () => {
+                        setModoEdicao(true);
+                        await atualizarRegistrosExistentes(registrosExistentes);
+                        await finalizarSalvamento();
+                    },
+                },
+            ],
+            { cancelable: false }
+        );
+    };
+
+    const mostrarAlertaConflitoServidor = (chamada: ChamadaPorDiaDto) => {
+        const acoes: { text: string; onPress?: () => void; style?: 'cancel' }[] = [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+                text: 'Visualizar',
+                onPress: () => {
+                    setSomenteLeitura(true);
+                    setModoEdicao(false);
+                    setPodeEditarServidor(chamada.podeEditar);
+                },
+            },
+        ];
+
+        if (chamada.podeEditar) {
+            acoes.push({
+                text: 'Atualizar',
+                onPress: async () => {
+                    await criarRegistrosLocaisDoServidor(chamada);
+                    setModoEdicao(true);
+                    setPodeEditarServidor(true);
+                },
+            });
+        }
+
+        Alert.alert(
+            'Chamada já realizada',
+            chamada.podeEditar
+                ? `Já existe uma chamada no servidor para o dia ${dataTexto}. Deseja visualizar ou atualizar?`
+                : `Já existe uma chamada no servidor para o dia ${dataTexto}. O prazo de edição de 7 dias foi excedido, então ela será exibida em modo visualização.`,
+            acoes,
+            { cancelable: false }
+        );
+    };
+
+    const executarSalvamento = async (registrosExistentes: RegistroPresenca[]) => {
+        if (registrosExistentes.length > 0) {
+            await atualizarRegistrosExistentes(registrosExistentes);
+        } else {
+            await salvarNovosRegistros();
+        }
+        await finalizarSalvamento();
+    };
+
     const handleSalvar = async () => {
         if (alunos.length === 0) {
             Alert.alert('Aviso', 'Não há alunos nesta turma para registrar chamada.');
@@ -206,6 +323,11 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         }
 
         if (somenteLeitura) {
+            // Se o prazo do servidor expirou, não permite editar
+            if (podeEditarServidor === false) {
+                Alert.alert('Aviso', 'Esta chamada já não pode mais ser alterada (prazo de 7 dias expirado).');
+                return;
+            }
             // Sai do modo visualização e permite edição
             setSomenteLeitura(false);
             setModoEdicao(true);
@@ -217,39 +339,44 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
 
             if (registrosExistentes.length > 0 && !modoEdicao) {
                 aplicarStatusDosRegistros(registrosExistentes);
+                mostrarAlertaConflitoLocal(registrosExistentes);
+                return;
+            }
+
+            if (modoEdicao || registrosExistentes.length > 0) {
+                await executarSalvamento(registrosExistentes);
+                return;
+            }
+
+            // Sem registros locais: consulta o servidor antes de tratar como nova chamada
+            try {
+                const chamadaServidor = await chamadasService.obterChamadaPorDia(turmaId, dataSelecionada);
+
+                if (chamadaServidor) {
+                    aplicarStatusDoServidor(chamadaServidor);
+                    mostrarAlertaConflitoServidor(chamadaServidor);
+                    return;
+                }
+
+                // Servidor não tem chamada para o dia: cria nova localmente
+                await executarSalvamento([]);
+            } catch (erroServidor) {
+                console.error('[CHAMADA] Erro ao consultar servidor:', erroServidor);
                 Alert.alert(
-                    'Chamada já realizada',
-                    `Já existe uma chamada para o dia ${dataTexto}. O que deseja fazer?`,
+                    'Sem conexão',
+                    'Não foi possível verificar no servidor se já existe chamada para esta data. Deseja continuar offline?',
                     [
                         { text: 'Cancelar', style: 'cancel' },
                         {
-                            text: 'Visualizar',
-                            onPress: () => {
-                                setSomenteLeitura(true);
-                                setModoEdicao(false);
-                            },
-                        },
-                        {
-                            text: 'Atualizar',
+                            text: 'Continuar offline',
                             onPress: async () => {
-                                setModoEdicao(true);
-                                await atualizarRegistrosExistentes(registrosExistentes);
-                                await finalizarSalvamento();
+                                await executarSalvamento([]);
                             },
                         },
                     ],
                     { cancelable: false }
                 );
-                return;
             }
-
-            if (registrosExistentes.length > 0 && modoEdicao) {
-                await atualizarRegistrosExistentes(registrosExistentes);
-            } else {
-                await salvarNovosRegistros();
-            }
-
-            await finalizarSalvamento();
         } catch (error) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             console.error('[CHAMADA] Erro ao salvar localmente:', error);
@@ -309,7 +436,14 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         {} as Record<string, number>
     );
 
-    const tituloBotao = somenteLeitura ? 'Editar Chamada' : modoEdicao ? 'Atualizar Chamada' : 'Salvar Chamada';
+    const bloqueadoParaSempre = somenteLeitura && podeEditarServidor === false;
+    const tituloBotao = somenteLeitura
+        ? bloqueadoParaSempre
+            ? 'Visualizar'
+            : 'Editar Chamada'
+        : modoEdicao
+        ? 'Atualizar Chamada'
+        : 'Salvar Chamada';
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -345,7 +479,9 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                 <View style={styles.badgeLeitura}>
                     <MaterialCommunityIcons name="eye" size={16} color={theme.colors.info} />
                     <Text variant="labelMedium" style={styles.textoLeitura}>
-                        Modo visualização — selecione outra data ou toque em "Editar" para alterar
+                        {bloqueadoParaSempre
+                            ? 'Modo visualização — o prazo de 7 dias para edição expirou'
+                            : 'Modo visualização — selecione outra data ou toque em "Editar" para alterar'}
                     </Text>
                 </View>
             )}
@@ -375,7 +511,8 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                 <Button
                     mode="contained"
                     onPress={handleSalvar}
-                    icon={somenteLeitura ? 'pencil' : 'content-save-check'}
+                    icon={bloqueadoParaSempre ? 'eye' : somenteLeitura ? 'pencil' : 'content-save-check'}
+                    disabled={bloqueadoParaSempre}
                     style={styles.saveButton}
                     contentStyle={styles.saveButtonContent}
                     labelStyle={styles.saveButtonLabel}

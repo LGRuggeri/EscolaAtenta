@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\EscolaAtenta.Application\EscolaAtenta.Application.csproj" />
+    <ProjectReference Include="..\..\src\EscolaAtenta.API\EscolaAtenta.API.csproj" />
   </ItemGroup>
 
 </Project>
