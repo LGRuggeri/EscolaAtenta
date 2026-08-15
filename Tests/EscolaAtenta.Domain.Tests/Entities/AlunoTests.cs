@@ -1,4 +1,5 @@
 using EscolaAtenta.Domain.Entities;
+using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Domain.Events;
 using EscolaAtenta.Domain.Exceptions;
 using FluentAssertions;
@@ -339,5 +340,39 @@ public class AlunoTests
         aluno.AtrasosNoTrimestre.Should().Be(0);
         // TotalFaltas é histórico — NÃO zera
         aluno.TotalFaltas.Should().Be(2);
+    }
+
+    // ── Testes de RecalcularEstatisticas ───────────────────────────────────────
+
+    [Fact]
+    public void RecalcularEstatisticas_AposCorrecaoDeFaltaParaPresente_DeveZerarConsecutivas()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        // Simula histórico: uma falta seguida de uma presença corrigida
+        var chamada1 = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(-2)), TurmaId, Guid.NewGuid());
+        var registro1 = chamada1.RegistrarPresenca(aluno.Id, StatusPresenca.Falta);
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data.AddDays(-2));
+        aluno.ClearDomainEvents();
+
+        var chamada2 = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(-1)), TurmaId, Guid.NewGuid());
+        var registro2 = chamada2.RegistrarPresenca(aluno.Id, StatusPresenca.Presente);
+        aluno.RegistrarPresenca(StatusPresenca.Presente, data.AddDays(-1));
+        aluno.ClearDomainEvents();
+
+        aluno.FaltasConsecutivasAtuais.Should().Be(0);
+        aluno.TotalFaltas.Should().Be(1);
+
+        // Simula correção do primeiro registro de Falta para Presente
+        registro1.AlterarStatus(StatusPresenca.Presente);
+
+        // Act
+        aluno.RecalcularEstatisticas(new[] { registro1, registro2 });
+
+        // Assert
+        aluno.FaltasConsecutivasAtuais.Should().Be(0);
+        aluno.TotalFaltas.Should().Be(0, "com ambos os dias presentes, não há faltas");
     }
 }

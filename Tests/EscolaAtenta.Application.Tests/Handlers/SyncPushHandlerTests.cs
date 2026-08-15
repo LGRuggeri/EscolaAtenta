@@ -400,4 +400,195 @@ public class SyncPushHandlerTests : IDisposable
 
         resultado.RegistrosSincronizados.Should().Be(0, "status idêntico deve ser ignorado (skip)");
     }
+
+    [Fact]
+    public async Task Handle_CriadoParaDiaJaExistente_DeveAtualizarStatus()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Turma Existente", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Existente", null, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var dataMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var createCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-dia-existente-1",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataMs,
+                        Status = "Presente"
+                    }]
+                }
+            },
+            dataMs);
+
+        await CriarHandler(ctx, user).Handle(createCommand, CancellationToken.None);
+        ctx.ChangeTracker.Clear();
+
+        // Simula novo registro offline para o mesmo dia/turma com status diferente
+        var updateCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-dia-existente-2",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataMs,
+                        Status = "Falta"
+                    }]
+                }
+            },
+            dataMs);
+
+        var resultado = await CriarHandler(ctx, user).Handle(updateCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(1, "deve contar o registro atualizado");
+
+        var chamadas = await ctx.Chamadas.Include(c => c.RegistrosPresenca).ToListAsync();
+        chamadas.Should().HaveCount(1, "não deve criar chamada duplicada");
+        chamadas[0].RegistrosPresenca.Should().HaveCount(1);
+        chamadas[0].RegistrosPresenca.First().Status.Should().Be(StatusPresenca.Falta);
+    }
+
+    [Fact]
+    public async Task Handle_CriadoParaDiaJaExistenteForaDe7Dias_DeveIgnorar()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Turma Bloqueada", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Bloqueado", null, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var dataMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var createCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-bloqueado-1",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataMs,
+                        Status = "Presente"
+                    }]
+                }
+            },
+            dataMs);
+
+        await CriarHandler(ctx, user).Handle(createCommand, CancellationToken.None);
+        ctx.ChangeTracker.Clear();
+
+        // Simula que a chamada foi criada há mais de 7 dias
+        var chamada = await ctx.Chamadas.FirstAsync(c => c.TurmaId == turmaId);
+        var dataAntiga = DateTimeOffset.UtcNow.AddDays(-10);
+        await ctx.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE Chamadas SET DataCriacao = {dataAntiga} WHERE Id = {chamada.Id}");
+        ctx.ChangeTracker.Clear();
+
+        var pushBloqueado = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-bloqueado-2",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataMs,
+                        Status = "Falta"
+                    }]
+                }
+            },
+            dataMs);
+
+        var resultado = await CriarHandler(ctx, user).Handle(pushBloqueado, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(0, "deve ignorar pois passou o prazo de 7 dias");
+
+        var registro = await ctx.RegistrosPresenca.FirstAsync(r => r.AlunoId == alunoId);
+        registro.Status.Should().Be(StatusPresenca.Presente);
+    }
+
+    [Fact]
+    public async Task Handle_UpdateForaDe7Dias_DeveIgnorar()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Turma Update Bloqueado", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Update Bloqueado", null, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var dataMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var createCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-update-bloqueado",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataMs,
+                        Status = "Presente"
+                    }]
+                }
+            },
+            dataMs);
+
+        await CriarHandler(ctx, user).Handle(createCommand, CancellationToken.None);
+        ctx.ChangeTracker.Clear();
+
+        // Simula que a chamada foi criada há mais de 7 dias
+        var chamada = await ctx.Chamadas.FirstAsync(c => c.TurmaId == turmaId);
+        var dataAntiga = DateTimeOffset.UtcNow.AddDays(-10);
+        await ctx.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE Chamadas SET DataCriacao = {dataAntiga} WHERE Id = {chamada.Id}");
+        ctx.ChangeTracker.Clear();
+
+        var updateCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Updated = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-update-bloqueado",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataMs,
+                        Status = "Falta"
+                    }]
+                }
+            },
+            dataMs);
+
+        var resultado = await CriarHandler(ctx, user).Handle(updateCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(0, "update deve ser ignorado pois passou o prazo de 7 dias");
+
+        var registro = await ctx.RegistrosPresenca.FirstAsync(r => r.AlunoId == alunoId);
+        registro.Status.Should().Be(StatusPresenca.Presente);
+    }
 }

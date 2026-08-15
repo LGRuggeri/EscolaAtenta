@@ -44,61 +44,177 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
 
         // SEGURANÇA: Usa o UsuarioId do token JWT como responsável da chamada
         // Em vez de confiar cegamente no ResponsavelId enviado pelo cliente (vetor de spoofing).
-        // Se o usuário está autenticado e o UsuarioId é um Guid válido, usa-o.
         var responsavelIdSeguro = _currentUser.EstaAutenticado
             && Guid.TryParse(_currentUser.UsuarioId, out var parsedUserId)
             ? parsedUserId
             : request.ResponsavelId;
 
-        // 2. Cria a nova Chamada
-        var chamada = new Chamada(
-            id: Guid.NewGuid(),
-            dataHora: DateTimeOffset.UtcNow,
-            turmaId: request.TurmaId,
-            responsavelId: responsavelIdSeguro
-        );
+        // 2. Determina a data/hora da chamada (retroativa ou atual)
+        var dataHora = request.Data ?? DateTimeOffset.UtcNow;
 
-        _context.Chamadas.Add(chamada);
+        // 3. Busca chamada existente para a turma naquele dia
+        // Filtragem por data é feita em memória para compatibilidade com SQLite/DateTimeOffset.
+        var chamadasDaTurma = await _context.Chamadas
+            .Include(c => c.RegistrosPresenca)
+            .Where(c => c.TurmaId == request.TurmaId)
+            .ToListAsync(cancellationToken);
 
-        // 3. Busca todos os alunos da lista para atualizar
+        var chamadaExistente = chamadasDaTurma
+            .FirstOrDefault(c => c.DataHora.Date == dataHora.Date);
+
+        // 4. Busca todos os alunos da lista para atualizar
         var alunosIds = request.Alunos.Select(a => a.AlunoId).ToList();
         var alunosDb = await _context.Alunos
             .Where(a => alunosIds.Contains(a.Id))
             .ToDictionaryAsync(a => a.Id, cancellationToken);
 
+        bool chamadaFoiAtualizada = false;
         int alertasGerados = 0;
 
-        // 4. Mapeia as presenças e computa status na Entidade chamada e Aluno
-        foreach (var registroDto in request.Alunos)
+        if (chamadaExistente is not null)
         {
-            if (!alunosDb.TryGetValue(registroDto.AlunoId, out var aluno))
+            // ── Atualização de chamada existente ───────────────────────────────
+            var prazoEdicao = chamadaExistente.DataCriacao.AddDays(7);
+            if (DateTimeOffset.UtcNow > prazoEdicao)
             {
-                _logger.LogWarning("Tentativa de registrar presença para aluno inexistente: {AlunoId}", registroDto.AlunoId);
-                continue;
+                throw new DomainException(
+                    $"A chamada do dia {dataHora:dd/MM/yyyy} não pode mais ser alterada. " +
+                    "O prazo de edição de 7 dias foi excedido.");
             }
 
-            // Atribui registro à Entidade Chamada
-            chamada.RegistrarPresenca(aluno.Id, registroDto.Status);
+            var registrosExistentes = chamadaExistente.RegistrosPresenca
+                .ToDictionary(r => r.AlunoId, r => r);
 
-            // Atualiza contadores na Entidade Aluno.
-            // O método RegistrarPresenca() delega para RegistrarFalta(), RegistrarAtraso() etc.,
-            // que internamente chamam VerificarLimiteFaltas() e VerificarLimiteAtrasos().
-            // O Domínio é auto-suficiente — não é preciso chamar VerificarLimiteFaltas() aqui.
-            aluno.RegistrarPresenca(registroDto.Status, chamada.DataHora.UtcDateTime);
+            var alunosAfetados = new HashSet<Guid>();
 
-            if (aluno.DomainEvents.Count > 0)
+            foreach (var registroDto in request.Alunos)
             {
-                alertasGerados++;
+                if (!alunosDb.TryGetValue(registroDto.AlunoId, out var aluno))
+                {
+                    _logger.LogWarning(
+                        "Tentativa de atualizar presença para aluno inexistente: {AlunoId}",
+                        registroDto.AlunoId);
+                    continue;
+                }
+
+                if (!registrosExistentes.TryGetValue(registroDto.AlunoId, out var registroExistente))
+                {
+                    _logger.LogWarning(
+                        "Aluno {AlunoId} não consta na chamada do dia {Data}. Não é permitido adicionar novos alunos em uma chamada existente.",
+                        registroDto.AlunoId, dataHora.Date);
+                    continue;
+                }
+
+                if (registroExistente.Status != registroDto.Status)
+                {
+                    registroExistente.AlterarStatus(registroDto.Status);
+                    alunosAfetados.Add(aluno.Id);
+                }
             }
+
+            // Recalcula estatísticas dos alunos que tiveram o status alterado
+            if (alunosAfetados.Count > 0)
+            {
+                await RecalcularEstatisticasDosAlunos(alunosAfetados, cancellationToken);
+
+                // Conta alertas gerados pela recalculagem (antes do SaveChanges limpar os eventos)
+                foreach (var alunoId in alunosAfetados)
+                {
+                    if (alunosDb.TryGetValue(alunoId, out var aluno) && aluno.DomainEvents.Count > 0)
+                    {
+                        alertasGerados++;
+                    }
+                }
+            }
+
+            chamadaFoiAtualizada = alunosAfetados.Count > 0;
+
+            _logger.LogInformation(
+                "[AUDITORIA] Chamada atualizada — ChamadaId={ChamadaId} TurmaId={TurmaId} Data={Data} AlunosAfetados={AlunosAfetados} AlertasGerados={Alertas}",
+                chamadaExistente.Id, request.TurmaId, dataHora.Date, alunosAfetados.Count, alertasGerados);
+        }
+        else
+        {
+            // ── Criação de nova chamada ─────────────────────────────────────────
+            var chamada = new Chamada(
+                id: Guid.NewGuid(),
+                dataHora: dataHora,
+                turmaId: request.TurmaId,
+                responsavelId: responsavelIdSeguro
+            );
+
+            _context.Chamadas.Add(chamada);
+
+            foreach (var registroDto in request.Alunos)
+            {
+                if (!alunosDb.TryGetValue(registroDto.AlunoId, out var aluno))
+                {
+                    _logger.LogWarning(
+                        "Tentativa de registrar presença para aluno inexistente: {AlunoId}",
+                        registroDto.AlunoId);
+                    continue;
+                }
+
+                // Atribui registro à Entidade Chamada
+                chamada.RegistrarPresenca(aluno.Id, registroDto.Status);
+
+                // Atualiza contadores na Entidade Aluno.
+                aluno.RegistrarPresenca(registroDto.Status, chamada.DataHora.UtcDateTime);
+
+                if (aluno.DomainEvents.Count > 0)
+                {
+                    alertasGerados++;
+                }
+            }
+
+            _logger.LogInformation(
+                "[AUDITORIA] Chamada realizada — TurmaId={TurmaId} Responsavel={ResponsavelId} Data={Data} TotalAlunos={Total} AlertasGerados={Alertas}",
+                request.TurmaId, responsavelIdSeguro, dataHora.Date, request.Alunos.Count, alertasGerados);
+
+            // 5. Salva Tudo Atomicamente
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return new RealizarChamadaResult(chamada.Id, alertasGerados);
         }
 
-        // 5. Salva Tudo Atomicamente
+        // 5. Salva Tudo Atomicamente (atualização)
         await _context.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation(
-            "[AUDITORIA] Chamada realizada — TurmaId={TurmaId} Responsavel={ResponsavelId} TotalAlunos={Total} AlertasGerados={Alertas}",
-            request.TurmaId, responsavelIdSeguro, request.Alunos.Count, alertasGerados);
+        return new RealizarChamadaResult(
+            chamadaExistente!.Id,
+            alertasGerados,
+            ChamadaExistenteAtualizada: chamadaFoiAtualizada);
+    }
 
-        return new RealizarChamadaResult(chamada.Id, alertasGerados);
+    private async Task RecalcularEstatisticasDosAlunos(
+        HashSet<Guid> alunosIds,
+        CancellationToken cancellationToken)
+    {
+        if (alunosIds.Count == 0) return;
+
+        var registros = await _context.RegistrosPresenca
+            .Include(r => r.Chamada)
+            .Where(r => alunosIds.Contains(r.AlunoId))
+            .ToListAsync(cancellationToken);
+
+        var registrosPorAluno = registros
+            .GroupBy(r => r.AlunoId)
+            .ToDictionary(g => g.Key, g => g.AsEnumerable());
+
+        var alunos = await _context.Alunos
+            .Where(a => alunosIds.Contains(a.Id))
+            .ToDictionaryAsync(a => a.Id, cancellationToken);
+
+        foreach (var alunoId in alunosIds)
+        {
+            if (!alunos.TryGetValue(alunoId, out var aluno))
+                continue;
+
+            var historico = registrosPorAluno.TryGetValue(alunoId, out var regs)
+                ? regs
+                : Enumerable.Empty<RegistroPresenca>();
+
+            aluno.RecalcularEstatisticas(historico);
+        }
     }
 }

@@ -16,11 +16,15 @@ namespace EscolaAtenta.Application.Chamadas.Handlers;
 /// Fluxo Created:
 /// 1. Converte Data (Unix ms) → DateTimeOffset UTC.
 /// 2. Agrupa por (TurmaId + Dia) → uma Chamada por turma por dia.
-/// 3. Adiciona RegistroPresenca via domínio + atualiza contadores do Aluno.
+/// 3. Se já existir Chamada para o dia:
+///    - Dentro de 7 dias da criação: atualiza os status dos RegistroPresenca existentes.
+///    - Fora de 7 dias: ignora o grupo (log warning).
+/// 4. Se não existir: cria nova Chamada e adiciona os registros.
 ///
 /// Fluxo Updated:
-/// 1. Localiza o RegistroPresenca no PostgreSQL via SyncLog (IdExterno → EntidadeId).
-/// 2. Aplica AlterarStatus() com o novo status vindo do celular.
+/// 1. Localiza o RegistroPresenca no banco via SyncLog (IdExterno → EntidadeId).
+/// 2. Verifica se a Chamada pai ainda está dentro do prazo de 7 dias.
+/// 3. Se dentro: aplica AlterarStatus(). Se fora: ignora.
 ///
 /// Transação única: um SaveChangesAsync() no final processa tudo atomicamente.
 /// </summary>
@@ -61,6 +65,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
         int totalSincronizados = 0;
         int alertasGerados = 0;
+        var alunosAfetados = new HashSet<Guid>();
 
         await _lockProvider.WaitAsync(cancellationToken);
         try
@@ -69,8 +74,6 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             if (turmasCriadas.Count > 0)
             {
                 totalSincronizados += await ProcessarTurmasCriadas(turmasCriadas, cancellationToken);
-                // Persiste turmas e SyncLogs antes de processar alunos,
-                // para que o lookup por IdExterno no SyncLog funcione corretamente.
                 await _context.SaveChangesAsync(cancellationToken);
             }
 
@@ -78,23 +81,43 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             if (alunosCriados.Count > 0)
             {
                 totalSincronizados += await ProcessarAlunosCriados(alunosCriados, cancellationToken);
-                // Persiste alunos e SyncLogs antes de processar presenças,
-                // para que o lookup por IdExterno no SyncLog funcione corretamente.
                 await _context.SaveChangesAsync(cancellationToken);
             }
 
             // ── CREATED ──────────────────────────────────────────────────────────
             if (created.Count > 0)
             {
-                var (criados, alertas) = await ProcessarCreated(created, responsavelId, cancellationToken);
+                var (criados, alertas, afetados) = await ProcessarCreated(created, responsavelId, cancellationToken);
                 totalSincronizados += criados;
                 alertasGerados += alertas;
+                foreach (var id in afetados) alunosAfetados.Add(id);
             }
 
             // ── UPDATED ──────────────────────────────────────────────────────────
             if (updated.Count > 0)
             {
-                totalSincronizados += await ProcessarUpdated(updated, cancellationToken);
+                var (atualizados, afetados) = await ProcessarUpdated(updated, cancellationToken);
+                totalSincronizados += atualizados;
+                foreach (var id in afetados) alunosAfetados.Add(id);
+            }
+
+            // ── Recálculo de estatísticas dos alunos afetados ────────────────────
+            if (alunosAfetados.Count > 0)
+            {
+                await RecalcularEstatisticasDosAlunos(alunosAfetados, cancellationToken);
+
+                // Conta alertas gerados pela recalculagem (antes do SaveChanges limpar os eventos)
+                var alunosDb = await _context.Alunos
+                    .Where(a => alunosAfetados.Contains(a.Id))
+                    .ToDictionaryAsync(a => a.Id, cancellationToken);
+
+                foreach (var alunoId in alunosAfetados)
+                {
+                    if (alunosDb.TryGetValue(alunoId, out var aluno) && aluno.DomainEvents.Count > 0)
+                    {
+                        alertasGerados++;
+                    }
+                }
             }
 
             // ── Persistência atômica (domain events despachados no SaveChanges) ──
@@ -120,7 +143,6 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         List<TurmaOfflineSyncDto> turmas,
         CancellationToken ct)
     {
-        // Idempotência: ignorar turmas já sincronizadas
         var idsExternos = turmas.Select(t => t.Id).ToList();
         var idsJaSincronizados = await _context.SyncLogs
             .Where(s => idsExternos.Contains(s.IdExterno))
@@ -160,12 +182,11 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
     // CREATED: Novos registros de presença gerados offline
     // ═════════════════════════════════════════════════════════════════════════
 
-    private async Task<(int Criados, int Alertas)> ProcessarCreated(
+    private async Task<(int Criados, int Alertas, HashSet<Guid> Afetados)> ProcessarCreated(
         List<RegistroPresencaSyncDto> registros,
         Guid responsavelId,
         CancellationToken ct)
     {
-        // 1. Idempotência: filtrar IDs já sincronizados
         var idsExternos = registros.Select(r => r.Id).ToList();
         var idsJaSincronizados = await _context.SyncLogs
             .Where(s => idsExternos.Contains(s.IdExterno))
@@ -177,10 +198,8 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             .ToList();
 
         if (registrosNovos.Count == 0)
-            return (0, 0);
+            return (0, 0, []);
 
-        // 2. Resolver IDs externos (WatermelonDB local) → GUIDs reais via SyncLog
-        //    AlunoId e TurmaId podem ser IDs locais (ex: "NnshRE3qD8uI4cdW") ou GUIDs reais.
         var todosIdsExternos = registrosNovos
             .SelectMany(r => new[] { r.AlunoId, r.TurmaId })
             .Where(id => !Guid.TryParse(id, out _))
@@ -199,7 +218,6 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             return syncLogMap.TryGetValue(id, out var resolved) ? resolved : Guid.Empty;
         }
 
-        // 3. Agrupar por (TurmaId resolvido + Dia) → uma Chamada por turma por dia
         var grupos = registrosNovos
             .GroupBy(r => new
             {
@@ -208,14 +226,12 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             })
             .ToList();
 
-        // 4. Validar turmas existentes
         var turmaGuids = grupos.Select(g => g.Key.TurmaGuid).Where(g => g != Guid.Empty).Distinct().ToList();
         var turmasExistentes = await _context.Turmas
             .Where(t => turmaGuids.Contains(t.Id))
             .Select(t => t.Id)
             .ToHashSetAsync(ct);
 
-        // 5. Carregar alunos necessários (para atualizar contadores)
         var todosAlunoGuids = registrosNovos
             .Select(r => ResolveGuid(r.AlunoId))
             .Where(g => g != Guid.Empty)
@@ -225,8 +241,21 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             .Where(a => todosAlunoGuids.Contains(a.Id))
             .ToDictionaryAsync(a => a.Id, ct);
 
+        // Carrega chamadas existentes para os grupos (turma + dia)
+        // Filtragem por data é feita em memória para compatibilidade com SQLite/DateTimeOffset.
+        var chamadasExistentes = await _context.Chamadas
+            .Include(c => c.RegistrosPresenca)
+            .Where(c => turmaGuids.Contains(c.TurmaId))
+            .ToListAsync(ct);
+
+        var datasDosGrupos = grupos.Select(g => g.Key.Dia).ToHashSet();
+        var chamadasPorChave = chamadasExistentes
+            .Where(c => datasDosGrupos.Contains(c.DataHora.Date))
+            .ToDictionary(c => (c.TurmaId, c.DataHora.Date), c => c);
+
         int criados = 0;
         int alertas = 0;
+        var afetados = new HashSet<Guid>();
 
         foreach (var grupo in grupos)
         {
@@ -237,79 +266,130 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 continue;
             }
 
-            // Converte o timestamp do primeiro registro do grupo para a DataHora da Chamada
-            var primeiroTimestamp = grupo.Min(r => r.Data);
-            var dataHoraChamada = ConvertTimestamp(primeiroTimestamp);
+            var dataHoraChamada = ConvertTimestamp(grupo.Min(r => r.Data));
+            var chave = (grupo.Key.TurmaGuid, grupo.Key.Dia);
 
-            // Cria a Chamada via domínio (preserva invariantes de duplicidade)
-            var chamada = new Chamada(
-                id: Guid.NewGuid(),
-                dataHora: dataHoraChamada,
-                turmaId: grupo.Key.TurmaGuid,
-                responsavelId: responsavelId
-            );
-
-            _context.Chamadas.Add(chamada);
-
-            foreach (var dto in grupo)
+            if (chamadasPorChave.TryGetValue(chave, out var chamadaExistente))
             {
-                var alunoGuid = ResolveGuid(dto.AlunoId);
-                if (alunoGuid == Guid.Empty || !alunosDb.TryGetValue(alunoGuid, out var aluno))
+                // ── Chamada já existe: atualiza status dos alunos existentes ─────
+                var prazoEdicao = chamadaExistente.DataCriacao.AddDays(7);
+                if (DateTimeOffset.UtcNow > prazoEdicao)
                 {
-                    _logger.LogWarning("[SYNC] Aluno '{AlunoId}' não encontrado. Registro ignorado.", dto.AlunoId);
+                    _logger.LogWarning(
+                        "[SYNC] Chamada do dia {Data} para turma {TurmaId} ultrapassou o prazo de 7 dias. Ignorando {Count} registros.",
+                        grupo.Key.Dia, grupo.Key.TurmaGuid, grupo.Count());
                     continue;
                 }
 
-                var status = ParseStatus(dto.Status);
+                var registrosPorAluno = chamadaExistente.RegistrosPresenca
+                    .ToDictionary(r => r.AlunoId, r => r);
 
-                // Registra na Chamada → cria o RegistroPresenca via domínio
-                var registro = chamada.RegistrarPresenca(aluno.Id, status);
-
-                // Atualiza contadores do aluno (dispara domain events se threshold atingido)
-                var dataPresenca = ConvertTimestamp(dto.Data).UtcDateTime;
-                aluno.RegistrarPresenca(status, dataPresenca);
-
-                if (aluno.DomainEvents.Count > 0)
-                    alertas++;
-
-                // Registra mapeamento WatermelonDB ID → PostgreSQL ID para futuros Updates
-                _context.SyncLogs.Add(new SyncLog
+                foreach (var dto in grupo)
                 {
-                    Id = Guid.NewGuid(),
-                    IdExterno = dto.Id,
-                    EntidadeId = registro.Id,
-                    TabelaOrigem = "registros_presenca",
-                    SincronizadoEm = DateTimeOffset.UtcNow
-                });
+                    var alunoGuid = ResolveGuid(dto.AlunoId);
+                    if (alunoGuid == Guid.Empty || !alunosDb.TryGetValue(alunoGuid, out var aluno))
+                    {
+                        _logger.LogWarning("[SYNC] Aluno '{AlunoId}' não encontrado. Registro ignorado.", dto.AlunoId);
+                        continue;
+                    }
 
-                criados++;
+                    if (!registrosPorAluno.TryGetValue(alunoGuid, out var registroExistente))
+                    {
+                        _logger.LogWarning(
+                            "[SYNC] Aluno {AlunoId} não consta na chamada do dia {Data}. Não é permitido adicionar novos alunos.",
+                            alunoGuid, grupo.Key.Dia);
+                        continue;
+                    }
+
+                    var status = ParseStatus(dto.Status);
+                    if (registroExistente.Status == status)
+                        continue;
+
+                    registroExistente.AlterarStatus(status);
+                    afetados.Add(alunoGuid);
+
+                    // Mapeia o novo IdExterno local para o RegistroPresenca já existente
+                    _context.SyncLogs.Add(new SyncLog
+                    {
+                        Id = Guid.NewGuid(),
+                        IdExterno = dto.Id,
+                        EntidadeId = registroExistente.Id,
+                        TabelaOrigem = "registros_presenca",
+                        SincronizadoEm = DateTimeOffset.UtcNow
+                    });
+
+                    criados++;
+                }
+            }
+            else
+            {
+                // ── Nova chamada ────────────────────────────────────────────────
+                var chamada = new Chamada(
+                    id: Guid.NewGuid(),
+                    dataHora: dataHoraChamada,
+                    turmaId: grupo.Key.TurmaGuid,
+                    responsavelId: responsavelId
+                );
+
+                _context.Chamadas.Add(chamada);
+
+                foreach (var dto in grupo)
+                {
+                    var alunoGuid = ResolveGuid(dto.AlunoId);
+                    if (alunoGuid == Guid.Empty || !alunosDb.TryGetValue(alunoGuid, out var aluno))
+                    {
+                        _logger.LogWarning("[SYNC] Aluno '{AlunoId}' não encontrado. Registro ignorado.", dto.AlunoId);
+                        continue;
+                    }
+
+                    var status = ParseStatus(dto.Status);
+
+                    var registro = chamada.RegistrarPresenca(aluno.Id, status);
+
+                    var dataPresenca = ConvertTimestamp(dto.Data).UtcDateTime;
+                    aluno.RegistrarPresenca(status, dataPresenca);
+
+                    if (aluno.DomainEvents.Count > 0)
+                        alertas++;
+
+                    _context.SyncLogs.Add(new SyncLog
+                    {
+                        Id = Guid.NewGuid(),
+                        IdExterno = dto.Id,
+                        EntidadeId = registro.Id,
+                        TabelaOrigem = "registros_presenca",
+                        SincronizadoEm = DateTimeOffset.UtcNow
+                    });
+
+                    criados++;
+                }
             }
         }
 
-        return (criados, alertas);
+        return (criados, alertas, afetados);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
     // UPDATED: Registros com status corrigido offline após sync anterior
     // ═════════════════════════════════════════════════════════════════════════
 
-    private async Task<int> ProcessarUpdated(
+    private async Task<(int Atualizados, HashSet<Guid> Afetados)> ProcessarUpdated(
         List<RegistroPresencaSyncDto> registros,
         CancellationToken ct)
     {
-        // 1. Busca os mapeamentos IdExterno → EntidadeId (PostgreSQL)
         var idsExternos = registros.Select(r => r.Id).ToList();
         var mapeamentos = await _context.SyncLogs
             .Where(s => idsExternos.Contains(s.IdExterno))
             .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, ct);
 
-        // 2. Carrega os RegistroPresenca do PostgreSQL para atualizar
         var entidadeIds = mapeamentos.Values.ToList();
         var registrosDb = await _context.RegistrosPresenca
+            .Include(r => r.Chamada)
             .Where(rp => entidadeIds.Contains(rp.Id))
             .ToDictionaryAsync(rp => rp.Id, ct);
 
         int atualizados = 0;
+        var afetados = new HashSet<Guid>();
 
         foreach (var dto in registros)
         {
@@ -331,20 +411,32 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
             var novoStatus = ParseStatus(dto.Status);
 
-            // Atualiza via método de domínio (valida transição de status)
+            // Verifica prazo de 7 dias da Chamada pai
+            var prazoEdicao = registroPresenca.Chamada.DataCriacao.AddDays(7);
+            if (DateTimeOffset.UtcNow > prazoEdicao)
+            {
+                _logger.LogWarning(
+                    "[SYNC-UPDATE] Chamada {ChamadaId} do dia {Data} ultrapassou o prazo de 7 dias. Ignorando atualização do aluno {AlunoId}.",
+                    registroPresenca.Chamada.Id, registroPresenca.Chamada.DataHora.Date, registroPresenca.AlunoId);
+                continue;
+            }
+
             try
             {
-                registroPresenca.AlterarStatus(novoStatus);
-                atualizados++;
+                if (registroPresenca.Status != novoStatus)
+                {
+                    registroPresenca.AlterarStatus(novoStatus);
+                    afetados.Add(registroPresenca.AlunoId);
+                    atualizados++;
+                }
             }
             catch (DomainException ex)
             {
-                // Status já é o mesmo — não é erro, apenas skip
                 _logger.LogDebug("[SYNC-UPDATE] Skip: {Mensagem}", ex.Message);
             }
         }
 
-        return atualizados;
+        return (atualizados, afetados);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -355,7 +447,6 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         List<AlunoOfflineSyncDto> alunos,
         CancellationToken ct)
     {
-        // Idempotência: ignorar alunos já sincronizados
         var idsExternos = alunos.Select(a => a.Id).ToList();
         var idsJaSincronizados = await _context.SyncLogs
             .Where(s => idsExternos.Contains(s.IdExterno))
@@ -365,7 +456,6 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         var novos = alunos.Where(a => !idsJaSincronizados.Contains(a.Id)).ToList();
         if (novos.Count == 0) return 0;
 
-        // Pré-carrega SyncLogs de turmas locais (IDs que não são Guid) — evita N+1
         var turmaIdsLocais = novos
             .Where(a => !Guid.TryParse(a.TurmaId, out _))
             .Select(a => a.TurmaId)
@@ -378,7 +468,6 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, ct)
             : new Dictionary<string, Guid>();
 
-        // Coleta todos os turmaGuids candidatos para validar existência em batch
         var turmaGuidsCandidatos = new HashSet<Guid>();
         foreach (var dto in novos)
         {
@@ -399,7 +488,6 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
         foreach (var dto in novos)
         {
-            // TurmaId pode ser um Guid real (sync'd) ou um ID local (WatermelonDB)
             Guid turmaGuid;
             if (!Guid.TryParse(dto.TurmaId, out turmaGuid))
             {
@@ -439,10 +527,38 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
     // Helpers
     // ═════════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Converte Unix Timestamp em milissegundos (SQLite/WatermelonDB) → DateTimeOffset UTC.
-    /// Exemplo: 1709654400000 → 2024-03-05T16:00:00+00:00
-    /// </summary>
+    private async Task RecalcularEstatisticasDosAlunos(
+        HashSet<Guid> alunosIds,
+        CancellationToken cancellationToken)
+    {
+        if (alunosIds.Count == 0) return;
+
+        var registros = await _context.RegistrosPresenca
+            .Include(r => r.Chamada)
+            .Where(r => alunosIds.Contains(r.AlunoId))
+            .ToListAsync(cancellationToken);
+
+        var registrosPorAluno = registros
+            .GroupBy(r => r.AlunoId)
+            .ToDictionary(g => g.Key, g => g.AsEnumerable());
+
+        var alunos = await _context.Alunos
+            .Where(a => alunosIds.Contains(a.Id))
+            .ToDictionaryAsync(a => a.Id, cancellationToken);
+
+        foreach (var alunoId in alunosIds)
+        {
+            if (!alunos.TryGetValue(alunoId, out var aluno))
+                continue;
+
+            var historico = registrosPorAluno.TryGetValue(alunoId, out var regs)
+                ? regs
+                : Enumerable.Empty<RegistroPresenca>();
+
+            aluno.RecalcularEstatisticas(historico);
+        }
+    }
+
     private static DateTimeOffset ConvertTimestamp(long unixMilliseconds)
         => DateTimeOffset.FromUnixTimeMilliseconds(unixMilliseconds);
 

@@ -175,6 +175,36 @@ public class Aluno : EntityBase, ISoftDeletable
         }
     }
 
+    /// <summary>
+    /// Recalcula todas as estatísticas do aluno a partir do histórico de presenças.
+    /// Usado quando uma chamada é corrigida, garantindo consistência dos contadores.
+    /// </summary>
+    public void RecalcularEstatisticas(IEnumerable<RegistroPresenca> historico)
+    {
+        if (historico == null)
+            throw new DomainException("O histórico de presenças não pode ser nulo.");
+
+        var ordenado = historico
+            .Where(r => r.Chamada != null)
+            .OrderBy(r => r.Chamada.DataHora)
+            .ToList();
+
+        // Reseta os contadores para recomputar do zero
+        TotalFaltas = 0;
+        FaltasConsecutivasAtuais = 0;
+        FaltasNoTrimestre = 0;
+        AtrasosNoTrimestre = 0;
+
+        // Define o início do trimestre como a data da primeira presença,
+        // mantendo o comportamento de janela de 90 dias a partir do histórico.
+        DataInicioTrimestre = ordenado.FirstOrDefault()?.Chamada.DataHora.UtcDateTime ?? DateTime.UtcNow;
+
+        foreach (var registro in ordenado)
+        {
+            RegistrarPresenca(registro.Status, registro.Chamada.DataHora.UtcDateTime);
+        }
+    }
+
     public void VerificarLimiteFaltas()
     {
         // Conforme a nova regra, gerar alertas com severidades crescentes:
