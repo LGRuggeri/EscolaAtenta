@@ -233,6 +233,33 @@ public class Aluno : EntityBase, ISoftDeletable
         VerificarLimiteAtrasos();
     }
 
+    /// <summary>
+    /// Emite eventos de normalização para alertas pendentes quando os contadores
+    /// do aluno caem abaixo dos limiares após recálculo do histórico.
+    /// </summary>
+    public void ReconciliarAlertasPendentes()
+    {
+        if (FaltasConsecutivasAtuais == 0)
+        {
+            AddDomainEvent(new FaltasConsecutivasNormalizadasEvent(
+                AlunoId: Id,
+                TurmaId: TurmaId,
+                NomeAluno: Nome,
+                FaltasConsecutivasAtuais: FaltasConsecutivasAtuais
+            ));
+        }
+
+        if (AtrasosNoTrimestre < 3)
+        {
+            AddDomainEvent(new AtrasosTrimestreNormalizadosEvent(
+                AlunoId: Id,
+                TurmaId: TurmaId,
+                NomeAluno: Nome,
+                AtrasosNoTrimestre: AtrasosNoTrimestre
+            ));
+        }
+    }
+
     public void VerificarLimiteFaltas()
     {
         // Conforme a nova regra, gerar alertas com severidades crescentes:

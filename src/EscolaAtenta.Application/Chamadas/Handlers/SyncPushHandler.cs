@@ -668,7 +668,18 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 ? regs
                 : Enumerable.Empty<RegistroPresenca>();
 
+            var faltasConsecutivasAntes = aluno.FaltasConsecutivasAtuais;
+            var atrasosTrimestreAntes = aluno.AtrasosNoTrimestre;
+
             aluno.RecalcularEstatisticas(historico);
+
+            // Reconcilia alertas pendentes quando a correção faz os contadores
+            // caírem abaixo dos limiares configurados.
+            if ((faltasConsecutivasAntes >= 1 && aluno.FaltasConsecutivasAtuais == 0) ||
+                (atrasosTrimestreAntes >= 3 && aluno.AtrasosNoTrimestre < 3))
+            {
+                aluno.ReconciliarAlertasPendentes();
+            }
         }
     }
 

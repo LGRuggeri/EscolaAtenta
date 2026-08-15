@@ -451,4 +451,96 @@ public class AlunoTests
         evento.Nivel.Should().Be(NivelAlertaFalta.Intermediario);
         evento.TotalAtrasos.Should().Be(6);
     }
+
+    [Fact]
+    public void ReconciliarAlertasPendentes_AposCorrecaoDeFaltas_DeveEmitirEventoDeNormalizacaoDeFaltas()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        // Simula histórico anterior com 3 faltas que geraram alerta Vermelho
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data.AddDays(-3));
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data.AddDays(-2));
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data.AddDays(-1));
+        aluno.ClearDomainEvents();
+
+        // Agora recalcula considerando apenas presenças (correção do histórico)
+        var registros = new List<RegistroPresenca>();
+        for (int i = 0; i < 3; i++)
+        {
+            var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(i - 3)), TurmaId, Guid.NewGuid());
+            registros.Add(chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Presente));
+        }
+
+        // Act
+        aluno.RecalcularEstatisticas(registros);
+        aluno.ReconciliarAlertasPendentes();
+
+        // Assert: deve emitir o evento de normalização de faltas consecutivas
+        aluno.DomainEvents.Should().ContainSingle(e => e is FaltasConsecutivasNormalizadasEvent);
+        var evento = aluno.DomainEvents.OfType<FaltasConsecutivasNormalizadasEvent>().Single();
+        evento.AlunoId.Should().Be(AlunoId);
+        evento.FaltasConsecutivasAtuais.Should().Be(0);
+    }
+
+    [Fact]
+    public void ReconciliarAlertasPendentes_AposCorrecaoDeAtrasos_DeveEmitirEventoDeNormalizacaoDeAtrasos()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        // Simula histórico anterior com 6 atrasos que geraram alerta Intermediário
+        for (int i = 0; i < 6; i++)
+            aluno.RegistrarPresenca(StatusPresenca.Atraso, data.AddDays(i - 6));
+        aluno.ClearDomainEvents();
+
+        // Agora recalcula considerando apenas presenças (correção do histórico)
+        var registros = new List<RegistroPresenca>();
+        for (int i = 0; i < 6; i++)
+        {
+            var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(i - 6)), TurmaId, Guid.NewGuid());
+            registros.Add(chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Presente));
+        }
+
+        // Act
+        aluno.RecalcularEstatisticas(registros);
+        aluno.ReconciliarAlertasPendentes();
+
+        // Assert: deve emitir o evento de normalização de atrasos
+        aluno.DomainEvents.Should().ContainSingle(e => e is AtrasosTrimestreNormalizadosEvent);
+        var evento = aluno.DomainEvents.OfType<AtrasosTrimestreNormalizadosEvent>().Single();
+        evento.AlunoId.Should().Be(AlunoId);
+        evento.AtrasosNoTrimestre.Should().Be(0);
+    }
+
+    [Fact]
+    public void ReconciliarAlertasPendentes_QuandoContadoresAindaAcimaDosLimiares_NaoDeveEmitirEventos()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        var registros = new List<RegistroPresenca>();
+        for (int i = 0; i < 3; i++)
+        {
+            var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(i)), TurmaId, Guid.NewGuid());
+            registros.Add(chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Falta));
+        }
+        for (int i = 0; i < 3; i++)
+        {
+            var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(i + 4)), TurmaId, Guid.NewGuid());
+            registros.Add(chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Atraso));
+        }
+
+        aluno.RecalcularEstatisticas(registros);
+        aluno.ClearDomainEvents();
+
+        // Act
+        aluno.ReconciliarAlertasPendentes();
+
+        // Assert: não deve emitir eventos de normalização pois ainda há 3 faltas consecutivas e 3 atrasos
+        aluno.DomainEvents.Should().BeEmpty();
+    }
 }

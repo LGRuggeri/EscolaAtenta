@@ -139,4 +139,23 @@ public class AlertaEvasao : EntityBase
         JustificativaResolucao = justificativa;
         ResolvidoPorId = usuarioId;
     }
+
+    /// <summary>
+    /// Resolve o alerta automaticamente quando uma correção de presença
+    /// faz os contadores do aluno caírem abaixo dos limiares configurados.
+    /// </summary>
+    public void ResolverAutomaticamente(string justificativa)
+    {
+        if (Resolvido)
+            throw new DomainException("Este alerta já foi resolvido.");
+
+        if (string.IsNullOrWhiteSpace(justificativa))
+            throw new DomainException("A observação de resolução é obrigatória.");
+
+        Resolvido = true;
+        DataResolucao = DateTimeOffset.UtcNow;
+        ObservacaoResolucao = justificativa;
+        JustificativaResolucao = justificativa;
+        // ResolvidoPorId permanece nulo para resoluções automáticas do domínio.
+    }
 }

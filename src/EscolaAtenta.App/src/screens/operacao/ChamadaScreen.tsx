@@ -555,13 +555,11 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                     style={styles.dataInput}
                     keyboardType="numeric"
                     placeholder="DD/MM/AAAA"
-                    disabled={somenteLeitura}
                 />
                 <Button
                     mode="outlined"
                     onPress={handleHoje}
                     style={styles.hojeButton}
-                    disabled={somenteLeitura}
                 >
                     Hoje
                 </Button>
