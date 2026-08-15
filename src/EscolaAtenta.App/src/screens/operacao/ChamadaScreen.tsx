@@ -115,6 +115,8 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
 
                 try {
                     const chamadaServidor = await chamadasService.obterChamadaPorDia(turmaId, dataSelecionada);
+                    if (cancelado) return;
+
                     if (chamadaServidor) {
                         // Sincroniza o status com o servidor (pode ter sido alterado por outro dispositivo)
                         aplicarStatusDoServidor(chamadaServidor);
@@ -123,6 +125,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                         return;
                     }
                 } catch (erroServidor) {
+                    if (cancelado) return;
                     console.error('[CHAMADA] Erro ao consultar prazo no servidor:', erroServidor);
                     // Offline: confia no registro local e permite edição.
                 }

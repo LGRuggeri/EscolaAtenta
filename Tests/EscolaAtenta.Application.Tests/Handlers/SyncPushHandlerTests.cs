@@ -902,4 +902,67 @@ public class SyncPushHandlerTests : IDisposable
         resultado.RegistrosSincronizados.Should().Be(1);
         resultado.Rejeicoes.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Handle_TurmaEAlunoCriadosOfflineNoMesmoPush_DeveSincronizarCadeia()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+
+        var dataMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var turmaLocalId = "turma-local-abc";
+        var alunoLocalId = "aluno-local-xyz";
+
+        var pushCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                Turmas = new SyncTableData<TurmaOfflineSyncDto>
+                {
+                    Created = [new TurmaOfflineSyncDto
+                    {
+                        Id = turmaLocalId,
+                        Nome = "Turma Offline",
+                        Turno = "Manhã",
+                        AnoLetivo = 2026
+                    }]
+                },
+                Alunos = new SyncTableData<AlunoOfflineSyncDto>
+                {
+                    Created = [new AlunoOfflineSyncDto
+                    {
+                        Id = alunoLocalId,
+                        Nome = "Aluno Offline",
+                        TurmaId = turmaLocalId
+                    }]
+                },
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-presenca-local",
+                        AlunoId = alunoLocalId,
+                        TurmaId = turmaLocalId,
+                        Data = dataMs,
+                        Status = "Presente"
+                    }]
+                }
+            },
+            dataMs);
+
+        var resultado = await CriarHandler(ctx, user).Handle(pushCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().BeGreaterThanOrEqualTo(3, "turma + aluno + presença devem ser sincronizados");
+        resultado.Rejeicoes.Should().BeEmpty();
+
+        var turmaSincronizada = await ctx.Turmas.FirstOrDefaultAsync(t => t.Nome == "Turma Offline");
+        turmaSincronizada.Should().NotBeNull();
+
+        var alunoSincronizado = await ctx.Alunos.FirstOrDefaultAsync(a => a.Nome == "Aluno Offline");
+        alunoSincronizado.Should().NotBeNull();
+        alunoSincronizado!.TurmaId.Should().Be(turmaSincronizada!.Id);
+
+        var chamada = await ctx.Chamadas.FirstOrDefaultAsync(c => c.TurmaId == turmaSincronizada.Id);
+        chamada.Should().NotBeNull();
+        chamada!.RegistrosPresenca.Should().ContainSingle(r => r.AlunoId == alunoSincronizado.Id);
+    }
 }

@@ -79,12 +79,14 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             if (turmasCriadas.Count > 0)
             {
                 totalSincronizados += await ProcessarTurmasCriadas(turmasCriadas, cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken);
             }
 
             // ── ALUNOS CRIADOS OFFLINE ────────────────────────────────────────────
             if (alunosCriados.Count > 0)
             {
                 totalSincronizados += await ProcessarAlunosCriados(alunosCriados, cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken);
             }
 
             // ── CREATED ──────────────────────────────────────────────────────────
