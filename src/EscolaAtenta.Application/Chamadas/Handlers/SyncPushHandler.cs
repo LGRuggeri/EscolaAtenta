@@ -55,7 +55,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         var updated = request.Changes.RegistrosPresenca.Updated;
 
         if (turmasCriadas.Count == 0 && alunosCriados.Count == 0 && created.Count == 0 && updated.Count == 0)
-            return new SyncPushResult(0, 0);
+            return new SyncPushResult(0, 0, []);
 
         // ── Segurança: Responsável extraído do JWT, nunca do cliente ─────────
         var responsavelId = _currentUser.EstaAutenticado
@@ -66,6 +66,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         int totalSincronizados = 0;
         int alertasGerados = 0;
         var alunosAfetados = new HashSet<Guid>();
+        var rejeicoes = new List<SyncRejeicao>();
 
         await _lockProvider.WaitAsync(cancellationToken);
         try
@@ -87,7 +88,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             // ── CREATED ──────────────────────────────────────────────────────────
             if (created.Count > 0)
             {
-                var (criados, alertas, afetados) = await ProcessarCreated(created, responsavelId, cancellationToken);
+                var (criados, alertas, afetados) = await ProcessarCreated(created, responsavelId, rejeicoes, cancellationToken);
                 totalSincronizados += criados;
                 alertasGerados += alertas;
                 foreach (var id in afetados) alunosAfetados.Add(id);
@@ -96,7 +97,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             // ── UPDATED ──────────────────────────────────────────────────────────
             if (updated.Count > 0)
             {
-                var (atualizados, afetados) = await ProcessarUpdated(updated, cancellationToken);
+                var (atualizados, afetados) = await ProcessarUpdated(updated, rejeicoes, cancellationToken);
                 totalSincronizados += atualizados;
                 foreach (var id in afetados) alunosAfetados.Add(id);
             }
@@ -129,10 +130,10 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         }
 
         _logger.LogInformation(
-            "[SYNC-PUSH] Concluído — Turmas={Turmas} Alunos={Alunos} Created={Created} Updated={Updated} Alertas={Alertas} Responsavel={User}",
-            turmasCriadas.Count, alunosCriados.Count, created.Count, updated.Count, alertasGerados, responsavelId);
+            "[SYNC-PUSH] Concluído — Turmas={Turmas} Alunos={Alunos} Created={Created} Updated={Updated} Alertas={Alertas} Rejeicoes={Rejeicoes} Responsavel={User}",
+            turmasCriadas.Count, alunosCriados.Count, created.Count, updated.Count, alertasGerados, rejeicoes.Count, responsavelId);
 
-        return new SyncPushResult(totalSincronizados, alertasGerados);
+        return new SyncPushResult(totalSincronizados, alertasGerados, rejeicoes);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -185,6 +186,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
     private async Task<(int Criados, int Alertas, HashSet<Guid> Afetados)> ProcessarCreated(
         List<RegistroPresencaSyncDto> registros,
         Guid responsavelId,
+        List<SyncRejeicao> rejeicoes,
         CancellationToken ct)
     {
         var idsExternos = registros.Select(r => r.Id).ToList();
@@ -281,6 +283,14 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                     _logger.LogWarning(
                         "[SYNC] Chamada do dia {Data} para turma {TurmaId} ultrapassou o prazo de 7 dias. Ignorando {Count} registros.",
                         grupo.Key.Dia, grupo.Key.TurmaGuid, grupo.Count());
+
+                    foreach (var dto in grupo)
+                    {
+                        rejeicoes.Add(new SyncRejeicao(
+                            dto.Id,
+                            $"Chamada do dia {grupo.Key.Dia:dd/MM/yyyy} ultrapassou o prazo de 7 dias para edição."));
+                    }
+
                     continue;
                 }
 
@@ -384,6 +394,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
     private async Task<(int Atualizados, HashSet<Guid> Afetados)> ProcessarUpdated(
         List<RegistroPresencaSyncDto> registros,
+        List<SyncRejeicao> rejeicoes,
         CancellationToken ct)
     {
         var idsExternos = registros.Select(r => r.Id).ToList();
@@ -427,6 +438,11 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 _logger.LogWarning(
                     "[SYNC-UPDATE] Chamada {ChamadaId} do dia {Data} ultrapassou o prazo de 7 dias. Ignorando atualização do aluno {AlunoId}.",
                     registroPresenca.Chamada.Id, registroPresenca.Chamada.DataHora.Date, registroPresenca.AlunoId);
+
+                rejeicoes.Add(new SyncRejeicao(
+                    dto.Id,
+                    $"Chamada do dia {registroPresenca.Chamada.DataHora.Date:dd/MM/yyyy} ultrapassou o prazo de 7 dias para edição."));
+
                 continue;
             }
 

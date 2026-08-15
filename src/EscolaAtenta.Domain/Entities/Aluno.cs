@@ -124,27 +124,40 @@ public class Aluno : EntityBase, ISoftDeletable
 
     public void RegistrarAtraso(DateTime dataAtual)
     {
+        RegistrarAtraso(dataAtual, dispararEventos: true);
+    }
+
+    private void RegistrarAtraso(DateTime dataAtual, bool dispararEventos)
+    {
         VerificarEReiniciarCicloTrimestral(dataAtual);
         AtrasosNoTrimestre++;
 
-        // O Domínio se auto-protege: reage à própria mutação imediatamente.
-        // Os Handlers não precisam mais injetar lógica de alerta para atrasos.
-        VerificarLimiteAtrasos();
+        if (dispararEventos)
+            VerificarLimiteAtrasos();
     }
 
     public void RegistrarFalta(DateTime dataAtual)
+    {
+        RegistrarFalta(dataAtual, dispararEventos: true);
+    }
+
+    private void RegistrarFalta(DateTime dataAtual, bool dispararEventos)
     {
         VerificarEReiniciarCicloTrimestral(dataAtual);
         FaltasNoTrimestre++;
         TotalFaltas++;
         FaltasConsecutivasAtuais++;
 
-        // O Dominício se auto-protege: reage à própria mutação imediatamente.
-        // Os Handlers não precisam mais chamar VerificarLimiteFaltas() explicitamente.
-        VerificarLimiteFaltas();
+        if (dispararEventos)
+            VerificarLimiteFaltas();
     }
 
     public void RegistrarPresenca(DateTime dataAtual)
+    {
+        RegistrarPresenca(dataAtual, dispararEventos: true);
+    }
+
+    private void RegistrarPresenca(DateTime dataAtual, bool dispararEventos)
     {
         VerificarEReiniciarCicloTrimestral(dataAtual);
         FaltasConsecutivasAtuais = 0; // Presença quebra a sequência de faltas
@@ -156,21 +169,26 @@ public class Aluno : EntityBase, ISoftDeletable
     /// </summary>
     public void RegistrarPresenca(StatusPresenca status, DateTime dataAtual)
     {
+        RegistrarPresenca(status, dataAtual, dispararEventos: true);
+    }
+
+    private void RegistrarPresenca(StatusPresenca status, DateTime dataAtual, bool dispararEventos)
+    {
         switch (status)
         {
             case StatusPresenca.Presente:
-                RegistrarPresenca(dataAtual);
+                RegistrarPresenca(dataAtual, dispararEventos);
                 break;
             case StatusPresenca.Falta:
             case StatusPresenca.Ausente:
-                RegistrarFalta(dataAtual);
+                RegistrarFalta(dataAtual, dispararEventos);
                 break;
             case StatusPresenca.FaltaJustificada:
-                RegistrarPresenca(dataAtual); // Falta justificada zera consecutivas
+                RegistrarPresenca(dataAtual, dispararEventos); // Falta justificada zera consecutivas
                 TotalFaltas++; // Mas conta no total histórico
                 break;
             case StatusPresenca.Atraso:
-                RegistrarAtraso(dataAtual);
+                RegistrarAtraso(dataAtual, dispararEventos);
                 break;
         }
     }
@@ -205,8 +223,14 @@ public class Aluno : EntityBase, ISoftDeletable
 
         foreach (var registro in ordenado)
         {
-            RegistrarPresenca(registro.Status, registro.Chamada.DataHora.UtcDateTime);
+            RegistrarPresenca(registro.Status, registro.Chamada.DataHora.UtcDateTime, dispararEventos: false);
         }
+
+        // Após reprocessar todo o histórico sem disparar eventos intermediários,
+        // avalia os contadores finais uma única vez para evitar múltiplos alertas
+        // para o mesmo aluno dentro de um mesmo batch.
+        VerificarLimiteFaltas();
+        VerificarLimiteAtrasos();
     }
 
     public void VerificarLimiteFaltas()

@@ -82,6 +82,7 @@ public class Chamada : EntityBase
                 $"O aluno '{alunoId}' já possui registro de presença nesta chamada.");
 
         var registro = new RegistroPresenca(Guid.NewGuid(), Id, alunoId, status);
+        registro.VincularChamada(this);
         _registrosPresenca.Add(registro);
 
         // Dispara evento para rastreabilidade e integração futura

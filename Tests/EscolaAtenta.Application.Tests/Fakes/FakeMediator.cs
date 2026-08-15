@@ -1,3 +1,4 @@
+using EscolaAtenta.Application.Chamadas.Commands;
 using MediatR;
 
 namespace EscolaAtenta.Application.Tests.Fakes;
@@ -8,7 +9,15 @@ namespace EscolaAtenta.Application.Tests.Fakes;
 public class FakeMediator : IMediator
 {
     public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
-        => Task.FromResult(default(TResponse)!);
+    {
+        if (typeof(TResponse) == typeof(SyncPushResult))
+        {
+            var resultado = new SyncPushResult(0, 0, []);
+            return Task.FromResult((TResponse)(object)resultado);
+        }
+
+        return Task.FromResult(default(TResponse)!);
+    }
 
     public Task Send<TRequest>(TRequest request, CancellationToken cancellationToken = default)
         where TRequest : IRequest

@@ -522,13 +522,15 @@ public class SyncPushHandlerTests : IDisposable
         var resultado = await CriarHandler(ctx, user).Handle(pushBloqueado, CancellationToken.None);
 
         resultado.RegistrosSincronizados.Should().Be(0, "deve ignorar pois passou o prazo de 7 dias");
+        resultado.Rejeicoes.Should().HaveCount(1);
+        resultado.Rejeicoes[0].IdExterno.Should().Be("reg-bloqueado-2");
 
         var registro = await ctx.RegistrosPresenca.FirstAsync(r => r.AlunoId == alunoId);
         registro.Status.Should().Be(StatusPresenca.Presente);
     }
 
     [Fact]
-    public async Task Handle_UpdateForaDe7Dias_DeveIgnorar()
+    public async Task Handle_UpdateForaDe7Dias_DeveIgnorarERejeitar()
     {
         var user = CriarUsuarioAutenticado();
         await using var ctx = CriarContexto(user);
@@ -587,6 +589,8 @@ public class SyncPushHandlerTests : IDisposable
         var resultado = await CriarHandler(ctx, user).Handle(updateCommand, CancellationToken.None);
 
         resultado.RegistrosSincronizados.Should().Be(0, "update deve ser ignorado pois passou o prazo de 7 dias");
+        resultado.Rejeicoes.Should().HaveCount(1);
+        resultado.Rejeicoes[0].IdExterno.Should().Be("reg-update-bloqueado");
 
         var registro = await ctx.RegistrosPresenca.FirstAsync(r => r.AlunoId == alunoId);
         registro.Status.Should().Be(StatusPresenca.Presente);

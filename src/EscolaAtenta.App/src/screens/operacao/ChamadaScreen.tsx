@@ -82,16 +82,54 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
     const [modoEdicao, setModoEdicao] = useState(false);
     // null = ainda não verificou no servidor; true/false = resultado da verificação
     const [podeEditarServidor, setPodeEditarServidor] = useState<boolean | null>(null);
+    const [registrosLocais, setRegistrosLocais] = useState<RegistroPresenca[]>([]);
 
+    // Ao trocar a data, reseta o estado e carrega registros locais se existirem.
+    // Se houver registros locais, consulta o servidor para respeitar o prazo de edição.
     useEffect(() => {
-        if (alunos.length > 0 && !somenteLeitura && Object.keys(statusMap).length === 0) {
+        setPodeEditarServidor(null);
+        setSomenteLeitura(false);
+        setModoEdicao(false);
+        setStatusMap({});
+
+        let cancelado = false;
+        carregarRegistrosExistentes(dataSelecionada).then(async (registros) => {
+            if (cancelado) return;
+            setRegistrosLocais(registros);
+
+            if (registros.length > 0) {
+                aplicarStatusDosRegistros(registros);
+
+                try {
+                    const chamadaServidor = await chamadasService.obterChamadaPorDia(turmaId, dataSelecionada);
+                    if (chamadaServidor) {
+                        // Sincroniza o status com o servidor (pode ter sido alterado por outro dispositivo)
+                        aplicarStatusDoServidor(chamadaServidor);
+                        setPodeEditarServidor(chamadaServidor.podeEditar);
+                        setSomenteLeitura(true);
+                        return;
+                    }
+                } catch (erroServidor) {
+                    console.error('[CHAMADA] Erro ao consultar prazo no servidor:', erroServidor);
+                    // Offline: confia no registro local e permite edição.
+                }
+
+                setPodeEditarServidor(true);
+                setSomenteLeitura(true);
+                return;
+            }
+
             const initialMap: Record<string, StatusPresencaLocal> = {};
             alunos.forEach((a) => {
                 initialMap[a.id] = 'Presente';
             });
             setStatusMap(initialMap);
-        }
-    }, [alunos, somenteLeitura]);
+        });
+
+        return () => {
+            cancelado = true;
+        };
+    }, [dataSelecionada, turmaId, alunos]);
 
     const setStatus = (alunoId: string, status: StatusPresencaLocal) => {
         if (somenteLeitura) return;
@@ -247,28 +285,37 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         syncWithServer().catch(() => {});
     };
 
-    const mostrarAlertaConflitoLocal = (registrosExistentes: RegistroPresenca[]) => {
+    const mostrarAlertaConflitoLocal = (registrosExistentes: RegistroPresenca[], podeEditar: boolean) => {
+        const acoes: { text: string; onPress?: () => void; style?: 'cancel' }[] = [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+                text: 'Visualizar',
+                onPress: () => {
+                    setSomenteLeitura(true);
+                    setModoEdicao(false);
+                    setPodeEditarServidor(podeEditar);
+                },
+            },
+        ];
+
+        if (podeEditar) {
+            acoes.push({
+                text: 'Atualizar',
+                onPress: () => {
+                    // Apenas entra em modo de edição; a persistência ocorre no próximo toque em salvar.
+                    setSomenteLeitura(false);
+                    setModoEdicao(true);
+                    setPodeEditarServidor(true);
+                },
+            });
+        }
+
         Alert.alert(
             'Chamada já realizada',
-            `Já existe uma chamada local para o dia ${dataTexto}. O que deseja fazer?`,
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Visualizar',
-                    onPress: () => {
-                        setSomenteLeitura(true);
-                        setModoEdicao(false);
-                    },
-                },
-                {
-                    text: 'Atualizar',
-                    onPress: async () => {
-                        setModoEdicao(true);
-                        await atualizarRegistrosExistentes(registrosExistentes);
-                        await finalizarSalvamento();
-                    },
-                },
-            ],
+            podeEditar
+                ? `Já existe uma chamada local para o dia ${dataTexto}. Deseja visualizar ou atualizar?`
+                : `Já existe uma chamada local para o dia ${dataTexto}. O prazo de edição de 7 dias foi excedido, então ela será exibida em modo visualização.`,
+            acoes,
             { cancelable: false }
         );
     };
@@ -322,6 +369,19 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             return;
         }
 
+        // P2: sempre deriva a data do texto exibido e rejeita se estiver inválido.
+        const dataValida = parseDataBrasil(dataTexto);
+        if (!dataValida) {
+            Alert.alert('Data inválida', 'Informe uma data válida no formato DD/MM/AAAA.');
+            return;
+        }
+
+        if (dataValida.getTime() !== dataSelecionada.getTime()) {
+            setDataSelecionada(dataValida);
+            // A mudança de data dispara o useEffect que recarrega os registros locais.
+            return;
+        }
+
         if (somenteLeitura) {
             // Se o prazo do servidor expirou, não permite editar
             if (podeEditarServidor === false) {
@@ -335,15 +395,30 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         }
 
         try {
-            const registrosExistentes = await carregarRegistrosExistentes(dataSelecionada);
+            const registrosExistentes = registrosLocais;
 
+            // P1: se já existem registros locais e ainda não estamos editando,
+            // consulta o servidor para respeitar o prazo de 7 dias antes de permitir alterações.
             if (registrosExistentes.length > 0 && !modoEdicao) {
-                aplicarStatusDosRegistros(registrosExistentes);
-                mostrarAlertaConflitoLocal(registrosExistentes);
+                try {
+                    const chamadaServidor = await chamadasService.obterChamadaPorDia(turmaId, dataSelecionada);
+
+                    if (chamadaServidor) {
+                        aplicarStatusDoServidor(chamadaServidor);
+                        mostrarAlertaConflitoLocal(registrosExistentes, chamadaServidor.podeEditar);
+                    } else {
+                        // Registros locais sem correspondente no servidor: usa o próprio prazo local (presumivelmente dentro de 7 dias).
+                        mostrarAlertaConflitoLocal(registrosExistentes, true);
+                    }
+                } catch (erroServidor) {
+                    console.error('[CHAMADA] Erro ao consultar prazo no servidor:', erroServidor);
+                    // Offline: permite a edição local, mas o sync posterior pode ser rejeitado pelo servidor.
+                    mostrarAlertaConflitoLocal(registrosExistentes, true);
+                }
                 return;
             }
 
-            if (modoEdicao || registrosExistentes.length > 0) {
+            if (modoEdicao) {
                 await executarSalvamento(registrosExistentes);
                 return;
             }
