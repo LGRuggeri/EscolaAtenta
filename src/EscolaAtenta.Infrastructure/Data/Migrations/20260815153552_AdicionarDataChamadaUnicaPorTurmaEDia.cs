@@ -38,18 +38,39 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
 
                 -- Reponta SyncLogs dos registros de presença que serão descartados
                 -- para o registro mantido do mesmo aluno na mesma turma e dia.
-                -- Isso evita que updates futuros do WatermelonDB falhem silenciosamente.
+                -- A view determinística VencedorasPorDia escolhe a chamada vencedora
+                -- (mais recente por DataCriacao/Id), evitando mapeamentos para
+                -- chamadas intermediárias que também serão excluídas.
+                CREATE TEMP TABLE VencedorasPorDia AS
+                SELECT DISTINCT c.TurmaId, c.DataChamada,
+                    (
+                        SELECT c2.Id
+                        FROM Chamadas c2
+                        WHERE c2.TurmaId = c.TurmaId
+                          AND c2.DataChamada = c.DataChamada
+                        ORDER BY c2.DataCriacao DESC, c2.Id DESC
+                        LIMIT 1
+                    ) AS VencedoraId
+                FROM Chamadas c
+                WHERE EXISTS (
+                    SELECT 1 FROM Chamadas c3
+                    WHERE c3.TurmaId = c.TurmaId
+                      AND c3.DataChamada = c.DataChamada
+                      AND (
+                          c3.DataCriacao > c.DataCriacao
+                          OR (c3.DataCriacao = c.DataCriacao AND c3.Id > c.Id)
+                      )
+                );
+
                 CREATE TEMP TABLE SyncLogMapping AS
                 SELECT rpPerdido.Id AS PerdidoId, rpMantido.Id AS MantidoId
                 FROM RegistrosPresenca rpPerdido
                 JOIN Chamadas cPerdida ON cPerdida.Id = rpPerdido.ChamadaId
-                JOIN Chamadas cMantida
-                    ON cMantida.TurmaId = cPerdida.TurmaId
-                    AND cMantida.DataChamada = cPerdida.DataChamada
-                    AND (
-                        cMantida.DataCriacao > cPerdida.DataCriacao
-                        OR (cMantida.DataCriacao = cPerdida.DataCriacao AND cMantida.Id > cPerdida.Id)
-                    )
+                JOIN VencedorasPorDia v
+                    ON v.TurmaId = cPerdida.TurmaId
+                    AND v.DataChamada = cPerdida.DataChamada
+                    AND v.VencedoraId != cPerdida.Id
+                JOIN Chamadas cMantida ON cMantida.Id = v.VencedoraId
                 JOIN RegistrosPresenca rpMantido
                     ON rpMantido.ChamadaId = cMantida.Id
                     AND rpMantido.AlunoId = rpPerdido.AlunoId;
@@ -62,6 +83,7 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                   AND EntidadeId IN (SELECT PerdidoId FROM SyncLogMapping);
 
                 DROP TABLE SyncLogMapping;
+                DROP TABLE VencedorasPorDia;
 
                 DELETE FROM RegistrosPresenca
                 WHERE ChamadaId IN (
@@ -115,6 +137,7 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
 
                 -- Recalcula faltas consecutivas atuais (apenas Falta=1 e Ausente=3).
                 -- A sequência é quebrada por Presente=0 ou FaltaJustificada=2.
+                -- Limita-se ao ciclo trimestral atual, alinhado ao recálculo dos demais contadores.
                 UPDATE Alunos
                 SET FaltasConsecutivasAtuais = COALESCE((
                     SELECT COUNT(*)
@@ -122,12 +145,14 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                     JOIN Chamadas c ON c.Id = rp.ChamadaId
                     WHERE rp.AlunoId = Alunos.Id
                       AND rp.Status IN (1, 3)
+                      AND c.DataHora >= Alunos.DataInicioTrimestre
                       AND c.DataHora > (
-                          SELECT COALESCE(MAX(c2.DataHora), '0001-01-01')
+                          SELECT COALESCE(MAX(c2.DataHora), Alunos.DataInicioTrimestre)
                           FROM RegistrosPresenca rp2
                           JOIN Chamadas c2 ON c2.Id = rp2.ChamadaId
                           WHERE rp2.AlunoId = Alunos.Id
                             AND rp2.Status IN (0, 2)
+                            AND c2.DataHora >= Alunos.DataInicioTrimestre
                       )
                 ), 0)
                 WHERE Id IN (SELECT AlunoId FROM AlunosAfetados);

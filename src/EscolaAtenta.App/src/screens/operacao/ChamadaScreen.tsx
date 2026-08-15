@@ -184,12 +184,20 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         setStatusMap(novoMap);
     };
 
+    const mapearStatusServidorParaLocal = (status: string): StatusPresencaLocal => {
+        // O domínio do servidor possui "Ausente", que não possui representação
+        // local própria; mapeamos para "Falta" para preservar a ausência escolar.
+        if (status === 'Ausente') return 'Falta';
+        if (STATUS_OPTIONS.some((opt) => opt.key === status)) {
+            return status as StatusPresencaLocal;
+        }
+        return 'Presente';
+    };
+
     const aplicarStatusDoServidor = (chamada: ChamadaPorDiaDto) => {
         const novoMap: Record<string, StatusPresencaLocal> = {};
         chamada.registros.forEach((r) => {
-            if (STATUS_OPTIONS.some((opt) => opt.key === r.status)) {
-                novoMap[r.alunoId] = r.status as StatusPresencaLocal;
-            }
+            novoMap[r.alunoId] = mapearStatusServidorParaLocal(r.status);
         });
         // Alunos ausentes no servidor (ex: criados offline) ficam como Presente
         alunos.forEach((a) => {
@@ -204,22 +212,25 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         const registrosCollection = database.get<RegistroPresenca>('registros_presenca');
         const statusPorAluno: Record<string, StatusPresencaLocal> = {};
         chamada.registros.forEach((r) => {
-            if (STATUS_OPTIONS.some((opt) => opt.key === r.status)) {
-                statusPorAluno[r.alunoId] = r.status as StatusPresencaLocal;
-            }
+            statusPorAluno[r.alunoId] = mapearStatusServidorParaLocal(r.status);
         });
 
         await database.write(async () => {
-            const batch = alunos.map((aluno) =>
+            // Cria registros locais apenas para os alunos que efetivamente
+            // constam na chamada do servidor. Alunos novos na turma ficam como
+            // Presente no statusMap, mas não geram Created rows inválidos no sync.
+            const batch = chamada.registros.map((r) =>
                 registrosCollection.prepareCreate((record) => {
-                    record.alunoId = aluno.id;
+                    record.alunoId = r.alunoId;
                     record.turmaId = turmaId;
                     record.data = dataSelecionada;
-                    record.status = statusPorAluno[aluno.id] ?? 'Presente';
+                    record.status = statusPorAluno[r.alunoId] ?? 'Presente';
                     record.sincronizado = true;
                 })
             );
-            await database.batch(...batch);
+            if (batch.length > 0) {
+                await database.batch(...batch);
+            }
         });
 
         const novosRegistros = await carregarRegistrosExistentes(dataSelecionada);

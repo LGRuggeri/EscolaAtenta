@@ -516,7 +516,7 @@ public class AlunoTests
     }
 
     [Fact]
-    public void ReconciliarAlertasPendentes_QuandoContadoresAindaAcimaDosLimiares_NaoDeveEmitirEventos()
+    public void ReconciliarAlertasPendentes_QuandoContadoresAcimaDosLimiares_DeveEmitirEventosDeThreshold()
     {
         // Arrange
         var aluno = CriarAlunoValido();
@@ -540,7 +540,40 @@ public class AlunoTests
         // Act
         aluno.ReconciliarAlertasPendentes();
 
-        // Assert: não deve emitir eventos de normalização pois ainda há 3 faltas consecutivas e 3 atrasos
-        aluno.DomainEvents.Should().BeEmpty();
+        // Assert: deve emitir eventos de threshold para o estado final (3 faltas = Vermelho, 3 atrasos = Aviso)
+        aluno.DomainEvents.Should().ContainSingle(e => e is LimiteFaltasAtingidoEvent);
+        aluno.DomainEvents.Should().ContainSingle(e => e is LimiteAtrasosAtingidoEvent);
+    }
+
+    [Fact]
+    public void ReconciliarAlertasPendentes_QuandoFaltasCaemParaThresholdInferior_DeveRebaixarAlerta()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        // Simula histórico anterior com 5 faltas (Preto)
+        var registrosPreto = new List<RegistroPresenca>();
+        for (int i = 0; i < 5; i++)
+        {
+            var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(i)), TurmaId, Guid.NewGuid());
+            registrosPreto.Add(chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Falta));
+        }
+        aluno.RecalcularEstatisticas(registrosPreto);
+        aluno.ClearDomainEvents();
+
+        // Agora corrige a falta mais antiga para Presente, deixando 4 faltas consecutivas (Vermelho)
+        var registrosVermelho = new List<RegistroPresenca>(registrosPreto);
+        registrosVermelho[0] = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(-1)), TurmaId, Guid.NewGuid())
+            .RegistrarPresenca(aluno.Id, StatusPresenca.Presente);
+
+        // Act
+        aluno.RecalcularEstatisticas(registrosVermelho);
+        aluno.ReconciliarAlertasPendentes();
+
+        // Assert: deve emitir evento de threshold com nível Vermelho (rebaixamento)
+        aluno.DomainEvents.Should().ContainSingle(e => e is LimiteFaltasAtingidoEvent);
+        var evento = aluno.DomainEvents.OfType<LimiteFaltasAtingidoEvent>().Single();
+        evento.Nivel.Should().Be(NivelAlertaFalta.Vermelho);
     }
 }

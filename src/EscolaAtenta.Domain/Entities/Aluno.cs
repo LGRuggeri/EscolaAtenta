@@ -234,12 +234,26 @@ public class Aluno : EntityBase, ISoftDeletable
     }
 
     /// <summary>
-    /// Emite eventos de normalização para alertas pendentes quando os contadores
-    /// do aluno caem abaixo dos limiares após recálculo do histórico.
+    /// Reconcilia alertas pendentes com os contadores finais do aluno após
+    /// recálculo do histórico. Rebaixa o nível quando o contador cai para um
+    /// threshold inferior, resolve quando cai abaixo de todos os thresholds e
+    /// escala/cria quando atinge um threshold.
     /// </summary>
     public void ReconciliarAlertasPendentes()
     {
-        if (FaltasConsecutivasAtuais == 0)
+        if (FaltasConsecutivasAtuais > 0)
+        {
+            AddDomainEvent(new LimiteFaltasAtingidoEvent(
+                AlunoId: Id,
+                TurmaId: TurmaId,
+                NomeAluno: Nome,
+                TotalFaltas: FaltasConsecutivasAtuais,
+                LimiteConfigurado: 5,
+                MotivoExato: $"O aluno alcançou {FaltasConsecutivasAtuais} falhas consecutivas.",
+                Nivel: GetNivelAlerta()
+            ));
+        }
+        else
         {
             AddDomainEvent(new FaltasConsecutivasNormalizadasEvent(
                 AlunoId: Id,
@@ -249,7 +263,22 @@ public class Aluno : EntityBase, ISoftDeletable
             ));
         }
 
-        if (AtrasosNoTrimestre < 3)
+        if (AtrasosNoTrimestre >= 3)
+        {
+            var nivel = AtrasosNoTrimestre >= 6
+                ? NivelAlertaFalta.Intermediario
+                : NivelAlertaFalta.Aviso;
+
+            AddDomainEvent(new LimiteAtrasosAtingidoEvent(
+                AlunoId: Id,
+                TurmaId: TurmaId,
+                NomeAluno: Nome,
+                TotalAtrasos: AtrasosNoTrimestre,
+                MotivoExato: $"O aluno acumulou {AtrasosNoTrimestre} atrasos no trimestre.",
+                Nivel: nivel
+            ));
+        }
+        else
         {
             AddDomainEvent(new AtrasosTrimestreNormalizadosEvent(
                 AlunoId: Id,
