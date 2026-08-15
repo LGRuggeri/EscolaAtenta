@@ -149,6 +149,8 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
 
             _context.Chamadas.Add(chamada);
 
+            var alunosAfetados = new HashSet<Guid>();
+
             foreach (var registroDto in request.Alunos)
             {
                 if (!alunosDb.TryGetValue(registroDto.AlunoId, out var aluno))
@@ -161,13 +163,21 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
 
                 // Atribui registro à Entidade Chamada
                 chamada.RegistrarPresenca(aluno.Id, registroDto.Status);
+                alunosAfetados.Add(aluno.Id);
+            }
 
-                // Atualiza contadores na Entidade Aluno.
-                aluno.RegistrarPresenca(registroDto.Status, chamada.DataHora.UtcDateTime);
+            // Recalcula estatísticas dos alunos afetados, garantindo que chamadas
+            // retroativas sejam processadas cronologicamente e incluam os novos registros.
+            if (alunosAfetados.Count > 0)
+            {
+                await RecalcularEstatisticasDosAlunos(alunosAfetados, cancellationToken);
 
-                if (aluno.DomainEvents.Count > 0)
+                foreach (var alunoId in alunosAfetados)
                 {
-                    alertasGerados++;
+                    if (alunosDb.TryGetValue(alunoId, out var aluno) && aluno.DomainEvents.Count > 0)
+                    {
+                        alertasGerados++;
+                    }
                 }
             }
 
@@ -196,10 +206,33 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
     {
         if (alunosIds.Count == 0) return;
 
-        var registros = await _context.RegistrosPresenca
+        // Carrega registros já persistidos + os adicionados no ChangeTracker
+        // para garantir que chamadas retroativas e novas inclusões sejam
+        // consideradas no recálculo cronológico dos contadores.
+        var registrosPersistidos = await _context.RegistrosPresenca
             .Include(r => r.Chamada)
             .Where(r => alunosIds.Contains(r.AlunoId))
             .ToListAsync(cancellationToken);
+
+        var registrosAdicionados = _context.ChangeTracker.Entries<RegistroPresenca>()
+            .Where(e => e.State == EntityState.Added && alunosIds.Contains(e.Entity.AlunoId))
+            .Select(e => e.Entity)
+            .ToList();
+
+        // Garante que registros pendentes tenham a navegação Chamada carregada
+        foreach (var registro in registrosAdicionados)
+        {
+            if (registro.Chamada is null)
+            {
+                await _context.Entry(registro)
+                    .Reference(r => r.Chamada)
+                    .LoadAsync(cancellationToken);
+            }
+        }
+
+        var registros = registrosPersistidos
+            .Concat(registrosAdicionados)
+            .ToList();
 
         var registrosPorAluno = registros
             .GroupBy(r => r.AlunoId)

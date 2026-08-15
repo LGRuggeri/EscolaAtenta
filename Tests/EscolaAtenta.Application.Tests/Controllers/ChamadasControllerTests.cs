@@ -18,7 +18,7 @@ public class ChamadasControllerTests
     {
         var controller = new ChamadasController(_mediator);
 
-        var resultado = await controller.ObterChamadaPorDia(Guid.NewGuid(), dataInvalida, CancellationToken.None);
+        var resultado = await controller.ObterChamadaPorDia(Guid.NewGuid().ToString(), dataInvalida, CancellationToken.None);
 
         resultado.Should().BeOfType<BadRequestObjectResult>();
         var badRequest = (BadRequestObjectResult)resultado;

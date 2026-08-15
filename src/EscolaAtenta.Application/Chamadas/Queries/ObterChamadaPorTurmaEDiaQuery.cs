@@ -6,7 +6,7 @@ namespace EscolaAtenta.Application.Chamadas.Queries;
 /// Consulta uma chamada existente para uma turma em uma data específica,
 /// retornando os registros de presença e se ainda é permitido editá-la.
 /// </summary>
-public record ObterChamadaPorTurmaEDiaQuery(Guid TurmaId, DateTime Data) : IRequest<ChamadaPorDiaDto?>;
+public record ObterChamadaPorTurmaEDiaQuery(string TurmaId, DateTime Data) : IRequest<ChamadaPorDiaDto?>;
 
 public class ChamadaPorDiaDto
 {
@@ -19,7 +19,7 @@ public class ChamadaPorDiaDto
 
 public class RegistroPresencaPorDiaDto
 {
-    public Guid AlunoId { get; set; }
+    public string AlunoId { get; set; } = string.Empty;
     public string NomeAluno { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
 }

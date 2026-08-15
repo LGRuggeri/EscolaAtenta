@@ -24,11 +24,15 @@ public class ObterChamadaPorTurmaEDiaHandler : IRequestHandler<ObterChamadaPorTu
         ObterChamadaPorTurmaEDiaQuery request,
         CancellationToken cancellationToken)
     {
+        var turmaId = await ResolverTurmaIdAsync(request.TurmaId, cancellationToken);
+        if (turmaId == Guid.Empty)
+            return null;
+
         // IDOR: Administrador pode consultar qualquer turma; demais papéis precisam de vínculo
         if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
             && Guid.TryParse(_currentUser.UsuarioId, out var ownerCheck)
             && !await _context.UsuarioTurmas.AnyAsync(
-                ut => ut.TurmaId == request.TurmaId && ut.UsuarioId == ownerCheck, cancellationToken))
+                ut => ut.TurmaId == turmaId && ut.UsuarioId == ownerCheck, cancellationToken))
         {
             throw new DomainException("Você não tem permissão para consultar chamada desta turma.");
         }
@@ -37,7 +41,7 @@ public class ObterChamadaPorTurmaEDiaHandler : IRequestHandler<ObterChamadaPorTu
             .AsNoTracking()
             .Include(c => c.RegistrosPresenca)
             .ThenInclude(r => r.Aluno)
-            .Where(c => c.TurmaId == request.TurmaId)
+            .Where(c => c.TurmaId == turmaId)
             .ToListAsync(cancellationToken))
             .Where(c => c.DataChamada == request.Data.Date)
             .OrderByDescending(c => c.DataCriacao)
@@ -50,6 +54,13 @@ public class ObterChamadaPorTurmaEDiaHandler : IRequestHandler<ObterChamadaPorTu
         var prazoEdicao = chamada.DataCriacao.AddDays(7);
         var podeEditar = DateTimeOffset.UtcNow <= prazoEdicao;
 
+        // Resolve IDs de alunos para IDs locais do WatermelonDB quando existirem SyncLogs.
+        var alunoIds = chamada.RegistrosPresenca.Select(r => r.AlunoId).Distinct().ToList();
+        var syncLogsAlunos = await _context.SyncLogs
+            .AsNoTracking()
+            .Where(s => s.TabelaOrigem == "alunos" && alunoIds.Contains(s.EntidadeId))
+            .ToDictionaryAsync(s => s.EntidadeId, s => s.IdExterno, cancellationToken);
+
         return new ChamadaPorDiaDto
         {
             ChamadaId = chamada.Id,
@@ -59,11 +70,29 @@ public class ObterChamadaPorTurmaEDiaHandler : IRequestHandler<ObterChamadaPorTu
             Registros = chamada.RegistrosPresenca
                 .Select(r => new RegistroPresencaPorDiaDto
                 {
-                    AlunoId = r.AlunoId,
+                    AlunoId = syncLogsAlunos.TryGetValue(r.AlunoId, out var idLocal) && !string.IsNullOrEmpty(idLocal)
+                        ? idLocal
+                        : r.AlunoId.ToString(),
                     NomeAluno = r.Aluno?.Nome ?? string.Empty,
                     Status = r.Status.ToString()
                 })
                 .ToList()
         };
+    }
+
+    /// <summary>
+    /// Resolve o identificador da turma. Pode ser o GUID do servidor ou o ID externo
+    /// do WatermelonDB para turmas criadas offline e sincronizadas.
+    /// </summary>
+    private async Task<Guid> ResolverTurmaIdAsync(string turmaId, CancellationToken cancellationToken)
+    {
+        if (Guid.TryParse(turmaId, out var guid))
+            return guid;
+
+        var syncLog = await _context.SyncLogs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.TabelaOrigem == "turmas" && s.IdExterno == turmaId, cancellationToken);
+
+        return syncLog?.EntidadeId ?? Guid.Empty;
     }
 }

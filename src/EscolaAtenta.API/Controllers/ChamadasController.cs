@@ -38,12 +38,13 @@ public class ChamadasController : ControllerBase
     /// Consulta a chamada de uma turma em uma data específica.
     /// Retorna os registros de presença e indica se a chamada ainda pode ser editada.
     /// A data pode ser enviada em qualquer formato ISO 8601 suportado por DateTime.Parse (ex: 2026-01-15T00:00:00Z).
+    /// O turmaId pode ser o GUID do servidor ou o ID externo do WatermelonDB (turmas criadas offline).
     /// </summary>
-    [HttpGet("turma/{turmaId:guid}/dia/{data}")]
+    [HttpGet("turma/{turmaId}/dia/{data}")]
     [ProducesResponseType(typeof(ChamadaPorDiaDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ObterChamadaPorDia(Guid turmaId, string data, CancellationToken ct)
+    public async Task<IActionResult> ObterChamadaPorDia(string turmaId, string data, CancellationToken ct)
     {
         if (!DateTime.TryParse(data, out var dataParsed))
         {

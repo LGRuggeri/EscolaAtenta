@@ -36,6 +36,33 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                     )
                 );
 
+                -- Reponta SyncLogs dos registros de presença que serão descartados
+                -- para o registro mantido do mesmo aluno na mesma turma e dia.
+                -- Isso evita que updates futuros do WatermelonDB falhem silenciosamente.
+                CREATE TEMP TABLE SyncLogMapping AS
+                SELECT rpPerdido.Id AS PerdidoId, rpMantido.Id AS MantidoId
+                FROM RegistrosPresenca rpPerdido
+                JOIN Chamadas cPerdida ON cPerdida.Id = rpPerdido.ChamadaId
+                JOIN Chamadas cMantida
+                    ON cMantida.TurmaId = cPerdida.TurmaId
+                    AND cMantida.DataChamada = cPerdida.DataChamada
+                    AND (
+                        cMantida.DataCriacao > cPerdida.DataCriacao
+                        OR (cMantida.DataCriacao = cPerdida.DataCriacao AND cMantida.Id > cPerdida.Id)
+                    )
+                JOIN RegistrosPresenca rpMantido
+                    ON rpMantido.ChamadaId = cMantida.Id
+                    AND rpMantido.AlunoId = rpPerdido.AlunoId;
+
+                UPDATE SyncLogs
+                SET EntidadeId = (
+                    SELECT MantidoId FROM SyncLogMapping WHERE PerdidoId = SyncLogs.EntidadeId
+                )
+                WHERE TabelaOrigem = 'registros_presenca'
+                  AND EntidadeId IN (SELECT PerdidoId FROM SyncLogMapping);
+
+                DROP TABLE SyncLogMapping;
+
                 DELETE FROM RegistrosPresenca
                 WHERE ChamadaId IN (
                     SELECT c.Id FROM Chamadas c

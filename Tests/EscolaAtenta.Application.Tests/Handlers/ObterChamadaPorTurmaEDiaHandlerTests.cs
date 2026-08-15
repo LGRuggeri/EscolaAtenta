@@ -65,12 +65,12 @@ public class ObterChamadaPorTurmaEDiaHandlerTests : IDisposable
         ctx.ChangeTracker.Clear();
 
         var handler = CriarHandler(ctx);
-        var resultado = await handler.Handle(new ObterChamadaPorTurmaEDiaQuery(turmaId, data.DateTime), CancellationToken.None);
+        var resultado = await handler.Handle(new ObterChamadaPorTurmaEDiaQuery(turmaId.ToString(), data.DateTime), CancellationToken.None);
 
         resultado.Should().NotBeNull();
         resultado!.PodeEditar.Should().BeTrue("chamada recente deve permitir edição");
         resultado.Registros.Should().HaveCount(1);
-        resultado.Registros[0].AlunoId.Should().Be(alunoId);
+        resultado.Registros[0].AlunoId.Should().Be(alunoId.ToString());
         resultado.Registros[0].Status.Should().Be(StatusPresenca.Presente.ToString());
     }
 
@@ -85,7 +85,7 @@ public class ObterChamadaPorTurmaEDiaHandlerTests : IDisposable
 
         var handler = CriarHandler(ctx);
         var resultado = await handler.Handle(
-            new ObterChamadaPorTurmaEDiaQuery(turmaId, new DateTime(2026, 1, 10)),
+            new ObterChamadaPorTurmaEDiaQuery(turmaId.ToString(), new DateTime(2026, 1, 10)),
             CancellationToken.None);
 
         resultado.Should().BeNull();
@@ -114,7 +114,7 @@ public class ObterChamadaPorTurmaEDiaHandlerTests : IDisposable
         ctx.ChangeTracker.Clear();
 
         var handler = CriarHandler(ctx);
-        var resultado = await handler.Handle(new ObterChamadaPorTurmaEDiaQuery(turmaId, data.DateTime), CancellationToken.None);
+        var resultado = await handler.Handle(new ObterChamadaPorTurmaEDiaQuery(turmaId.ToString(), data.DateTime), CancellationToken.None);
 
         resultado.Should().NotBeNull();
         resultado!.PodeEditar.Should().BeFalse("chamada com mais de 7 dias não deve permitir edição");
@@ -148,7 +148,7 @@ public class ObterChamadaPorTurmaEDiaHandlerTests : IDisposable
 
         var handler = CriarHandler(ctx, fakeUser);
         Func<Task> act = () => handler.Handle(
-            new ObterChamadaPorTurmaEDiaQuery(turmaId, data.DateTime),
+            new ObterChamadaPorTurmaEDiaQuery(turmaId.ToString(), data.DateTime),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<DomainException>()
@@ -182,7 +182,7 @@ public class ObterChamadaPorTurmaEDiaHandlerTests : IDisposable
 
         var handler = CriarHandler(ctx, fakeUser);
         var resultado = await handler.Handle(
-            new ObterChamadaPorTurmaEDiaQuery(turmaId, data.DateTime),
+            new ObterChamadaPorTurmaEDiaQuery(turmaId.ToString(), data.DateTime),
             CancellationToken.None);
 
         resultado.Should().NotBeNull();
@@ -207,9 +207,84 @@ public class ObterChamadaPorTurmaEDiaHandlerTests : IDisposable
 
         var handler = CriarHandler(ctx);
         var resultado = await handler.Handle(
-            new ObterChamadaPorTurmaEDiaQuery(turmaId, data.DateTime),
+            new ObterChamadaPorTurmaEDiaQuery(turmaId.ToString(), data.DateTime),
             CancellationToken.None);
 
         resultado.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Handle_ComTurmaIdExterno_DeveResolverViaSyncLogERetornarChamada()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        var idExternoTurma = "turma_offline_123";
+        ctx.Turmas.Add(new Turma(turmaId, "Turma Offline", "Manhã", 2026));
+
+        var alunoId = Guid.NewGuid();
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Offline", null, turmaId));
+
+        var data = new DateTimeOffset(2026, 1, 10, 8, 0, 0, TimeSpan.Zero);
+        var chamada = new Chamada(Guid.NewGuid(), data, turmaId, Guid.NewGuid());
+        chamada.RegistrarPresenca(alunoId, StatusPresenca.Falta);
+        ctx.Chamadas.Add(chamada);
+
+        ctx.SyncLogs.Add(new SyncLog
+        {
+            Id = Guid.NewGuid(),
+            IdExterno = idExternoTurma,
+            EntidadeId = turmaId,
+            TabelaOrigem = "turmas",
+            SincronizadoEm = DateTimeOffset.UtcNow
+        });
+
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var handler = CriarHandler(ctx);
+        var resultado = await handler.Handle(
+            new ObterChamadaPorTurmaEDiaQuery(idExternoTurma, data.DateTime),
+            CancellationToken.None);
+
+        resultado.Should().NotBeNull();
+        resultado!.Registros.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Handle_ComAlunoIdExterno_DeveRetornarIdLocalNoDto()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        var idExternoAluno = "aluno_offline_456";
+
+        ctx.Turmas.Add(new Turma(turmaId, "Turma Sync", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Sync", null, turmaId));
+
+        var data = new DateTimeOffset(2026, 1, 10, 8, 0, 0, TimeSpan.Zero);
+        var chamada = new Chamada(Guid.NewGuid(), data, turmaId, Guid.NewGuid());
+        chamada.RegistrarPresenca(alunoId, StatusPresenca.Atraso);
+        ctx.Chamadas.Add(chamada);
+
+        ctx.SyncLogs.Add(new SyncLog
+        {
+            Id = Guid.NewGuid(),
+            IdExterno = idExternoAluno,
+            EntidadeId = alunoId,
+            TabelaOrigem = "alunos",
+            SincronizadoEm = DateTimeOffset.UtcNow
+        });
+
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var handler = CriarHandler(ctx);
+        var resultado = await handler.Handle(
+            new ObterChamadaPorTurmaEDiaQuery(turmaId.ToString(), data.DateTime),
+            CancellationToken.None);
+
+        resultado.Should().NotBeNull();
+        resultado!.Registros.Should().HaveCount(1);
+        resultado.Registros[0].AlunoId.Should().Be(idExternoAluno);
     }
 }
