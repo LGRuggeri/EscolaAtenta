@@ -591,4 +591,223 @@ public class SyncPushHandlerTests : IDisposable
         var registro = await ctx.RegistrosPresenca.FirstAsync(r => r.AlunoId == alunoId);
         registro.Status.Should().Be(StatusPresenca.Presente);
     }
+
+    [Fact]
+    public async Task Handle_DuplicatasHistoricasPorDia_DeveEscolherMaisRecenteSemLancarErro()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Duplicata", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Duplicata", null, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var dataMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var dataChamada = DateTimeOffset.UtcNow;
+
+        // Cria duas chamadas históricas para o mesmo dia/turma
+        var chamadaAntiga = new Chamada(Guid.NewGuid(), dataChamada, turmaId, Guid.NewGuid());
+        chamadaAntiga.RegistrarPresenca(alunoId, StatusPresenca.Falta);
+        ctx.Chamadas.Add(chamadaAntiga);
+
+        var chamadaNova = new Chamada(Guid.NewGuid(), dataChamada, turmaId, Guid.NewGuid());
+        chamadaNova.RegistrarPresenca(alunoId, StatusPresenca.Atraso);
+        ctx.Chamadas.Add(chamadaNova);
+
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        // Simula criação antiga para uma das chamadas (DataCriacao não pode ser setado via EF por causa do AppDbContext)
+        await ctx.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE Chamadas SET DataCriacao = {DateTimeOffset.UtcNow.AddDays(-1)} WHERE Id = {chamadaAntiga.Id}");
+
+        ctx.ChangeTracker.Clear();
+
+        var pushCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-duplicata",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataMs,
+                        Status = "Presente"
+                    }]
+                }
+            },
+            dataMs);
+
+        var resultado = await CriarHandler(ctx, user).Handle(pushCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(1);
+
+        // Deve ter usado a chamada mais recente como base
+        var syncLog = await ctx.SyncLogs.FirstAsync(s => s.IdExterno == "reg-duplicata");
+        var registro = await ctx.RegistrosPresenca.FindAsync(syncLog.EntidadeId);
+        registro!.Status.Should().Be(StatusPresenca.Presente);
+
+        // Verifica que a chamada mais recente é a que foi atualizada
+        var chamadaAtualizada = await ctx.Chamadas.FindAsync(chamadaNova.Id);
+        chamadaAtualizada!.RegistrosPresenca.Should().ContainSingle(r => r.Status == StatusPresenca.Presente);
+    }
+
+    [Fact]
+    public async Task Handle_MesmoStatusNoMerge_DeveCriarSyncLogParaFuturosUpdates()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Merge", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Merge", null, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var dataMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var createCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-merge-1",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataMs,
+                        Status = "Presente"
+                    }]
+                }
+            },
+            dataMs);
+
+        await CriarHandler(ctx, user).Handle(createCommand, CancellationToken.None);
+        ctx.ChangeTracker.Clear();
+
+        // Segundo push com o MESMO status para um novo IdExterno local
+        var mergeCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-merge-2",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataMs,
+                        Status = "Presente"
+                    }]
+                }
+            },
+            dataMs);
+
+        var resultado = await CriarHandler(ctx, user).Handle(mergeCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(1);
+
+        var syncLog = await ctx.SyncLogs.FirstOrDefaultAsync(s => s.IdExterno == "reg-merge-2");
+        syncLog.Should().NotBeNull("SyncLog deve ser criado mesmo quando o status já coincide");
+
+        // Agora edita o segundo registro localmente e faz update
+        var updateCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Updated = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-merge-2",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataMs,
+                        Status = "Falta"
+                    }]
+                }
+            },
+            dataMs);
+
+        var resultadoUpdate = await CriarHandler(ctx, user).Handle(updateCommand, CancellationToken.None);
+
+        resultadoUpdate.RegistrosSincronizados.Should().Be(1, "update deve funcionar porque SyncLog foi criado no merge");
+        var registro = await ctx.RegistrosPresenca.FindAsync(syncLog!.EntidadeId);
+        registro!.Status.Should().Be(StatusPresenca.Falta);
+    }
+
+    [Fact]
+    public async Task Handle_UpdateENovosRegistrosMesmoAluno_DeveRecalcularComTodosOsRegistros()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Recalc", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Recalc", null, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var dataDia1 = new DateTimeOffset(2026, 1, 10, 8, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds();
+        var createCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-recalc-1",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataDia1,
+                        Status = "Falta"
+                    }]
+                }
+            },
+            dataDia1);
+
+        await CriarHandler(ctx, user).Handle(createCommand, CancellationToken.None);
+        ctx.ChangeTracker.Clear();
+
+        // Novo batch: corrige dia 1 para Presente e adiciona dia 2 com Falta
+        var dataDia2 = new DateTimeOffset(2026, 1, 11, 8, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds();
+        var batchCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created =
+                    [
+                        new RegistroPresencaSyncDto
+                        {
+                            Id = "reg-recalc-2",
+                            AlunoId = alunoId.ToString(),
+                            TurmaId = turmaId.ToString(),
+                            Data = dataDia1,
+                            Status = "Presente"
+                        },
+                        new RegistroPresencaSyncDto
+                        {
+                            Id = "reg-recalc-3",
+                            AlunoId = alunoId.ToString(),
+                            TurmaId = turmaId.ToString(),
+                            Data = dataDia2,
+                            Status = "Falta"
+                        }
+                    ]
+                }
+            },
+            dataDia2);
+
+        await CriarHandler(ctx, user).Handle(batchCommand, CancellationToken.None);
+        ctx.ChangeTracker.Clear();
+
+        // Resultado esperado: dia 1 Presente, dia 2 Falta
+        var aluno = await ctx.Alunos.IgnoreQueryFilters().FirstAsync(a => a.Id == alunoId);
+        aluno.TotalFaltas.Should().Be(1, "apenas a falta do dia 2 deve contar");
+        aluno.FaltasConsecutivasAtuais.Should().Be(1);
+    }
 }

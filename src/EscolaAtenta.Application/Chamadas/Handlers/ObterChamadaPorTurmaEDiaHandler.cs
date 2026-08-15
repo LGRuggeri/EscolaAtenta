@@ -24,7 +24,10 @@ public class ObterChamadaPorTurmaEDiaHandler : IRequestHandler<ObterChamadaPorTu
             .ThenInclude(r => r.Aluno)
             .Where(c => c.TurmaId == request.TurmaId)
             .ToListAsync(cancellationToken))
-            .FirstOrDefault(c => c.DataHora.Date == request.Data.Date);
+            .Where(c => c.DataHora.Date == request.Data.Date)
+            .OrderByDescending(c => c.DataCriacao)
+            .ThenBy(c => c.Id)
+            .FirstOrDefault();
 
         if (chamada is null)
             return null;

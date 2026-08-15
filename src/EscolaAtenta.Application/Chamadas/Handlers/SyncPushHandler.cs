@@ -251,7 +251,10 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         var datasDosGrupos = grupos.Select(g => g.Key.Dia).ToHashSet();
         var chamadasPorChave = chamadasExistentes
             .Where(c => datasDosGrupos.Contains(c.DataHora.Date))
-            .ToDictionary(c => (c.TurmaId, c.DataHora.Date), c => c);
+            .GroupBy(c => (c.TurmaId, c.DataHora.Date))
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(c => c.DataCriacao).ThenBy(c => c.Id).First());
 
         int criados = 0;
         int alertas = 0;
@@ -302,13 +305,9 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                     }
 
                     var status = ParseStatus(dto.Status);
-                    if (registroExistente.Status == status)
-                        continue;
 
-                    registroExistente.AlterarStatus(status);
-                    afetados.Add(alunoGuid);
-
-                    // Mapeia o novo IdExterno local para o RegistroPresenca já existente
+                    // Sempre mapeia o IdExterno local para o RegistroPresenca existente,
+                    // mesmo quando o status já coincide. Isso permite futuros updates.
                     _context.SyncLogs.Add(new SyncLog
                     {
                         Id = Guid.NewGuid(),
@@ -317,6 +316,16 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                         TabelaOrigem = "registros_presenca",
                         SincronizadoEm = DateTimeOffset.UtcNow
                     });
+
+                    if (registroExistente.Status == status)
+                    {
+                        // Status igual: não há alteração, mas o registro foi sincronizado.
+                        criados++;
+                        continue;
+                    }
+
+                    registroExistente.AlterarStatus(status);
+                    afetados.Add(alunoGuid);
 
                     criados++;
                 }
@@ -533,10 +542,33 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
     {
         if (alunosIds.Count == 0) return;
 
-        var registros = await _context.RegistrosPresenca
+        // Carrega registros já persistidos + os adicionados no ChangeTracker
+        // para garantir que a recalculagem considere também novos registros
+        // criados no mesmo batch de sync antes do SaveChanges final.
+        var registrosPersistidos = await _context.RegistrosPresenca
             .Include(r => r.Chamada)
             .Where(r => alunosIds.Contains(r.AlunoId))
             .ToListAsync(cancellationToken);
+
+        var registrosAdicionados = _context.ChangeTracker.Entries<RegistroPresenca>()
+            .Where(e => e.State == EntityState.Added && alunosIds.Contains(e.Entity.AlunoId))
+            .Select(e => e.Entity)
+            .ToList();
+
+        // Garante que registros pendentes tenham a navegação Chamada carregada
+        foreach (var registro in registrosAdicionados)
+        {
+            if (registro.Chamada is null)
+            {
+                await _context.Entry(registro)
+                    .Reference(r => r.Chamada)
+                    .LoadAsync(cancellationToken);
+            }
+        }
+
+        var registros = registrosPersistidos
+            .Concat(registrosAdicionados)
+            .ToList();
 
         var registrosPorAluno = registros
             .GroupBy(r => r.AlunoId)

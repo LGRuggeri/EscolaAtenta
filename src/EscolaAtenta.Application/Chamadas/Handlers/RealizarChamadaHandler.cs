@@ -59,8 +59,12 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
             .Where(c => c.TurmaId == request.TurmaId)
             .ToListAsync(cancellationToken);
 
+        // Se houver duplicatas históricas, escolhe a mais recentemente criada (depois pela Id).
         var chamadaExistente = chamadasDaTurma
-            .FirstOrDefault(c => c.DataHora.Date == dataHora.Date);
+            .Where(c => c.DataHora.Date == dataHora.Date)
+            .OrderByDescending(c => c.DataCriacao)
+            .ThenBy(c => c.Id)
+            .FirstOrDefault();
 
         // 4. Busca todos os alunos da lista para atualizar
         var alunosIds = request.Alunos.Select(a => a.AlunoId).ToList();
