@@ -13,6 +13,7 @@ public class ChamadaConfiguration : IEntityTypeConfiguration<Chamada>
         builder.HasKey(c => c.Id);
 
         builder.Property(c => c.DataHora).IsRequired();
+        builder.Property(c => c.DataChamada).IsRequired();
         builder.Property(c => c.ResponsavelId).IsRequired();
 
         // ── Concorrência Otimista ─────────────────────────────────────────────
@@ -37,6 +38,7 @@ public class ChamadaConfiguration : IEntityTypeConfiguration<Chamada>
                .OnDelete(DeleteBehavior.Restrict);
 
         // Índice para busca de chamadas por turma e data
+        builder.HasIndex(c => new { c.TurmaId, c.DataChamada }).IsUnique();
         builder.HasIndex(c => new { c.TurmaId, c.DataHora });
     }
 }

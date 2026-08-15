@@ -68,21 +68,23 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         var alunosAfetados = new HashSet<Guid>();
         var rejeicoes = new List<SyncRejeicao>();
 
+        // ── IDOR: verifica se o usuário tem permissão para cada turma envolvida ─
+        await ValidarOwnershipAsync(request, rejeicoes, cancellationToken);
+
         await _lockProvider.WaitAsync(cancellationToken);
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         try
         {
             // ── TURMAS CRIADAS OFFLINE ────────────────────────────────────────────
             if (turmasCriadas.Count > 0)
             {
                 totalSincronizados += await ProcessarTurmasCriadas(turmasCriadas, cancellationToken);
-                await _context.SaveChangesAsync(cancellationToken);
             }
 
             // ── ALUNOS CRIADOS OFFLINE ────────────────────────────────────────────
             if (alunosCriados.Count > 0)
             {
                 totalSincronizados += await ProcessarAlunosCriados(alunosCriados, cancellationToken);
-                await _context.SaveChangesAsync(cancellationToken);
             }
 
             // ── CREATED ──────────────────────────────────────────────────────────
@@ -121,8 +123,21 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 }
             }
 
+            // Se houver rejeições (prazo expirado ou permissão), descarta toda a transação.
+            // Isso evita que registros válidos sejam commitados e depois fiquem presos em retry infinito
+            // junto com registros rejeitados no WatermelonDB.
+            if (rejeicoes.Count > 0)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                _logger.LogWarning(
+                    "[SYNC-PUSH] Rejeitado — {Rejeicoes} registro(s) rejeitado(s). Transação revertida.",
+                    rejeicoes.Count);
+                return new SyncPushResult(0, 0, rejeicoes);
+            }
+
             // ── Persistência atômica (domain events despachados no SaveChanges) ──
             await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
         finally
         {
@@ -252,8 +267,8 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
         var datasDosGrupos = grupos.Select(g => g.Key.Dia).ToHashSet();
         var chamadasPorChave = chamadasExistentes
-            .Where(c => datasDosGrupos.Contains(c.DataHora.Date))
-            .GroupBy(c => (c.TurmaId, c.DataHora.Date))
+            .Where(c => datasDosGrupos.Contains(c.DataChamada))
+            .GroupBy(c => (c.TurmaId, c.DataChamada))
             .ToDictionary(
                 g => g.Key,
                 g => g.OrderByDescending(c => c.DataCriacao).ThenBy(c => c.Id).First());
@@ -551,6 +566,54 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
     // ═════════════════════════════════════════════════════════════════════════
     // Helpers
     // ═════════════════════════════════════════════════════════════════════════
+
+    private async Task ValidarOwnershipAsync(
+        SyncPushCommand request,
+        List<SyncRejeicao> rejeicoes,
+        CancellationToken cancellationToken)
+    {
+        if (_currentUser.Papel == nameof(PapelUsuario.Administrador))
+            return;
+
+        if (!Guid.TryParse(_currentUser.UsuarioId, out var usuarioId))
+            return;
+
+        var idsTurmas = request.Changes.RegistrosPresenca.Created
+            .Concat(request.Changes.RegistrosPresenca.Updated)
+            .Select(r => r.TurmaId)
+            .Where(id => Guid.TryParse(id, out _))
+            .Distinct()
+            .Select(id => Guid.Parse(id))
+            .ToList();
+
+        if (idsTurmas.Count == 0)
+            return;
+
+        var turmasPermitidas = await _context.UsuarioTurmas
+            .Where(ut => ut.UsuarioId == usuarioId && idsTurmas.Contains(ut.TurmaId))
+            .Select(ut => ut.TurmaId)
+            .ToHashSetAsync(cancellationToken);
+
+        var turmasNegadas = idsTurmas.Except(turmasPermitidas).ToHashSet();
+        if (turmasNegadas.Count == 0)
+            return;
+
+        void RejeitarRegistros(IEnumerable<RegistroPresencaSyncDto> registros)
+        {
+            foreach (var dto in registros)
+            {
+                if (Guid.TryParse(dto.TurmaId, out var turmaGuid) && turmasNegadas.Contains(turmaGuid))
+                {
+                    rejeicoes.Add(new SyncRejeicao(
+                        dto.Id,
+                        "Você não tem permissão para alterar registros desta turma."));
+                }
+            }
+        }
+
+        RejeitarRegistros(request.Changes.RegistrosPresenca.Created);
+        RejeitarRegistros(request.Changes.RegistrosPresenca.Updated);
+    }
 
     private async Task RecalcularEstatisticasDosAlunos(
         HashSet<Guid> alunosIds,

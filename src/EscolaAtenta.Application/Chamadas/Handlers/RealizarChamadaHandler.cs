@@ -61,7 +61,7 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
 
         // Se houver duplicatas históricas, escolhe a mais recentemente criada (depois pela Id).
         var chamadaExistente = chamadasDaTurma
-            .Where(c => c.DataHora.Date == dataHora.Date)
+            .Where(c => c.DataChamada == dataHora.Date)
             .OrderByDescending(c => c.DataCriacao)
             .ThenBy(c => c.Id)
             .FirstOrDefault();

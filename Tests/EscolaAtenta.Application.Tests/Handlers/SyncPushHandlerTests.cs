@@ -43,8 +43,22 @@ public class SyncPushHandlerTests : IDisposable
     {
         UsuarioId = _monitorId.ToString(),
         EstaAutenticado = true,
+        Papel = "Administrador"
+    };
+
+    private FakeCurrentUserService CriarMonitorAutenticado() => new()
+    {
+        UsuarioId = _monitorId.ToString(),
+        EstaAutenticado = true,
         Papel = "Monitor"
     };
+
+    private static async Task VincularUsuarioTurma(AppDbContext ctx, Guid usuarioId, Guid turmaId)
+    {
+        ctx.UsuarioTurmas.Add(new UsuarioTurma(Guid.NewGuid(), usuarioId, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+    }
 
     private static SyncPushHandler CriarHandler(AppDbContext ctx, FakeCurrentUserService? currentUser = null) =>
         new(ctx, currentUser ?? new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString(), EstaAutenticado = true },
@@ -597,36 +611,25 @@ public class SyncPushHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_DuplicatasHistoricasPorDia_DeveEscolherMaisRecenteSemLancarErro()
+    public async Task Handle_ChamadaExistentePorTurmaEDia_DeveMergearSemCriarDuplicata()
     {
         var user = CriarUsuarioAutenticado();
         await using var ctx = CriarContexto(user);
         var turmaId = Guid.NewGuid();
         var alunoId = Guid.NewGuid();
-        ctx.Turmas.Add(new Turma(turmaId, "Duplicata", "Manhã", 2026));
-        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Duplicata", null, turmaId));
+        ctx.Turmas.Add(new Turma(turmaId, "Merge", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Merge", null, turmaId));
         await ctx.SaveChangesAsync();
         ctx.ChangeTracker.Clear();
 
         var dataMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var dataChamada = DateTimeOffset.UtcNow;
 
-        // Cria duas chamadas históricas para o mesmo dia/turma
-        var chamadaAntiga = new Chamada(Guid.NewGuid(), dataChamada, turmaId, Guid.NewGuid());
-        chamadaAntiga.RegistrarPresenca(alunoId, StatusPresenca.Falta);
-        ctx.Chamadas.Add(chamadaAntiga);
-
-        var chamadaNova = new Chamada(Guid.NewGuid(), dataChamada, turmaId, Guid.NewGuid());
-        chamadaNova.RegistrarPresenca(alunoId, StatusPresenca.Atraso);
-        ctx.Chamadas.Add(chamadaNova);
-
+        // Cria uma única chamada para o dia/turma
+        var chamadaExistente = new Chamada(Guid.NewGuid(), dataChamada, turmaId, Guid.NewGuid());
+        chamadaExistente.RegistrarPresenca(alunoId, StatusPresenca.Falta);
+        ctx.Chamadas.Add(chamadaExistente);
         await ctx.SaveChangesAsync();
-        ctx.ChangeTracker.Clear();
-
-        // Simula criação antiga para uma das chamadas (DataCriacao não pode ser setado via EF por causa do AppDbContext)
-        await ctx.Database.ExecuteSqlInterpolatedAsync(
-            $"UPDATE Chamadas SET DataCriacao = {DateTimeOffset.UtcNow.AddDays(-1)} WHERE Id = {chamadaAntiga.Id}");
-
         ctx.ChangeTracker.Clear();
 
         var pushCommand = new SyncPushCommand(
@@ -636,7 +639,7 @@ public class SyncPushHandlerTests : IDisposable
                 {
                     Created = [new RegistroPresencaSyncDto
                     {
-                        Id = "reg-duplicata",
+                        Id = "reg-merge",
                         AlunoId = alunoId.ToString(),
                         TurmaId = turmaId.ToString(),
                         Data = dataMs,
@@ -650,14 +653,14 @@ public class SyncPushHandlerTests : IDisposable
 
         resultado.RegistrosSincronizados.Should().Be(1);
 
-        // Deve ter usado a chamada mais recente como base
-        var syncLog = await ctx.SyncLogs.FirstAsync(s => s.IdExterno == "reg-duplicata");
-        var registro = await ctx.RegistrosPresenca.FindAsync(syncLog.EntidadeId);
-        registro!.Status.Should().Be(StatusPresenca.Presente);
+        // Deve manter apenas uma chamada para a turma no dia
+        var chamadas = await ctx.Chamadas.Where(c => c.TurmaId == turmaId).ToListAsync();
+        chamadas.Should().HaveCount(1, "não deve criar chamada duplicada");
 
-        // Verifica que a chamada mais recente é a que foi atualizada
-        var chamadaAtualizada = await ctx.Chamadas.FindAsync(chamadaNova.Id);
-        chamadaAtualizada!.RegistrosPresenca.Should().ContainSingle(r => r.Status == StatusPresenca.Presente);
+        var syncLog = await ctx.SyncLogs.FirstAsync(s => s.IdExterno == "reg-merge");
+        var registro = await ctx.RegistrosPresenca.FindAsync(syncLog.EntidadeId);
+        registro.Should().NotBeNull();
+        registro!.Status.Should().Be(StatusPresenca.Presente);
     }
 
     [Fact]
@@ -813,5 +816,90 @@ public class SyncPushHandlerTests : IDisposable
         var aluno = await ctx.Alunos.IgnoreQueryFilters().FirstAsync(a => a.Id == alunoId);
         aluno.TotalFaltas.Should().Be(1, "apenas a falta do dia 2 deve contar");
         aluno.FaltasConsecutivasAtuais.Should().Be(1);
+    }
+
+    // ── Testes IDOR ──────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Handle_MonitorSemVinculo_DeveRejeitarRegistrosDeOutraTurma()
+    {
+        var monitor = CriarMonitorAutenticado();
+        await using var ctx = CriarContexto(monitor);
+        var turmaPermitida = Guid.NewGuid();
+        var turmaProtegida = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+
+        ctx.Turmas.AddRange(
+            new Turma(turmaPermitida, "Permitida", "Manhã", 2026),
+            new Turma(turmaProtegida, "Protegida", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Teste", null, turmaProtegida));
+        await ctx.SaveChangesAsync();
+
+        // Vincula o monitor apenas à turma permitida
+        await VincularUsuarioTurma(ctx, _monitorId, turmaPermitida);
+
+        var dataMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var pushCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-idor",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaProtegida.ToString(),
+                        Data = dataMs,
+                        Status = "Presente"
+                    }]
+                }
+            },
+            dataMs);
+
+        var resultado = await CriarHandler(ctx, monitor).Handle(pushCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(0);
+        resultado.Rejeicoes.Should().HaveCount(1);
+        resultado.Rejeicoes[0].IdExterno.Should().Be("reg-idor");
+
+        var chamada = await ctx.Chamadas.FirstOrDefaultAsync(c => c.TurmaId == turmaProtegida);
+        chamada.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_MonitorComVinculo_DevePermitirRegistrosDaTurma()
+    {
+        var monitor = CriarMonitorAutenticado();
+        await using var ctx = CriarContexto(monitor);
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Vinculada", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Vinculado", null, turmaId));
+        await ctx.SaveChangesAsync();
+
+        await VincularUsuarioTurma(ctx, _monitorId, turmaId);
+
+        var dataMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var pushCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-vinculo",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataMs,
+                        Status = "Presente"
+                    }]
+                }
+            },
+            dataMs);
+
+        var resultado = await CriarHandler(ctx, monitor).Handle(pushCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(1);
+        resultado.Rejeicoes.Should().BeEmpty();
     }
 }

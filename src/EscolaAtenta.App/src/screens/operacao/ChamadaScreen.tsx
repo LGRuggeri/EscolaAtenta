@@ -71,12 +71,25 @@ function fimDoDia(data: Date): Date {
     return new Date(data.getFullYear(), data.getMonth(), data.getDate() + 1);
 }
 
+function mesmoDia(a: Date, b: Date): boolean {
+    return (
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate()
+    );
+}
+
+function hojeMeiaNoite(): Date {
+    const agora = new Date();
+    return new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+}
+
 function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
     const { turmaId, turmaNome } = route.params;
     const insets = useSafeAreaInsets();
 
-    const [dataTexto, setDataTexto] = useState(formatarDataBrasil(new Date()));
-    const [dataSelecionada, setDataSelecionada] = useState(new Date());
+    const [dataTexto, setDataTexto] = useState(formatarDataBrasil(hojeMeiaNoite()));
+    const [dataSelecionada, setDataSelecionada] = useState(hojeMeiaNoite());
     const [statusMap, setStatusMap] = useState<Record<string, StatusPresencaLocal>>({});
     const [somenteLeitura, setSomenteLeitura] = useState(false);
     const [modoEdicao, setModoEdicao] = useState(false);
@@ -200,13 +213,14 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                     record.turmaId = turmaId;
                     record.data = dataSelecionada;
                     record.status = statusPorAluno[aluno.id] ?? 'Presente';
-                    // Já existe no servidor, então inicia sincronizado
                     record.sincronizado = true;
                 })
             );
             await database.batch(...batch);
         });
 
+        const novosRegistros = await carregarRegistrosExistentes(dataSelecionada);
+        setRegistrosLocais(novosRegistros);
         setStatusMap(statusPorAluno);
     };
 
@@ -218,12 +232,12 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             setSomenteLeitura(false);
             setModoEdicao(false);
             setPodeEditarServidor(null);
-            setStatusMap({}); // Reseta para recarregar padrões
+            setStatusMap({});
         }
     };
 
     const handleHoje = () => {
-        const hoje = new Date();
+        const hoje = hojeMeiaNoite();
         setDataTexto(formatarDataBrasil(hoje));
         setDataSelecionada(hoje);
         setSomenteLeitura(false);
@@ -376,7 +390,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             return;
         }
 
-        if (dataValida.getTime() !== dataSelecionada.getTime()) {
+        if (!mesmoDia(dataValida, dataSelecionada)) {
             setDataSelecionada(dataValida);
             // A mudança de data dispara o useEffect que recarrega os registros locais.
             return;

@@ -38,11 +38,13 @@ public class Chamada : EntityBase
             throw new DomainException("A chamada deve ter um responsável válido.");
 
         DataHora = dataHora;
+        DataChamada = dataHora.Date;
         TurmaId = turmaId;
         ResponsavelId = responsavelId;
     }
 
     public DateTimeOffset DataHora { get; private set; }
+    public DateTime DataChamada { get; private set; }
     public Guid TurmaId { get; private set; }
     public Guid ResponsavelId { get; private set; }
 
