@@ -1059,4 +1059,37 @@ public class SyncPushHandlerTests : IDisposable
         resultado.Rejeicoes[0].IdExterno.Should().Be("reg-futura");
         resultado.Rejeicoes[0].Motivo.Should().Contain("não pode ser posterior");
     }
+
+    [Fact]
+    public async Task Handle_TurmaCriadaOffline_DeveCriarVinculoUsuarioTurma()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+
+        var command = new SyncPushCommand(
+            new SyncChanges
+            {
+                Turmas = new SyncTableData<TurmaOfflineSyncDto>
+                {
+                    Created = [new TurmaOfflineSyncDto
+                    {
+                        Id = "turma-local-vinculo",
+                        Nome = "Turma Vínculo",
+                        Turno = "Tarde",
+                        AnoLetivo = 2026
+                    }]
+                }
+            },
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+        var resultado = await CriarHandler(ctx, user).Handle(command, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(1);
+
+        var syncLog = await ctx.SyncLogs.FirstAsync(s => s.IdExterno == "turma-local-vinculo");
+        var vinculo = await ctx.UsuarioTurmas
+            .FirstOrDefaultAsync(ut => ut.UsuarioId == _monitorId && ut.TurmaId == syncLog.EntidadeId);
+
+        vinculo.Should().NotBeNull("a turma criada offline deve ser vinculada ao usuário que a criou");
+    }
 }

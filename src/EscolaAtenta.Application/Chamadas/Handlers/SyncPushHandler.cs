@@ -78,7 +78,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             // ── TURMAS CRIADAS OFFLINE ────────────────────────────────────────────
             if (turmasCriadas.Count > 0)
             {
-                totalSincronizados += await ProcessarTurmasCriadas(turmasCriadas, cancellationToken);
+                totalSincronizados += await ProcessarTurmasCriadas(turmasCriadas, responsavelId, cancellationToken);
                 await _context.SaveChangesAsync(cancellationToken);
             }
 
@@ -158,6 +158,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
     private async Task<int> ProcessarTurmasCriadas(
         List<TurmaOfflineSyncDto> turmas,
+        Guid responsavelId,
         CancellationToken ct)
     {
         var idsExternos = turmas.Select(t => t.Id).ToList();
@@ -187,6 +188,10 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 TabelaOrigem = "turmas",
                 SincronizadoEm = DateTimeOffset.UtcNow
             });
+
+            // P1: vincula a turma ao usuário que a criou, permitindo que ele
+            // realize chamadas nela imediatamente (offline-first).
+            _context.UsuarioTurmas.Add(new UsuarioTurma(Guid.NewGuid(), responsavelId, turma.Id));
 
             criados++;
         }
@@ -623,25 +628,33 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, cancellationToken)
             : new Dictionary<string, Guid>();
 
+        // IDs externos que serão criados neste mesmo batch são permitidos:
+        // a turma ainda não existe, mas será criada em ProcessarTurmasCriadas
+        // e vinculada ao usuário que a criou.
+        var idsNovasTurmasNoBatch = request.Changes.Turmas.Created
+            .Select(t => t.Id)
+            .ToHashSet();
+
+        var externosSemMapeamento = idsExternos
+            .Where(id => !mapaExternos.ContainsKey(id) && !idsNovasTurmasNoBatch.Contains(id))
+            .ToHashSet();
+
         // Consolida todos os GUIDs de turma para verificação
         var guidsTurmas = new List<Guid>(idsGuid);
         guidsTurmas.AddRange(mapaExternos.Values);
         guidsTurmas = guidsTurmas.Distinct().ToList();
 
-        if (guidsTurmas.Count == 0)
+        if (guidsTurmas.Count == 0 && externosSemMapeamento.Count == 0)
             return;
 
-        var turmasPermitidas = await _context.UsuarioTurmas
-            .Where(ut => ut.UsuarioId == usuarioId && guidsTurmas.Contains(ut.TurmaId))
-            .Select(ut => ut.TurmaId)
-            .ToHashSetAsync(cancellationToken);
+        var turmasPermitidas = guidsTurmas.Count > 0
+            ? await _context.UsuarioTurmas
+                .Where(ut => ut.UsuarioId == usuarioId && guidsTurmas.Contains(ut.TurmaId))
+                .Select(ut => ut.TurmaId)
+                .ToHashSetAsync(cancellationToken)
+            : new HashSet<Guid>();
 
         var turmasNegadas = guidsTurmas.Except(turmasPermitidas).ToHashSet();
-
-        // IDs externos sem mapeamento são tratados como acesso negado
-        var externosSemMapeamento = idsExternos
-            .Where(id => !mapaExternos.ContainsKey(id))
-            .ToHashSet();
 
         if (turmasNegadas.Count == 0 && externosSemMapeamento.Count == 0)
             return;

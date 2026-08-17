@@ -67,31 +67,42 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                 );
 
                 -- P1: Move registros de alunos que não existem na chamada vencedora
-                -- para a vencedora antes de excluir as chamadas perdedoras. Assim,
-                -- um aluno presente apenas na chamada mais antiga não perde seu registro.
+                -- para a vencedora antes de excluir as chamadas perdedoras.
+                -- Seleciona apenas o registro mais recente por aluno dentre as
+                -- perdedoras, evitando violação da constraint única (ChamadaId, AlunoId)
+                -- quando múltiplas chamadas perdedoras contêm o mesmo aluno.
+                CREATE TEMP TABLE RegistrosParaMover AS
+                SELECT rp.Id, rp.AlunoId, v.VencedoraId
+                FROM RegistrosPresenca rp
+                JOIN Chamadas c ON c.Id = rp.ChamadaId
+                JOIN VencedorasPorDia v
+                    ON v.TurmaId = c.TurmaId
+                    AND v.DataChamada = c.DataChamada
+                    AND v.VencedoraId != c.Id
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM RegistrosPresenca rp2
+                    WHERE rp2.ChamadaId = v.VencedoraId
+                      AND rp2.AlunoId = rp.AlunoId
+                )
+                AND rp.Id = (
+                    SELECT rp3.Id
+                    FROM RegistrosPresenca rp3
+                    JOIN Chamadas c3 ON c3.Id = rp3.ChamadaId
+                    WHERE rp3.AlunoId = rp.AlunoId
+                      AND c3.TurmaId = c.TurmaId
+                      AND c3.DataChamada = c.DataChamada
+                      AND c3.Id != v.VencedoraId
+                    ORDER BY c3.DataCriacao DESC, c3.Id DESC
+                    LIMIT 1
+                );
+
                 UPDATE RegistrosPresenca
                 SET ChamadaId = (
-                    SELECT v.VencedoraId
-                    FROM Chamadas c
-                    JOIN VencedorasPorDia v
-                        ON v.TurmaId = c.TurmaId
-                        AND v.DataChamada = c.DataChamada
-                    WHERE c.Id = RegistrosPresenca.ChamadaId
+                    SELECT VencedoraId FROM RegistrosParaMover WHERE Id = RegistrosPresenca.Id
                 )
-                WHERE EXISTS (
-                    SELECT 1
-                    FROM Chamadas c
-                    JOIN VencedorasPorDia v
-                        ON v.TurmaId = c.TurmaId
-                        AND v.DataChamada = c.DataChamada
-                    WHERE c.Id = RegistrosPresenca.ChamadaId
-                      AND v.VencedoraId != c.Id
-                      AND NOT EXISTS (
-                          SELECT 1 FROM RegistrosPresenca rp2
-                          WHERE rp2.ChamadaId = v.VencedoraId
-                            AND rp2.AlunoId = RegistrosPresenca.AlunoId
-                      )
-                );
+                WHERE Id IN (SELECT Id FROM RegistrosParaMover);
+
+                DROP TABLE RegistrosParaMover;
 
                 CREATE TEMP TABLE SyncLogMapping AS
                 SELECT rpPerdido.Id AS PerdidoId, rpMantido.Id AS MantidoId
@@ -187,6 +198,79 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                       )
                 ), 0)
                 WHERE Id IN (SELECT AlunoId FROM AlunosAfetados);
+
+                -- P2: Reconcilia alertas pendentes com os contadores recalculados.
+                -- Alertas de evasão: resolve quando FaltasConsecutivasAtuais cai para 0;
+                -- rebaixa o nível quando o contador cai para um threshold inferior.
+                UPDATE AlertasEvasao
+                SET Resolvido = 1,
+                    DataResolucao = datetime('now'),
+                    ObservacaoResolucao = 'Alerta resolvido automaticamente após deduplicação de chamadas: faltas consecutivas normalizadas.'
+                WHERE Tipo = 1
+                  AND Resolvido = 0
+                  AND AlunoId IN (
+                      SELECT Id FROM Alunos
+                      WHERE Id IN (SELECT AlunoId FROM AlunosAfetados)
+                        AND FaltasConsecutivasAtuais = 0
+                  );
+
+                UPDATE AlertasEvasao
+                SET Nivel = (
+                    SELECT CASE
+                        WHEN FaltasConsecutivasAtuais = 1 THEN 1
+                        WHEN FaltasConsecutivasAtuais = 2 THEN 2
+                        WHEN FaltasConsecutivasAtuais = 3 THEN 3
+                        WHEN FaltasConsecutivasAtuais = 4 THEN 3
+                        ELSE 5
+                    END
+                    FROM Alunos
+                    WHERE Alunos.Id = AlertasEvasao.AlunoId
+                ),
+                DataAlerta = datetime('now'),
+                Descricao = (
+                    SELECT 'O aluno alcançou ' || FaltasConsecutivasAtuais || ' falhas consecutivas.'
+                    FROM Alunos
+                    WHERE Alunos.Id = AlertasEvasao.AlunoId
+                )
+                WHERE Tipo = 1
+                  AND Resolvido = 0
+                  AND AlunoId IN (
+                      SELECT Id FROM Alunos
+                      WHERE Id IN (SELECT AlunoId FROM AlunosAfetados)
+                        AND FaltasConsecutivasAtuais > 0
+                  );
+
+                -- Alertas de atraso: resolve quando AtrasosNoTrimestre cai abaixo de 3;
+                -- rebaixa o nível quando o contador cai para 3-5.
+                UPDATE AlertasEvasao
+                SET Resolvido = 1,
+                    DataResolucao = datetime('now'),
+                    ObservacaoResolucao = 'Alerta resolvido automaticamente após deduplicação de chamadas: atrasos do trimestre normalizados.'
+                WHERE Tipo = 2
+                  AND Resolvido = 0
+                  AND AlunoId IN (
+                      SELECT Id FROM Alunos
+                      WHERE Id IN (SELECT AlunoId FROM AlunosAfetados)
+                        AND AtrasosNoTrimestre < 3
+                  );
+
+                UPDATE AlertasEvasao
+                SET Nivel = CASE WHEN (
+                    SELECT AtrasosNoTrimestre FROM Alunos WHERE Alunos.Id = AlertasEvasao.AlunoId
+                ) >= 6 THEN 2 ELSE 1 END,
+                DataAlerta = datetime('now'),
+                Descricao = (
+                    SELECT 'O aluno acumulou ' || AtrasosNoTrimestre || ' atrasos no trimestre.'
+                    FROM Alunos
+                    WHERE Alunos.Id = AlertasEvasao.AlunoId
+                )
+                WHERE Tipo = 2
+                  AND Resolvido = 0
+                  AND AlunoId IN (
+                      SELECT Id FROM Alunos
+                      WHERE Id IN (SELECT AlunoId FROM AlunosAfetados)
+                        AND AtrasosNoTrimestre >= 3
+                  );
 
                 DROP TABLE AlunosAfetados;");
 
