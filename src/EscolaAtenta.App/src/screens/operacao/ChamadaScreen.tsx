@@ -431,17 +431,27 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             // salvamento veria registrosLocais vazio e criaria novas linhas para toda
             // a turma, gerando registros órfãos para alunos não presentes na chamada original.
             if (registrosLocais.length === 0) {
+                // Captura os valores atuais para detectar mudança de data/turma durante os awaits
+                const dataSelecionadaAntes = dataSelecionada;
+                const turmaIdAntes = turmaId;
+
                 let chamada = chamadaServidorAtual;
                 if (!chamada) {
                     try {
                         setCarregandoEdicao(true);
-                        chamada = await chamadasService.obterChamadaPorDia(turmaId, dataSelecionada);
+                        chamada = await chamadasService.obterChamadaPorDia(turmaIdAntes, dataSelecionadaAntes);
                     } catch (erroServidor) {
                         console.error('[CHAMADA] Erro ao consultar servidor para edição:', erroServidor);
                         Alert.alert('Erro', 'Não foi possível carregar a chamada do servidor para edição.');
                         return;
                     } finally {
                         setCarregandoEdicao(false);
+                    }
+
+                    // P2: se o usuário trocou de data/turma enquanto a requisição estava em voo,
+                    // descarta a resposta stale e não altera o estado da tela.
+                    if (dataSelecionada !== dataSelecionadaAntes || turmaId !== turmaIdAntes) {
+                        return;
                     }
                 }
 
@@ -451,6 +461,11 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                         await criarRegistrosLocaisDoServidor(chamada);
                     } finally {
                         setCarregandoEdicao(false);
+                    }
+
+                    // P2: verifica novamente após a materialização dos registros locais
+                    if (dataSelecionada !== dataSelecionadaAntes || turmaId !== turmaIdAntes) {
+                        return;
                     }
                 }
             }

@@ -575,31 +575,83 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         if (!Guid.TryParse(_currentUser.UsuarioId, out var usuarioId))
             return;
 
-        var idsTurmas = request.Changes.RegistrosPresenca.Created
+        // Coleta todos os IDs de turma enviados (GUID ou externo do WatermelonDB)
+        var idsTurmasBrutos = request.Changes.RegistrosPresenca.Created
             .Concat(request.Changes.RegistrosPresenca.Updated)
             .Select(r => r.TurmaId)
-            .Where(id => Guid.TryParse(id, out _))
+            .Where(id => !string.IsNullOrWhiteSpace(id))
             .Distinct()
-            .Select(id => Guid.Parse(id))
             .ToList();
 
-        if (idsTurmas.Count == 0)
+        if (idsTurmasBrutos.Count == 0)
+            return;
+
+        // Separa GUIDs válidos de IDs externos
+        var idsGuid = new List<Guid>();
+        var idsExternos = new List<string>();
+        foreach (var id in idsTurmasBrutos)
+        {
+            if (Guid.TryParse(id, out var guid))
+                idsGuid.Add(guid);
+            else
+                idsExternos.Add(id);
+        }
+
+        // Resolve IDs externos via SyncLog (tabela turmas)
+        var mapaExternos = idsExternos.Count > 0
+            ? await _context.SyncLogs
+                .Where(s => idsExternos.Contains(s.IdExterno) && s.TabelaOrigem == "turmas")
+                .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, cancellationToken)
+            : new Dictionary<string, Guid>();
+
+        // Consolida todos os GUIDs de turma para verificação
+        var guidsTurmas = new List<Guid>(idsGuid);
+        guidsTurmas.AddRange(mapaExternos.Values);
+        guidsTurmas = guidsTurmas.Distinct().ToList();
+
+        if (guidsTurmas.Count == 0)
             return;
 
         var turmasPermitidas = await _context.UsuarioTurmas
-            .Where(ut => ut.UsuarioId == usuarioId && idsTurmas.Contains(ut.TurmaId))
+            .Where(ut => ut.UsuarioId == usuarioId && guidsTurmas.Contains(ut.TurmaId))
             .Select(ut => ut.TurmaId)
             .ToHashSetAsync(cancellationToken);
 
-        var turmasNegadas = idsTurmas.Except(turmasPermitidas).ToHashSet();
-        if (turmasNegadas.Count == 0)
+        var turmasNegadas = guidsTurmas.Except(turmasPermitidas).ToHashSet();
+
+        // IDs externos sem mapeamento são tratados como acesso negado
+        var externosSemMapeamento = idsExternos
+            .Where(id => !mapaExternos.ContainsKey(id))
+            .ToHashSet();
+
+        if (turmasNegadas.Count == 0 && externosSemMapeamento.Count == 0)
             return;
 
         void RejeitarRegistros(IEnumerable<RegistroPresencaSyncDto> registros)
         {
             foreach (var dto in registros)
             {
-                if (Guid.TryParse(dto.TurmaId, out var turmaGuid) && turmasNegadas.Contains(turmaGuid))
+                var turmaId = dto.TurmaId;
+                if (string.IsNullOrWhiteSpace(turmaId))
+                    continue;
+
+                if (Guid.TryParse(turmaId, out var guid))
+                {
+                    if (turmasNegadas.Contains(guid))
+                    {
+                        rejeicoes.Add(new SyncRejeicao(
+                            dto.Id,
+                            "Você não tem permissão para alterar registros desta turma."));
+                    }
+                }
+                else if (externosSemMapeamento.Contains(turmaId))
+                {
+                    rejeicoes.Add(new SyncRejeicao(
+                        dto.Id,
+                        "Você não tem permissão para alterar registros desta turma."));
+                }
+                else if (mapaExternos.TryGetValue(turmaId, out var guidResolvido)
+                      && turmasNegadas.Contains(guidResolvido))
                 {
                     rejeicoes.Add(new SyncRejeicao(
                         dto.Id,

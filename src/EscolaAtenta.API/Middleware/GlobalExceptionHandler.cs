@@ -100,6 +100,12 @@ public class GlobalExceptionHandler : IExceptionHandler
                  "Conflito de Concorrência",
                  "O registro foi modificado por outro usuário. Por favor, recarregue e tente novamente."),
 
+            // Violação de constraint única (ex: chamada duplicada para mesmo dia/turma) → 409
+            DbUpdateException dbEx when dbEx.InnerException?.Message.Contains("UNIQUE constraint") == true =>
+                (StatusCodes.Status409Conflict,
+                 "Conflito de Dados",
+                 "Já existe uma chamada para esta turma nesta data. Por favor, recarregue e tente novamente."),
+
             // Recurso não encontrado → 404
             KeyNotFoundException notFoundEx =>
                 (StatusCodes.Status404NotFound,

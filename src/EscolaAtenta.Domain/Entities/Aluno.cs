@@ -129,7 +129,14 @@ public class Aluno : EntityBase, ISoftDeletable
 
     private void RegistrarAtraso(DateTime dataAtual, bool dispararEventos)
     {
-        VerificarEReiniciarCicloTrimestral(dataAtual);
+        RegistrarAtraso(dataAtual, dispararEventos, verificarCiclo: true);
+    }
+
+    private void RegistrarAtraso(DateTime dataAtual, bool dispararEventos, bool verificarCiclo)
+    {
+        if (verificarCiclo)
+            VerificarEReiniciarCicloTrimestral(dataAtual);
+
         AtrasosNoTrimestre++;
 
         if (dispararEventos)
@@ -143,7 +150,14 @@ public class Aluno : EntityBase, ISoftDeletable
 
     private void RegistrarFalta(DateTime dataAtual, bool dispararEventos)
     {
-        VerificarEReiniciarCicloTrimestral(dataAtual);
+        RegistrarFalta(dataAtual, dispararEventos, verificarCiclo: true);
+    }
+
+    private void RegistrarFalta(DateTime dataAtual, bool dispararEventos, bool verificarCiclo)
+    {
+        if (verificarCiclo)
+            VerificarEReiniciarCicloTrimestral(dataAtual);
+
         FaltasNoTrimestre++;
         TotalFaltas++;
         FaltasConsecutivasAtuais++;
@@ -159,7 +173,14 @@ public class Aluno : EntityBase, ISoftDeletable
 
     private void RegistrarPresenca(DateTime dataAtual, bool dispararEventos)
     {
-        VerificarEReiniciarCicloTrimestral(dataAtual);
+        RegistrarPresenca(dataAtual, dispararEventos, verificarCiclo: true);
+    }
+
+    private void RegistrarPresenca(DateTime dataAtual, bool dispararEventos, bool verificarCiclo)
+    {
+        if (verificarCiclo)
+            VerificarEReiniciarCicloTrimestral(dataAtual);
+
         FaltasConsecutivasAtuais = 0; // Presença quebra a sequência de faltas
     }
 
@@ -174,21 +195,26 @@ public class Aluno : EntityBase, ISoftDeletable
 
     private void RegistrarPresenca(StatusPresenca status, DateTime dataAtual, bool dispararEventos)
     {
+        RegistrarPresenca(status, dataAtual, dispararEventos, verificarCiclo: true);
+    }
+
+    private void RegistrarPresenca(StatusPresenca status, DateTime dataAtual, bool dispararEventos, bool verificarCiclo)
+    {
         switch (status)
         {
             case StatusPresenca.Presente:
-                RegistrarPresenca(dataAtual, dispararEventos);
+                RegistrarPresenca(dataAtual, dispararEventos, verificarCiclo);
                 break;
             case StatusPresenca.Falta:
             case StatusPresenca.Ausente:
-                RegistrarFalta(dataAtual, dispararEventos);
+                RegistrarFalta(dataAtual, dispararEventos, verificarCiclo);
                 break;
             case StatusPresenca.FaltaJustificada:
-                RegistrarPresenca(dataAtual, dispararEventos); // Falta justificada zera consecutivas
+                RegistrarPresenca(dataAtual, dispararEventos, verificarCiclo); // Falta justificada zera consecutivas
                 TotalFaltas++; // Mas conta no total histórico
                 break;
             case StatusPresenca.Atraso:
-                RegistrarAtraso(dataAtual, dispararEventos);
+                RegistrarAtraso(dataAtual, dispararEventos, verificarCiclo);
                 break;
         }
     }
@@ -201,6 +227,10 @@ public class Aluno : EntityBase, ISoftDeletable
     /// Importante: este método NÃO dispara eventos de threshold. A emissão/escalação/
     /// resolução de alertas deve ser feita por <see cref="ReconciliarAlertasPendentes"/>,
     /// garantindo uma única fonte de decisão sobre alertas e evitando eventos duplicados.
+    ///
+    /// Também preserva o início do ciclo trimestral ativo: se o aluno já possui um
+    /// ciclo de 90 dias em andamento, o recálculo não move a fronteira para a data
+    /// da primeira presença histórica. Apenas reconta os valores dentro do ciclo atual.
     /// </summary>
     public void RecalcularEstatisticas(IEnumerable<RegistroPresenca> historico)
     {
@@ -215,19 +245,31 @@ public class Aluno : EntityBase, ISoftDeletable
             .OrderBy(r => r.Chamada.DataHora)
             .ToList();
 
+        // Salva o ciclo trimestral atual para não mover a fronteira durante o recálculo
+        var cicloAtual = DataInicioTrimestre;
+        var dataReferencia = ordenado.LastOrDefault()?.Chamada.DataHora.UtcDateTime ?? DateTime.UtcNow;
+        var cicloEstaAtivo = cicloAtual != default && (dataReferencia - cicloAtual).TotalDays < 90;
+
         // Reseta os contadores para recomputar do zero
         TotalFaltas = 0;
         FaltasConsecutivasAtuais = 0;
         FaltasNoTrimestre = 0;
         AtrasosNoTrimestre = 0;
 
-        // Define o início do trimestre como a data da primeira presença,
-        // mantendo o comportamento de janela de 90 dias a partir do histórico.
-        DataInicioTrimestre = ordenado.FirstOrDefault()?.Chamada.DataHora.UtcDateTime ?? DateTime.UtcNow;
+        // Se não há ciclo ativo, define o início como a data da primeira presença
+        // (comportamento original para alunos novos ou sem ciclo válido).
+        if (!cicloEstaAtivo)
+        {
+            DataInicioTrimestre = ordenado.FirstOrDefault()?.Chamada.DataHora.UtcDateTime ?? DateTime.UtcNow;
+        }
 
         foreach (var registro in ordenado)
         {
-            RegistrarPresenca(registro.Status, registro.Chamada.DataHora.UtcDateTime, dispararEventos: false);
+            RegistrarPresenca(
+                registro.Status,
+                registro.Chamada.DataHora.UtcDateTime,
+                dispararEventos: false,
+                verificarCiclo: false);
         }
     }
 

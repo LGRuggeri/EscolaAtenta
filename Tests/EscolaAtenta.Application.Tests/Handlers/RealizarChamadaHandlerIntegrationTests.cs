@@ -38,6 +38,7 @@ public class RealizarChamadaHandlerIntegrationTests : IDisposable
 
         services.AddSingleton(currentUser);
         services.AddSingleton<IEscolaTenantProvider, FakeTenantProvider>();
+        services.AddSingleton<ISqliteWriteLockProvider, FakeSqliteWriteLockProvider>();
         services.AddLogging();
 
         // MediatR real: registra todos os handlers do assembly de Application.

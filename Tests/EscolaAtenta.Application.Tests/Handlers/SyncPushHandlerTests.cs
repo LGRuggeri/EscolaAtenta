@@ -965,4 +965,60 @@ public class SyncPushHandlerTests : IDisposable
         chamada.Should().NotBeNull();
         chamada!.RegistrosPresenca.Should().ContainSingle(r => r.AlunoId == alunoSincronizado.Id);
     }
+
+    [Fact]
+    public async Task Handle_MonitorSemVinculo_DeveRejeitarRegistrosComIdExternoDeOutraTurma()
+    {
+        var monitor = CriarMonitorAutenticado();
+        await using var ctx = CriarContexto(monitor);
+        var turmaPermitida = Guid.NewGuid();
+        var turmaProtegida = Guid.NewGuid();
+
+        ctx.Turmas.AddRange(
+            new Turma(turmaPermitida, "Permitida", "Manhã", 2026),
+            new Turma(turmaProtegida, "Protegida", "Manhã", 2026));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        // Simula que a turma protegida já foi sincronizada e possui ID externo
+        ctx.SyncLogs.Add(new SyncLog
+        {
+            Id = Guid.NewGuid(),
+            IdExterno = "turma-externa-protegida",
+            EntidadeId = turmaProtegida,
+            TabelaOrigem = "turmas",
+            SincronizadoEm = DateTimeOffset.UtcNow
+        });
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        await VincularUsuarioTurma(ctx, _monitorId, turmaPermitida);
+
+        var dataMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var pushCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-idor-externo",
+                        AlunoId = Guid.NewGuid().ToString(),
+                        TurmaId = "turma-externa-protegida",
+                        Data = dataMs,
+                        Status = "Presente"
+                    }]
+                }
+            },
+            dataMs);
+
+        var resultado = await CriarHandler(ctx, monitor).Handle(pushCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(0);
+        resultado.Rejeicoes.Should().HaveCount(1);
+        resultado.Rejeicoes[0].IdExterno.Should().Be("reg-idor-externo");
+
+        var chamada = await ctx.Chamadas.FirstOrDefaultAsync(c => c.TurmaId == turmaProtegida);
+        chamada.Should().BeNull();
+    }
 }

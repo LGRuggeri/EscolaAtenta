@@ -4,17 +4,25 @@ using Microsoft.EntityFrameworkCore;
 namespace EscolaAtenta.API.Workers;
 
 /// <summary>
-/// Worker que roda uma vez por dia e remove SyncLogs com mais de 90 dias.
-/// SyncLogs são registros de mapeamento WatermelonDB ID → GUID do servidor.
-/// Após 90 dias, um registro não sincronizado provavelmente não voltará mais,
-/// e manter o histórico infinito degrada performance das queries de sync.
+/// Worker que roda uma vez por dia.
+///
+/// IMPORTANTE: A limpeza automática de SyncLogs foi desativada.
+/// SyncLogs são mapeamentos de identidade entre IDs locais do WatermelonDB
+/// (alfanuméricos) e GUIDs do servidor. Eles são essenciais para que
+/// ProcessarCreated, ObterChamadaPorTurmaEDiaHandler e SyncPullHandler
+/// consigam resolver entidades criadas offline. Remover esses mapeamentos
+/// após 90 dias causaria perda silenciosa de dados offline que nunca
+/// chegaram ao servidor.
+///
+/// Se no futuro for necessário limpar SyncLogs, faça-o apenas para
+/// mapeamentos cuja EntidadeId não exista mais no banco (órfãos reais),
+/// nunca por data de sincronização.
 /// </summary>
 public class SyncLogCleanupWorker : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<SyncLogCleanupWorker> _logger;
     private static readonly TimeSpan Intervalo = TimeSpan.FromHours(24);
-    private static readonly TimeSpan Retencao = TimeSpan.FromDays(90);
 
     public SyncLogCleanupWorker(IServiceScopeFactory scopeFactory, ILogger<SyncLogCleanupWorker> logger)
     {
@@ -24,8 +32,7 @@ public class SyncLogCleanupWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("[SYNCLOG-CLEANUP] Worker iniciado. Limpeza a cada {Horas}h, retencao de {Dias} dias.",
-            Intervalo.TotalHours, Retencao.TotalDays);
+        _logger.LogInformation("[SYNCLOG-CLEANUP] Worker iniciado em modo desativado. Limpeza automática de SyncLogs não executada para preservar mapeamentos de identidade offline.");
 
         // Aguarda 5 minutos antes da primeira execução para não competir com o startup
         await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
@@ -34,23 +41,14 @@ public class SyncLogCleanupWorker : BackgroundService
         {
             try
             {
-                using var scope = _scopeFactory.CreateScope();
-                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-                var limite = DateTimeOffset.UtcNow - Retencao;
-                var removidos = await context.SyncLogs
-                    .Where(s => s.SincronizadoEm < limite)
-                    .ExecuteDeleteAsync(stoppingToken);
-
-                if (removidos > 0)
-                    _logger.LogInformation("[SYNCLOG-CLEANUP] {Count} registros antigos removidos.", removidos);
+                // A limpeza automática de SyncLogs foi desativada.
+                // Ver comentário da classe para justificativa.
+                await Task.Delay(Intervalo, stoppingToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "[SYNCLOG-CLEANUP] Erro durante limpeza.");
             }
-
-            await Task.Delay(Intervalo, stoppingToken);
         }
     }
 }
