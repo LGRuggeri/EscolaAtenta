@@ -1021,4 +1021,42 @@ public class SyncPushHandlerTests : IDisposable
         var chamada = await ctx.Chamadas.FirstOrDefaultAsync(c => c.TurmaId == turmaProtegida);
         chamada.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Handle_DataFuturaNoSync_DeveRejeitarRegistro()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Turma Futura", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Futura", null, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var dataFuturaMs = DateTimeOffset.UtcNow.AddDays(1).ToUnixTimeMilliseconds();
+        var pushCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-futura",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataFuturaMs,
+                        Status = "Presente"
+                    }]
+                }
+            },
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+        var resultado = await CriarHandler(ctx, user).Handle(pushCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(0);
+        resultado.Rejeicoes.Should().HaveCount(1);
+        resultado.Rejeicoes[0].IdExterno.Should().Be("reg-futura");
+        resultado.Rejeicoes[0].Motivo.Should().Contain("não pode ser posterior");
+    }
 }

@@ -66,6 +66,33 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                       )
                 );
 
+                -- P1: Move registros de alunos que não existem na chamada vencedora
+                -- para a vencedora antes de excluir as chamadas perdedoras. Assim,
+                -- um aluno presente apenas na chamada mais antiga não perde seu registro.
+                UPDATE RegistrosPresenca
+                SET ChamadaId = (
+                    SELECT v.VencedoraId
+                    FROM Chamadas c
+                    JOIN VencedorasPorDia v
+                        ON v.TurmaId = c.TurmaId
+                        AND v.DataChamada = c.DataChamada
+                    WHERE c.Id = RegistrosPresenca.ChamadaId
+                )
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM Chamadas c
+                    JOIN VencedorasPorDia v
+                        ON v.TurmaId = c.TurmaId
+                        AND v.DataChamada = c.DataChamada
+                    WHERE c.Id = RegistrosPresenca.ChamadaId
+                      AND v.VencedoraId != c.Id
+                      AND NOT EXISTS (
+                          SELECT 1 FROM RegistrosPresenca rp2
+                          WHERE rp2.ChamadaId = v.VencedoraId
+                            AND rp2.AlunoId = RegistrosPresenca.AlunoId
+                      )
+                );
+
                 CREATE TEMP TABLE SyncLogMapping AS
                 SELECT rpPerdido.Id AS PerdidoId, rpMantido.Id AS MantidoId
                 FROM RegistrosPresenca rpPerdido

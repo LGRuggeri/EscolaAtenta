@@ -287,6 +287,25 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             }
 
             var dataHoraChamada = ConvertTimestamp(grupo.Min(r => r.Data));
+
+            // P2: rejeita datas futuras — isso criaria presenças antecipadas e
+            // poderia mover o ciclo trimestral para frente, corrompendo contadores.
+            if (dataHoraChamada.Date > DateTimeOffset.UtcNow.Date)
+            {
+                _logger.LogWarning(
+                    "[SYNC] Data futura rejeitada para turma {TurmaId}: {Data}. Ignorando {Count} registros.",
+                    grupo.Key.TurmaGuid, grupo.Key.Dia, grupo.Count());
+
+                foreach (var dto in grupo)
+                {
+                    rejeicoes.Add(new SyncRejeicao(
+                        dto.Id,
+                        $"A data da chamada não pode ser posterior ao dia atual."));
+                }
+
+                continue;
+            }
+
             var chave = (grupo.Key.TurmaGuid, grupo.Key.Dia);
 
             if (chamadasPorChave.TryGetValue(chave, out var chamadaExistente))

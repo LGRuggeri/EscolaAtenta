@@ -456,6 +456,54 @@ public class AlunoTests
     }
 
     [Fact]
+    public void RecalcularEstatisticas_ComCicloTrimestralAtivo_DevePreservarFronteiraERestringirReplay()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        // Simula que o aluno já tem um ciclo iniciado há 30 dias (força via reflection)
+        var inicioCiclo = data.AddDays(-30).Date;
+        var prop = typeof(Aluno).GetProperty(nameof(Aluno.DataInicioTrimestre));
+        prop!.SetValue(aluno, inicioCiclo);
+
+        // Histórico: uma falta antiga (antes do ciclo) e uma falta dentro do ciclo
+        var chamadaAntiga = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(-100)), TurmaId, Guid.NewGuid());
+        var registroAntigo = chamadaAntiga.RegistrarPresenca(aluno.Id, StatusPresenca.Falta);
+
+        var chamadaAtual = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(-10)), TurmaId, Guid.NewGuid());
+        var registroAtual = chamadaAtual.RegistrarPresenca(aluno.Id, StatusPresenca.Falta);
+
+        // Act
+        aluno.RecalcularEstatisticas(new[] { registroAntigo, registroAtual });
+
+        // Assert
+        aluno.DataInicioTrimestre.Should().Be(inicioCiclo, "o ciclo ativo não deve ser movido para trás");
+        aluno.TotalFaltas.Should().Be(2, "total histórico conta todas as faltas");
+        aluno.FaltasNoTrimestre.Should().Be(1, "apenas a falta dentro do ciclo conta");
+        aluno.FaltasConsecutivasAtuais.Should().Be(1, "apenas registros dentro do ciclo contam para consecutivas");
+    }
+
+    [Fact]
+    public void RecalcularEstatisticas_SemCicloAtivo_DeveUsarPrimeiraPresencaComoInicio()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(-5)), TurmaId, Guid.NewGuid());
+        var registro = chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Falta);
+
+        // Act
+        aluno.RecalcularEstatisticas(new[] { registro });
+
+        // Assert
+        aluno.DataInicioTrimestre.Date.Should().Be(registro.Chamada.DataHora.UtcDateTime.Date);
+        aluno.FaltasNoTrimestre.Should().Be(1);
+        aluno.FaltasConsecutivasAtuais.Should().Be(1);
+    }
+
+    [Fact]
     public void ReconciliarAlertasPendentes_AposCorrecaoDeFaltas_DeveEmitirEventoDeNormalizacaoDeFaltas()
     {
         // Arrange

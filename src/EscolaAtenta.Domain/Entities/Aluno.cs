@@ -228,9 +228,10 @@ public class Aluno : EntityBase, ISoftDeletable
     /// resolução de alertas deve ser feita por <see cref="ReconciliarAlertasPendentes"/>,
     /// garantindo uma única fonte de decisão sobre alertas e evitando eventos duplicados.
     ///
-    /// Também preserva o início do ciclo trimestral ativo: se o aluno já possui um
-    /// ciclo de 90 dias em andamento, o recálculo não move a fronteira para a data
-    /// da primeira presença histórica. Apenas reconta os valores dentro do ciclo atual.
+    /// Também preserva o início do ciclo trimestral ativo e restringe o replay:
+    /// - TotalFaltas: conta o histórico completo.
+    /// - FaltasNoTrimestre, AtrasosNoTrimestre e FaltasConsecutivasAtuais: contam
+    ///   apenas registros dentro do ciclo trimestral atual (≥ DataInicioTrimestre).
     /// </summary>
     public void RecalcularEstatisticas(IEnumerable<RegistroPresenca> historico)
     {
@@ -248,13 +249,12 @@ public class Aluno : EntityBase, ISoftDeletable
         // Salva o ciclo trimestral atual para não mover a fronteira durante o recálculo
         var cicloAtual = DataInicioTrimestre;
         var dataReferencia = ordenado.LastOrDefault()?.Chamada.DataHora.UtcDateTime ?? DateTime.UtcNow;
-        var cicloEstaAtivo = cicloAtual != default && (dataReferencia - cicloAtual).TotalDays < 90;
 
-        // Reseta os contadores para recomputar do zero
-        TotalFaltas = 0;
-        FaltasConsecutivasAtuais = 0;
-        FaltasNoTrimestre = 0;
-        AtrasosNoTrimestre = 0;
+        // O ciclo está ativo apenas se a data mais recente do histórico pertence
+        // ao ciclo atual (dataReferencia >= cicloAtual) e está dentro da janela de 90 dias.
+        var cicloEstaAtivo = cicloAtual != default
+            && dataReferencia >= cicloAtual
+            && (dataReferencia - cicloAtual).TotalDays < 90;
 
         // Se não há ciclo ativo, define o início como a data da primeira presença
         // (comportamento original para alunos novos ou sem ciclo válido).
@@ -263,13 +263,44 @@ public class Aluno : EntityBase, ISoftDeletable
             DataInicioTrimestre = ordenado.FirstOrDefault()?.Chamada.DataHora.UtcDateTime ?? DateTime.UtcNow;
         }
 
+        var ciclo = DataInicioTrimestre;
+
+        // Reseta os contadores para recomputar do zero
+        TotalFaltas = 0;
+        FaltasConsecutivasAtuais = 0;
+        FaltasNoTrimestre = 0;
+        AtrasosNoTrimestre = 0;
+
         foreach (var registro in ordenado)
         {
-            RegistrarPresenca(
-                registro.Status,
-                registro.Chamada.DataHora.UtcDateTime,
-                dispararEventos: false,
-                verificarCiclo: false);
+            var dataRegistro = registro.Chamada.DataHora.UtcDateTime;
+
+            // TotalFaltas: conta o histórico completo, independentemente do ciclo
+            if (registro.Status is StatusPresenca.Falta or StatusPresenca.Ausente or StatusPresenca.FaltaJustificada)
+                TotalFaltas++;
+
+            // Contadores trimestrais e consecutivos: apenas dentro do ciclo ativo
+            if (dataRegistro < ciclo)
+                continue;
+
+            switch (registro.Status)
+            {
+                case StatusPresenca.Falta:
+                case StatusPresenca.Ausente:
+                    FaltasNoTrimestre++;
+                    FaltasConsecutivasAtuais++;
+                    break;
+                case StatusPresenca.Atraso:
+                    AtrasosNoTrimestre++;
+                    break;
+                case StatusPresenca.FaltaJustificada:
+                    // Falta justificada quebra a sequência de faltas, mas não conta como falta no trimestre
+                    FaltasConsecutivasAtuais = 0;
+                    break;
+                case StatusPresenca.Presente:
+                    FaltasConsecutivasAtuais = 0;
+                    break;
+            }
         }
     }
 
