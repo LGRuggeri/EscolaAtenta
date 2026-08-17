@@ -1,5 +1,6 @@
 using EscolaAtenta.Domain.Common;
 using EscolaAtenta.Domain.Entities;
+using EscolaAtenta.Domain.Events;
 using EscolaAtenta.Domain.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -159,7 +160,37 @@ public class AppDbContext : DbContext
 
             entidadesComEventos.ForEach(e => e.ClearDomainEvents());
 
-            foreach (var domainEvent in domainEvents)
+            // ── Deduplicação defensiva de eventos de threshold ─────────────────────
+            // Os handlers de alerta consultam o banco para evitar duplicatas. Como
+            // eles são executados antes do commit, um segundo evento equivalente
+            // não veria a entidade adicionada pelo primeiro. Mantemos apenas o
+            // último evento de threshold por (AlunoId, Tipo) para cada batch.
+            var eventosVistos = new HashSet<string>();
+            var eventosFiltrados = new List<INotification>();
+            for (int i = domainEvents.Count - 1; i >= 0; i--)
+            {
+                var evt = domainEvents[i];
+                var chave = evt switch
+                {
+                    LimiteFaltasAtingidoEvent e => $"{e.AlunoId}:{nameof(LimiteFaltasAtingidoEvent)}",
+                    LimiteAtrasosAtingidoEvent e => $"{e.AlunoId}:{nameof(LimiteAtrasosAtingidoEvent)}",
+                    _ => string.Empty
+                };
+
+                if (string.IsNullOrEmpty(chave))
+                {
+                    eventosFiltrados.Insert(0, evt);
+                    continue;
+                }
+
+                if (!eventosVistos.Contains(chave))
+                {
+                    eventosVistos.Add(chave);
+                    eventosFiltrados.Insert(0, evt);
+                }
+            }
+
+            foreach (var domainEvent in eventosFiltrados)
             {
                 await _mediator.Publish(domainEvent, cancellationToken);
             }

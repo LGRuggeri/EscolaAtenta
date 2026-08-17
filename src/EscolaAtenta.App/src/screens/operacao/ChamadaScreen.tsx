@@ -96,6 +96,8 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
     // null = ainda não verificou no servidor; true/false = resultado da verificação
     const [podeEditarServidor, setPodeEditarServidor] = useState<boolean | null>(null);
     const [registrosLocais, setRegistrosLocais] = useState<RegistroPresenca[]>([]);
+    const [chamadaServidorAtual, setChamadaServidorAtual] = useState<ChamadaPorDiaDto | null>(null);
+    const [carregandoEdicao, setCarregandoEdicao] = useState(false);
 
     // Ao trocar a data, reseta o estado e carrega registros locais se existirem.
     // Se houver registros locais, consulta o servidor para respeitar o prazo de edição.
@@ -103,6 +105,8 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         setPodeEditarServidor(null);
         setSomenteLeitura(false);
         setModoEdicao(false);
+        setChamadaServidorAtual(null);
+        setCarregandoEdicao(false);
         setStatusMap({});
 
         let cancelado = false;
@@ -120,6 +124,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                     if (chamadaServidor) {
                         // Sincroniza o status com o servidor (pode ter sido alterado por outro dispositivo)
                         aplicarStatusDoServidor(chamadaServidor);
+                        setChamadaServidorAtual(chamadaServidor);
                         setPodeEditarServidor(chamadaServidor.podeEditar);
                         setSomenteLeitura(true);
                         return;
@@ -246,6 +251,8 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             setSomenteLeitura(false);
             setModoEdicao(false);
             setPodeEditarServidor(null);
+            setChamadaServidorAtual(null);
+            setCarregandoEdicao(false);
             setStatusMap({});
         }
     };
@@ -257,6 +264,8 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         setSomenteLeitura(false);
         setModoEdicao(false);
         setPodeEditarServidor(null);
+        setChamadaServidorAtual(null);
+        setCarregandoEdicao(false);
         setStatusMap({});
     };
 
@@ -416,6 +425,36 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                 Alert.alert('Aviso', 'Esta chamada já não pode mais ser alterada (prazo de 7 dias expirado).');
                 return;
             }
+
+            // P2: se a visualização veio de uma chamada server-only, materializa os
+            // registros locais antes de habilitar a edição. Caso contrário, o próximo
+            // salvamento veria registrosLocais vazio e criaria novas linhas para toda
+            // a turma, gerando registros órfãos para alunos não presentes na chamada original.
+            if (registrosLocais.length === 0) {
+                let chamada = chamadaServidorAtual;
+                if (!chamada) {
+                    try {
+                        setCarregandoEdicao(true);
+                        chamada = await chamadasService.obterChamadaPorDia(turmaId, dataSelecionada);
+                    } catch (erroServidor) {
+                        console.error('[CHAMADA] Erro ao consultar servidor para edição:', erroServidor);
+                        Alert.alert('Erro', 'Não foi possível carregar a chamada do servidor para edição.');
+                        return;
+                    } finally {
+                        setCarregandoEdicao(false);
+                    }
+                }
+
+                if (chamada) {
+                    setCarregandoEdicao(true);
+                    try {
+                        await criarRegistrosLocaisDoServidor(chamada);
+                    } finally {
+                        setCarregandoEdicao(false);
+                    }
+                }
+            }
+
             // Sai do modo visualização e permite edição
             setSomenteLeitura(false);
             setModoEdicao(true);
@@ -613,12 +652,13 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                     mode="contained"
                     onPress={handleSalvar}
                     icon={bloqueadoParaSempre ? 'eye' : somenteLeitura ? 'pencil' : 'content-save-check'}
-                    disabled={bloqueadoParaSempre}
+                    disabled={bloqueadoParaSempre || carregandoEdicao}
+                    loading={carregandoEdicao}
                     style={styles.saveButton}
                     contentStyle={styles.saveButtonContent}
                     labelStyle={styles.saveButtonLabel}
                 >
-                    {tituloBotao}
+                    {carregandoEdicao ? 'Carregando...' : tituloBotao}
                 </Button>
             </View>
         </SafeAreaView>

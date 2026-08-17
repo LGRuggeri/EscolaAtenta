@@ -403,7 +403,7 @@ public class AlunoTests
     }
 
     [Fact]
-    public void RecalcularEstatisticas_ComVariasFaltasConsecutivas_DeveEmitirApenasEventoFinal()
+    public void RecalcularEstatisticasEReconciliar_ComVariasFaltasConsecutivas_DeveEmitirApenasEventoFinal()
     {
         // Arrange
         var aluno = CriarAlunoValido();
@@ -418,17 +418,18 @@ public class AlunoTests
 
         // Act
         aluno.RecalcularEstatisticas(registros);
+        aluno.ReconciliarAlertasPendentes();
 
-        // Assert: apenas um evento final (nível Preto para 5 faltas),
+        // Assert: apenas um evento final de threshold (nível Preto para 5 faltas),
         // sem eventos intermediários de Aviso (1), Intermediário (2) ou Vermelho (3).
-        aluno.DomainEvents.Should().HaveCount(1);
+        aluno.DomainEvents.OfType<LimiteFaltasAtingidoEvent>().Should().ContainSingle();
         var evento = aluno.DomainEvents.OfType<LimiteFaltasAtingidoEvent>().Single();
         evento.Nivel.Should().Be(NivelAlertaFalta.Preto);
         evento.TotalFaltas.Should().Be(5);
     }
 
     [Fact]
-    public void RecalcularEstatisticas_ComVariosAtrasos_DeveEmitirApenasEventoFinal()
+    public void RecalcularEstatisticasEReconciliar_ComVariosAtrasos_DeveEmitirApenasEventoFinal()
     {
         // Arrange
         var aluno = CriarAlunoValido();
@@ -443,10 +444,12 @@ public class AlunoTests
 
         // Act
         aluno.RecalcularEstatisticas(registros);
+        aluno.ReconciliarAlertasPendentes();
 
-        // Assert: apenas um evento final (nível Intermediário para 6 atrasos),
-        // sem evento intermediário de Aviso (3).
-        aluno.DomainEvents.Should().HaveCount(1);
+        // Assert: apenas um evento final de threshold (nível Intermediário para 6 atrasos),
+        // sem evento intermediário de Aviso (3). Eventos de normalização de outro
+        // tipo (faltas zeradas) podem coexistir.
+        aluno.DomainEvents.OfType<LimiteAtrasosAtingidoEvent>().Should().ContainSingle();
         var evento = aluno.DomainEvents.OfType<LimiteAtrasosAtingidoEvent>().Single();
         evento.Nivel.Should().Be(NivelAlertaFalta.Intermediario);
         evento.TotalAtrasos.Should().Be(6);

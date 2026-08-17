@@ -23,6 +23,10 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
             // Mantém a chamada mais recente (por DataCriacao, desempate por Id).
             // Antes da deduplicação, guarda os alunos afetados para recalcular os contadores denormalizados.
             migrationBuilder.Sql(@"
+                DROP TABLE IF EXISTS AlunosAfetados;
+                DROP TABLE IF EXISTS VencedorasPorDia;
+                DROP TABLE IF EXISTS SyncLogMapping;
+
                 CREATE TEMP TABLE AlunosAfetados AS
                 SELECT DISTINCT rp.AlunoId
                 FROM RegistrosPresenca rp

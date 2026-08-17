@@ -92,9 +92,8 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             // ── CREATED ──────────────────────────────────────────────────────────
             if (created.Count > 0)
             {
-                var (criados, alertas, afetados) = await ProcessarCreated(created, responsavelId, rejeicoes, cancellationToken);
+                var (criados, afetados) = await ProcessarCreated(created, responsavelId, rejeicoes, cancellationToken);
                 totalSincronizados += criados;
-                alertasGerados += alertas;
                 foreach (var id in afetados) alunosAfetados.Add(id);
             }
 
@@ -200,7 +199,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
     // CREATED: Novos registros de presença gerados offline
     // ═════════════════════════════════════════════════════════════════════════
 
-    private async Task<(int Criados, int Alertas, HashSet<Guid> Afetados)> ProcessarCreated(
+    private async Task<(int Criados, HashSet<Guid> Afetados)> ProcessarCreated(
         List<RegistroPresencaSyncDto> registros,
         Guid responsavelId,
         List<SyncRejeicao> rejeicoes,
@@ -217,7 +216,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             .ToList();
 
         if (registrosNovos.Count == 0)
-            return (0, 0, []);
+            return (0, []);
 
         var todosIdsExternos = registrosNovos
             .SelectMany(r => new[] { r.AlunoId, r.TurmaId })
@@ -276,7 +275,6 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 g => g.OrderByDescending(c => c.DataCriacao).ThenBy(c => c.Id).First());
 
         int criados = 0;
-        int alertas = 0;
         var afetados = new HashSet<Guid>();
 
         foreach (var grupo in grupos)
@@ -385,9 +383,6 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                     var dataPresenca = ConvertTimestamp(dto.Data).UtcDateTime;
                     aluno.RegistrarPresenca(status, dataPresenca);
 
-                    if (aluno.DomainEvents.Count > 0)
-                        alertas++;
-
                     _context.SyncLogs.Add(new SyncLog
                     {
                         Id = Guid.NewGuid(),
@@ -402,7 +397,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             }
         }
 
-        return (criados, alertas, afetados);
+        return (criados, afetados);
     }
 
     // ═════════════════════════════════════════════════════════════════════════

@@ -197,6 +197,10 @@ public class Aluno : EntityBase, ISoftDeletable
     /// Recalcula todas as estatísticas do aluno a partir do histórico de presenças.
     /// Limpa eventos pendentes para evitar duplicar alertas quando o recálculo
     /// é executado após outras operações do mesmo batch já terem enfileirado eventos.
+    ///
+    /// Importante: este método NÃO dispara eventos de threshold. A emissão/escalação/
+    /// resolução de alertas deve ser feita por <see cref="ReconciliarAlertasPendentes"/>,
+    /// garantindo uma única fonte de decisão sobre alertas e evitando eventos duplicados.
     /// </summary>
     public void RecalcularEstatisticas(IEnumerable<RegistroPresenca> historico)
     {
@@ -225,12 +229,6 @@ public class Aluno : EntityBase, ISoftDeletable
         {
             RegistrarPresenca(registro.Status, registro.Chamada.DataHora.UtcDateTime, dispararEventos: false);
         }
-
-        // Após reprocessar todo o histórico sem disparar eventos intermediários,
-        // avalia os contadores finais uma única vez para evitar múltiplos alertas
-        // para o mesmo aluno dentro de um mesmo batch.
-        VerificarLimiteFaltas();
-        VerificarLimiteAtrasos();
     }
 
     /// <summary>
