@@ -77,13 +77,6 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
                 .ThenBy(c => c.Id)
                 .FirstOrDefault();
 
-            // 4. Busca todos os alunos da lista para atualizar.
-            // Filtra por TurmaId para evitar registrar presença de aluno de outra turma.
-            var alunosIds = request.Alunos.Select(a => a.AlunoId).ToList();
-            var alunosDb = await _context.Alunos
-                .Where(a => alunosIds.Contains(a.Id) && a.TurmaId == request.TurmaId)
-                .ToDictionaryAsync(a => a.Id, cancellationToken);
-
             bool chamadaFoiAtualizada = false;
             int alertasGerados = 0;
 
@@ -101,23 +94,30 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
                 var registrosExistentes = chamadaExistente.RegistrosPresenca
                     .ToDictionary(r => r.AlunoId, r => r);
 
+                // P2: usa a membresia da chamada salva para buscar alunos, não a turma atual.
+                // Um aluno transferido após a chamada ainda deve ter seu registro histórico editável.
+                var alunosIdsDaChamada = registrosExistentes.Keys.ToList();
+                var alunosDb = await _context.Alunos
+                    .Where(a => alunosIdsDaChamada.Contains(a.Id))
+                    .ToDictionaryAsync(a => a.Id, cancellationToken);
+
                 var alunosAfetados = new HashSet<Guid>();
 
                 foreach (var registroDto in request.Alunos)
                 {
-                    if (!alunosDb.TryGetValue(registroDto.AlunoId, out var aluno))
-                    {
-                        _logger.LogWarning(
-                            "Tentativa de atualizar presença para aluno inexistente: {AlunoId}",
-                            registroDto.AlunoId);
-                        continue;
-                    }
-
                     if (!registrosExistentes.TryGetValue(registroDto.AlunoId, out var registroExistente))
                     {
                         _logger.LogWarning(
                             "Aluno {AlunoId} não consta na chamada do dia {Data}. Não é permitido adicionar novos alunos em uma chamada existente.",
                             registroDto.AlunoId, dataHora.Date);
+                        continue;
+                    }
+
+                    if (!alunosDb.TryGetValue(registroDto.AlunoId, out var aluno))
+                    {
+                        _logger.LogWarning(
+                            "Tentativa de atualizar presença para aluno inexistente: {AlunoId}",
+                            registroDto.AlunoId);
                         continue;
                     }
 
@@ -152,6 +152,12 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
             else
             {
                 // ── Criação de nova chamada ─────────────────────────────────────────
+                // 4. Busca todos os alunos da lista para atualizar.
+                // Filtra por TurmaId para evitar registrar presença de aluno de outra turma.
+                var alunosIds = request.Alunos.Select(a => a.AlunoId).ToList();
+                var alunosDb = await _context.Alunos
+                    .Where(a => alunosIds.Contains(a.Id) && a.TurmaId == request.TurmaId)
+                    .ToDictionaryAsync(a => a.Id, cancellationToken);
                 var chamada = new Chamada(
                     id: Guid.NewGuid(),
                     dataHora: dataHora,

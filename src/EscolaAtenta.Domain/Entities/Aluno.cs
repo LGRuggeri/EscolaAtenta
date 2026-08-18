@@ -256,17 +256,25 @@ public class Aluno : EntityBase, ISoftDeletable
             && dataReferencia >= cicloAtual
             && (dataReferencia - cicloAtual).TotalDays < 90;
 
-        // Se o ciclo expirou, avança para o ciclo mais recente que contém a última presença.
-        // Isso evita que todo o histórico antigo seja incluído no trimestre atual.
+        // Se o ciclo expirou, reconstrói os limites cronologicamente a partir dos
+        // resets de 90 dias. Isso evita que uma janela deslizante puxe registros de
+        // ciclos anteriores para o trimestre atual ao recalcular.
         if (!cicloEstaAtivo && ordenado.Count > 0)
         {
-            // Encontra a primeira presença cujo ciclo de 90 dias contém a última presença.
-            // Ou seja, a menor data d tal que dataReferencia - d < 90 dias.
-            DataInicioTrimestre = ordenado
+            var datas = ordenado
                 .Select(r => r.Chamada.DataHora.UtcDateTime)
-                .Where(d => (dataReferencia - d).TotalDays < 90)
-                .DefaultIfEmpty(dataReferencia)
-                .Min();
+                .ToList();
+
+            var inicioReconstruido = datas.First();
+            foreach (var data in datas)
+            {
+                if ((data - inicioReconstruido).TotalDays >= 90)
+                {
+                    inicioReconstruido = data;
+                }
+            }
+
+            DataInicioTrimestre = inicioReconstruido;
         }
         else if (!cicloEstaAtivo)
         {
