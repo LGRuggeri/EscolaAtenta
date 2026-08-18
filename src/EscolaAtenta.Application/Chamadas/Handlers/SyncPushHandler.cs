@@ -465,6 +465,25 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 continue;
             }
 
+            // P1: autoriza pela turma real do registro mapeado, não pelo TurmaId
+            // enviado pelo cliente. Isso impede que um usuário malicioso atualize
+            // um registro de outra turma usando um TurmaId permitido.
+            if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
+                && Guid.TryParse(_currentUser.UsuarioId, out var usuarioId)
+                && !await _context.UsuarioTurmas.AnyAsync(
+                    ut => ut.TurmaId == registroPresenca.Chamada.TurmaId && ut.UsuarioId == usuarioId, ct))
+            {
+                _logger.LogWarning(
+                    "[SYNC-UPDATE] Usuário {UsuarioId} não tem permissão para atualizar registro da turma {TurmaId}.",
+                    usuarioId, registroPresenca.Chamada.TurmaId);
+
+                rejeicoes.Add(new SyncRejeicao(
+                    dto.Id,
+                    "Você não tem permissão para alterar registros desta turma."));
+
+                continue;
+            }
+
             var novoStatus = ParseStatus(dto.Status);
 
             // Verifica prazo de 7 dias da Chamada pai

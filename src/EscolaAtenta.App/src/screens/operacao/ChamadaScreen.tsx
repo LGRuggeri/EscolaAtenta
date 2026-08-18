@@ -413,6 +413,13 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             return;
         }
 
+        // P2: rejeita datas futuras antes de persistir localmente. Isso evita
+        // registros órfãos que o backend rejeitaria no sync, mantendo a fila limpa.
+        if (dataValida.getTime() > hojeMeiaNoite().getTime()) {
+            Alert.alert('Data inválida', 'A data da chamada não pode ser posterior ao dia atual.');
+            return;
+        }
+
         if (!mesmoDia(dataValida, dataSelecionada)) {
             setDataSelecionada(dataValida);
             // A mudança de data dispara o useEffect que recarrega os registros locais.
@@ -482,8 +489,18 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             // P1: se já existem registros locais e ainda não estamos editando,
             // consulta o servidor para respeitar o prazo de 7 dias antes de permitir alterações.
             if (registrosExistentes.length > 0 && !modoEdicao) {
+                // Captura os valores atuais para detectar mudança de data/turma durante o await
+                const dataSelecionadaAntes = dataSelecionada;
+                const turmaIdAntes = turmaId;
+
                 try {
-                    const chamadaServidor = await chamadasService.obterChamadaPorDia(turmaId, dataSelecionada);
+                    const chamadaServidor = await chamadasService.obterChamadaPorDia(turmaIdAntes, dataSelecionadaAntes);
+
+                    // P2: se o usuário trocou de data/turma enquanto a requisição estava em voo,
+                    // descarta a resposta stale e não altera o estado da tela.
+                    if (dataSelecionada !== dataSelecionadaAntes || turmaId !== turmaIdAntes) {
+                        return;
+                    }
 
                     if (chamadaServidor) {
                         aplicarStatusDoServidor(chamadaServidor);
@@ -494,6 +511,12 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                     }
                 } catch (erroServidor) {
                     console.error('[CHAMADA] Erro ao consultar prazo no servidor:', erroServidor);
+
+                    // P2: verifica se a data/turma mudou durante o erro também
+                    if (dataSelecionada !== dataSelecionadaAntes || turmaId !== turmaIdAntes) {
+                        return;
+                    }
+
                     // Offline: permite a edição local, mas o sync posterior pode ser rejeitado pelo servidor.
                     mostrarAlertaConflitoLocal(registrosExistentes, true);
                 }
@@ -506,8 +529,18 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             }
 
             // Sem registros locais: consulta o servidor antes de tratar como nova chamada
+            // Captura os valores atuais para detectar mudança de data/turma durante o await
+            const dataSelecionadaAntes = dataSelecionada;
+            const turmaIdAntes = turmaId;
+
             try {
-                const chamadaServidor = await chamadasService.obterChamadaPorDia(turmaId, dataSelecionada);
+                const chamadaServidor = await chamadasService.obterChamadaPorDia(turmaIdAntes, dataSelecionadaAntes);
+
+                // P2: se o usuário trocou de data/turma enquanto a requisição estava em voo,
+                // descarta a resposta stale e não altera o estado da tela.
+                if (dataSelecionada !== dataSelecionadaAntes || turmaId !== turmaIdAntes) {
+                    return;
+                }
 
                 if (chamadaServidor) {
                     aplicarStatusDoServidor(chamadaServidor);
@@ -519,6 +552,12 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                 await executarSalvamento([]);
             } catch (erroServidor) {
                 console.error('[CHAMADA] Erro ao consultar servidor:', erroServidor);
+
+                // P2: verifica se a data/turma mudou durante o erro também
+                if (dataSelecionada !== dataSelecionadaAntes || turmaId !== turmaIdAntes) {
+                    return;
+                }
+
                 Alert.alert(
                     'Sem conexão',
                     'Não foi possível verificar no servidor se já existe chamada para esta data. Deseja continuar offline?',

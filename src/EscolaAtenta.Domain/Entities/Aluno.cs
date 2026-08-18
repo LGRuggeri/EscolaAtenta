@@ -256,11 +256,22 @@ public class Aluno : EntityBase, ISoftDeletable
             && dataReferencia >= cicloAtual
             && (dataReferencia - cicloAtual).TotalDays < 90;
 
-        // Se não há ciclo ativo, define o início como a data da primeira presença
-        // (comportamento original para alunos novos ou sem ciclo válido).
-        if (!cicloEstaAtivo)
+        // Se o ciclo expirou, avança para o ciclo mais recente que contém a última presença.
+        // Isso evita que todo o histórico antigo seja incluído no trimestre atual.
+        if (!cicloEstaAtivo && ordenado.Count > 0)
         {
-            DataInicioTrimestre = ordenado.FirstOrDefault()?.Chamada.DataHora.UtcDateTime ?? DateTime.UtcNow;
+            // Encontra a primeira presença cujo ciclo de 90 dias contém a última presença.
+            // Ou seja, a menor data d tal que dataReferencia - d < 90 dias.
+            DataInicioTrimestre = ordenado
+                .Select(r => r.Chamada.DataHora.UtcDateTime)
+                .Where(d => (dataReferencia - d).TotalDays < 90)
+                .DefaultIfEmpty(dataReferencia)
+                .Min();
+        }
+        else if (!cicloEstaAtivo)
+        {
+            // Sem histórico: usa a data atual
+            DataInicioTrimestre = DateTime.UtcNow;
         }
 
         var ciclo = DataInicioTrimestre;
