@@ -144,11 +144,11 @@ export function RelatorioPresencasScreen() {
                 `/alunos/${alunoSel.id}/historico-presencas`,
                 { params: { dias } }
             );
+            const dInicio = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
+            const dFim = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate());
             const filtrado = resp.data.filter(r => {
                 const dataLocal = new Date(r.dataDaChamada);
                 const dLocal = new Date(dataLocal.getFullYear(), dataLocal.getMonth(), dataLocal.getDate());
-                const dInicio = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
-                const dFim = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate());
                 return dLocal >= dInicio && dLocal <= dFim;
             });
             setRegistros(filtrado);

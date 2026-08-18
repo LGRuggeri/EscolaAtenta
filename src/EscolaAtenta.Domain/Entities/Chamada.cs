@@ -38,11 +38,13 @@ public class Chamada : EntityBase
             throw new DomainException("A chamada deve ter um responsável válido.");
 
         DataHora = dataHora;
+        DataChamada = dataHora.Date;
         TurmaId = turmaId;
         ResponsavelId = responsavelId;
     }
 
     public DateTimeOffset DataHora { get; private set; }
+    public DateTime DataChamada { get; private set; }
     public Guid TurmaId { get; private set; }
     public Guid ResponsavelId { get; private set; }
 
@@ -82,6 +84,7 @@ public class Chamada : EntityBase
                 $"O aluno '{alunoId}' já possui registro de presença nesta chamada.");
 
         var registro = new RegistroPresenca(Guid.NewGuid(), Id, alunoId, status);
+        registro.VincularChamada(this);
         _registrosPresenca.Add(registro);
 
         // Dispara evento para rastreabilidade e integração futura

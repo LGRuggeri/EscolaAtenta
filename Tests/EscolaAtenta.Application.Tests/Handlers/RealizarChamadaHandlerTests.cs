@@ -39,7 +39,7 @@ public class RealizarChamadaHandlerTests : IDisposable
     }
 
     private static RealizarChamadaHandler CriarHandler(AppDbContext ctx, FakeCurrentUserService? currentUser = null) =>
-        new(ctx, currentUser ?? new FakeCurrentUserService(), NullLogger<RealizarChamadaHandler>.Instance);
+        new(ctx, currentUser ?? new FakeCurrentUserService(), NullLogger<RealizarChamadaHandler>.Instance, new FakeSqliteWriteLockProvider());
 
     /// <summary>
     /// Vincula um usuário a uma turma para passar na validação IDOR.
@@ -229,14 +229,16 @@ public class RealizarChamadaHandlerTests : IDisposable
         ctx.ChangeTracker.Clear();
         var cmd1 = new RealizarChamadaCommand(
             turmaId, Guid.NewGuid(),
-            [new RegistroAlunoDto(aluno.Id, StatusPresenca.Falta)]);
+            [new RegistroAlunoDto(aluno.Id, StatusPresenca.Falta)],
+            new DateTimeOffset(2026, 1, 10, 8, 0, 0, TimeSpan.Zero));
         await CriarHandler(ctx).Handle(cmd1, CancellationToken.None);
 
-        // Segunda chamada: presença (deve zerar consecutivas)
+        // Segunda chamada: presença no dia seguinte (deve zerar consecutivas)
         ctx.ChangeTracker.Clear();
         var cmd2 = new RealizarChamadaCommand(
             turmaId, Guid.NewGuid(),
-            [new RegistroAlunoDto(aluno.Id, StatusPresenca.Presente)]);
+            [new RegistroAlunoDto(aluno.Id, StatusPresenca.Presente)],
+            new DateTimeOffset(2026, 1, 11, 8, 0, 0, TimeSpan.Zero));
         await CriarHandler(ctx).Handle(cmd2, CancellationToken.None);
         ctx.ChangeTracker.Clear();
 
@@ -344,5 +346,185 @@ public class RealizarChamadaHandlerTests : IDisposable
         var resultado = await CriarHandler(ctx).Handle(command, CancellationToken.None);
 
         resultado.ChamadaId.Should().NotBeEmpty();
+    }
+
+    // ── Testes de chamada retroativa e atualização ─────────────────────────────
+
+    [Fact]
+    public async Task Handle_DataRetroativaInformada_DeveCriarChamadaNaDataCorreta()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Retroativa", "Manhã", 2026));
+        var aluno = new Aluno(Guid.NewGuid(), "Pedro", null, turmaId);
+        ctx.Alunos.Add(aluno);
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var dataRetroativa = new DateTimeOffset(2026, 1, 5, 8, 0, 0, TimeSpan.Zero);
+        var command = new RealizarChamadaCommand(
+            turmaId, Guid.NewGuid(),
+            [new RegistroAlunoDto(aluno.Id, StatusPresenca.Falta)],
+            dataRetroativa);
+
+        var resultado = await CriarHandler(ctx).Handle(command, CancellationToken.None);
+
+        resultado.ChamadaExistenteAtualizada.Should().BeFalse();
+        var chamada = await ctx.Chamadas.FindAsync(resultado.ChamadaId);
+        chamada!.DataHora.Date.Should().Be(dataRetroativa.Date);
+    }
+
+    [Fact]
+    public async Task Handle_ChamadaExistenteDentroDe7Dias_DeveAtualizarStatus()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Atualizável", "Manhã", 2026));
+        var aluno = new Aluno(Guid.NewGuid(), "Julia", null, turmaId);
+        ctx.Alunos.Add(aluno);
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var data = new DateTimeOffset(2026, 1, 10, 8, 0, 0, TimeSpan.Zero);
+        var cmd1 = new RealizarChamadaCommand(
+            turmaId, Guid.NewGuid(),
+            [new RegistroAlunoDto(aluno.Id, StatusPresenca.Falta)],
+            data);
+        await CriarHandler(ctx).Handle(cmd1, CancellationToken.None);
+        ctx.ChangeTracker.Clear();
+
+        var cmd2 = new RealizarChamadaCommand(
+            turmaId, Guid.NewGuid(),
+            [new RegistroAlunoDto(aluno.Id, StatusPresenca.Presente)],
+            data);
+        var resultado = await CriarHandler(ctx).Handle(cmd2, CancellationToken.None);
+
+        resultado.ChamadaExistenteAtualizada.Should().BeTrue();
+        var chamada = await ctx.Chamadas
+            .Include(c => c.RegistrosPresenca)
+            .FirstAsync(c => c.Id == resultado.ChamadaId);
+        chamada.RegistrosPresenca.Single().Status.Should().Be(StatusPresenca.Presente);
+    }
+
+    [Fact]
+    public async Task Handle_ChamadaExistenteForaDe7Dias_DeveBloquearAtualizacao()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Bloqueada", "Manhã", 2026));
+        var aluno = new Aluno(Guid.NewGuid(), "Marcos", null, turmaId);
+        ctx.Alunos.Add(aluno);
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var data = new DateTimeOffset(2026, 1, 1, 8, 0, 0, TimeSpan.Zero);
+        var cmd1 = new RealizarChamadaCommand(
+            turmaId, Guid.NewGuid(),
+            [new RegistroAlunoDto(aluno.Id, StatusPresenca.Falta)],
+            data);
+        await CriarHandler(ctx).Handle(cmd1, CancellationToken.None);
+        ctx.ChangeTracker.Clear();
+
+        // Simula que a chamada foi criada há mais de 7 dias via SQL
+        var chamada = await ctx.Chamadas.FirstAsync(c => c.TurmaId == turmaId);
+        var dataAntiga = DateTimeOffset.UtcNow.AddDays(-10);
+        await ctx.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE Chamadas SET DataCriacao = {dataAntiga} WHERE Id = {chamada.Id}");
+        ctx.ChangeTracker.Clear();
+
+        var cmd2 = new RealizarChamadaCommand(
+            turmaId, Guid.NewGuid(),
+            [new RegistroAlunoDto(aluno.Id, StatusPresenca.Presente)],
+            data);
+
+        Func<Task> act = () => CriarHandler(ctx).Handle(cmd2, CancellationToken.None);
+
+        await act.Should().ThrowAsync<DomainException>()
+            .WithMessage("*prazo de edição de 7 dias*");
+    }
+
+    [Fact]
+    public async Task Handle_AtualizacaoDeFaltaParaPresente_DeveRecalcularContadores()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Recálculo", "Manhã", 2026));
+        var aluno = new Aluno(Guid.NewGuid(), "Sofia", null, turmaId);
+        ctx.Alunos.Add(aluno);
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var data = new DateTimeOffset(2026, 1, 10, 8, 0, 0, TimeSpan.Zero);
+        var cmd1 = new RealizarChamadaCommand(
+            turmaId, Guid.NewGuid(),
+            [new RegistroAlunoDto(aluno.Id, StatusPresenca.Falta)],
+            data);
+        await CriarHandler(ctx).Handle(cmd1, CancellationToken.None);
+        ctx.ChangeTracker.Clear();
+
+        var cmd2 = new RealizarChamadaCommand(
+            turmaId, Guid.NewGuid(),
+            [new RegistroAlunoDto(aluno.Id, StatusPresenca.Presente)],
+            data);
+        await CriarHandler(ctx).Handle(cmd2, CancellationToken.None);
+        ctx.ChangeTracker.Clear();
+
+        var salvo = await ctx.Alunos.IgnoreQueryFilters().FirstAsync(a => a.Id == aluno.Id);
+        salvo.FaltasConsecutivasAtuais.Should().Be(0);
+        salvo.TotalFaltas.Should().Be(0, "falta corrigida não deve contar no total");
+    }
+
+    [Fact]
+    public async Task Handle_DataFutura_DeveRejeitarComDomainException()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Futura", "Manhã", 2026));
+        var aluno = new Aluno(Guid.NewGuid(), "Aluno Futuro", null, turmaId);
+        ctx.Alunos.Add(aluno);
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var dataFutura = DateTimeOffset.UtcNow.AddDays(1);
+        var cmd = new RealizarChamadaCommand(
+            turmaId, Guid.NewGuid(),
+            [new RegistroAlunoDto(aluno.Id, StatusPresenca.Presente)],
+            dataFutura);
+
+        Func<Task> act = () => CriarHandler(ctx).Handle(cmd, CancellationToken.None);
+
+        await act.Should().ThrowAsync<DomainException>()
+            .WithMessage("*não pode ser posterior*");
+    }
+
+    [Fact]
+    public async Task Handle_AlunoDeOutraTurma_DeveIgnorarRegistro()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        var outraTurmaId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Turma A", "Manhã", 2026));
+        ctx.Turmas.Add(new Turma(outraTurmaId, "Turma B", "Tarde", 2026));
+        var alunoDaTurma = new Aluno(Guid.NewGuid(), "Aluno A", null, turmaId);
+        var alunoDeOutraTurma = new Aluno(Guid.NewGuid(), "Aluno B", null, outraTurmaId);
+        ctx.Alunos.AddRange(alunoDaTurma, alunoDeOutraTurma);
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var cmd = new RealizarChamadaCommand(
+            turmaId, Guid.NewGuid(),
+            [
+                new RegistroAlunoDto(alunoDaTurma.Id, StatusPresenca.Presente),
+                new RegistroAlunoDto(alunoDeOutraTurma.Id, StatusPresenca.Falta)
+            ]);
+
+        var resultado = await CriarHandler(ctx).Handle(cmd, CancellationToken.None);
+
+        var chamada = await ctx.Chamadas
+            .Include(c => c.RegistrosPresenca)
+            .FirstAsync(c => c.Id == resultado.ChamadaId);
+
+        chamada.RegistrosPresenca.Should().HaveCount(1, "aluno de outra turma deve ser ignorado");
+        chamada.RegistrosPresenca.Single().AlunoId.Should().Be(alunoDaTurma.Id);
     }
 }

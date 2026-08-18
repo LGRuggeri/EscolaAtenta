@@ -42,8 +42,16 @@ public class RegistroPresenca : EntityBase
     public StatusPresenca Status { get; private set; }
 
     // ── Navegação ──────────────────────────────────────────────────────────────
-    public virtual Chamada Chamada { get; private set; } = null!;
+    public virtual Chamada Chamada { get; internal set; } = null!;
     public virtual Aluno Aluno { get; private set; } = null!;
+
+    /// <summary>
+    /// Vincula o registro à chamada pai. Chamado exclusivamente por Chamada.RegistrarPresenca().
+    /// </summary>
+    internal void VincularChamada(Chamada chamada)
+    {
+        Chamada = chamada ?? throw new DomainException("A chamada vinculada deve ser válida.");
+    }
 
     // ── Métodos de Negócio ─────────────────────────────────────────────────────
 

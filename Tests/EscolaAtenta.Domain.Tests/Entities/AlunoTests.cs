@@ -1,4 +1,5 @@
 using EscolaAtenta.Domain.Entities;
+using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Domain.Events;
 using EscolaAtenta.Domain.Exceptions;
 using FluentAssertions;
@@ -339,5 +340,291 @@ public class AlunoTests
         aluno.AtrasosNoTrimestre.Should().Be(0);
         // TotalFaltas é histórico — NÃO zera
         aluno.TotalFaltas.Should().Be(2);
+    }
+
+    // ── Testes de RecalcularEstatisticas ───────────────────────────────────────
+
+    [Fact]
+    public void RecalcularEstatisticas_AposCorrecaoDeFaltaParaPresente_DeveZerarConsecutivas()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        // Simula histórico: uma falta seguida de uma presença corrigida
+        var chamada1 = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(-2)), TurmaId, Guid.NewGuid());
+        var registro1 = chamada1.RegistrarPresenca(aluno.Id, StatusPresenca.Falta);
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data.AddDays(-2));
+        aluno.ClearDomainEvents();
+
+        var chamada2 = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(-1)), TurmaId, Guid.NewGuid());
+        var registro2 = chamada2.RegistrarPresenca(aluno.Id, StatusPresenca.Presente);
+        aluno.RegistrarPresenca(StatusPresenca.Presente, data.AddDays(-1));
+        aluno.ClearDomainEvents();
+
+        aluno.FaltasConsecutivasAtuais.Should().Be(0);
+        aluno.TotalFaltas.Should().Be(1);
+
+        // Simula correção do primeiro registro de Falta para Presente
+        registro1.AlterarStatus(StatusPresenca.Presente);
+
+        // Act
+        aluno.RecalcularEstatisticas(new[] { registro1, registro2 });
+
+        // Assert
+        aluno.FaltasConsecutivasAtuais.Should().Be(0);
+        aluno.TotalFaltas.Should().Be(0, "com ambos os dias presentes, não há faltas");
+    }
+
+    [Fact]
+    public void RecalcularEstatisticas_ComEventosPendentes_DeveLimparEventosAntesDeRecomputar()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        // Gera eventos de faltas consecutivas (simulando um batch anterior que já os enfileirou)
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data.AddDays(-2));
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data.AddDays(-1));
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data);
+        aluno.DomainEvents.Should().NotBeEmpty("faltas consecutivas devem ter gerado eventos");
+
+        // Agora recalcula considerando apenas presenças: os eventos antigos devem ser limpos
+        // e nenhum novo evento deve ser gerado.
+        var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data), TurmaId, Guid.NewGuid());
+        var registro = chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Presente);
+
+        // Act
+        aluno.RecalcularEstatisticas(new[] { registro });
+
+        // Assert: eventos prévios foram removidos e, como houve apenas presença, não há novos eventos
+        aluno.DomainEvents.Should().BeEmpty();
+        aluno.FaltasConsecutivasAtuais.Should().Be(0);
+    }
+
+    [Fact]
+    public void RecalcularEstatisticasEReconciliar_ComVariasFaltasConsecutivas_DeveEmitirApenasEventoFinal()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        var registros = new List<RegistroPresenca>();
+        for (int i = 0; i < 5; i++)
+        {
+            var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(i)), TurmaId, Guid.NewGuid());
+            registros.Add(chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Falta));
+        }
+
+        // Act
+        aluno.RecalcularEstatisticas(registros);
+        aluno.ReconciliarAlertasPendentes();
+
+        // Assert: apenas um evento final de threshold (nível Preto para 5 faltas),
+        // sem eventos intermediários de Aviso (1), Intermediário (2) ou Vermelho (3).
+        aluno.DomainEvents.OfType<LimiteFaltasAtingidoEvent>().Should().ContainSingle();
+        var evento = aluno.DomainEvents.OfType<LimiteFaltasAtingidoEvent>().Single();
+        evento.Nivel.Should().Be(NivelAlertaFalta.Preto);
+        evento.TotalFaltas.Should().Be(5);
+    }
+
+    [Fact]
+    public void RecalcularEstatisticasEReconciliar_ComVariosAtrasos_DeveEmitirApenasEventoFinal()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        var registros = new List<RegistroPresenca>();
+        for (int i = 0; i < 6; i++)
+        {
+            var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(i)), TurmaId, Guid.NewGuid());
+            registros.Add(chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Atraso));
+        }
+
+        // Act
+        aluno.RecalcularEstatisticas(registros);
+        aluno.ReconciliarAlertasPendentes();
+
+        // Assert: apenas um evento final de threshold (nível Intermediário para 6 atrasos),
+        // sem evento intermediário de Aviso (3). Eventos de normalização de outro
+        // tipo (faltas zeradas) podem coexistir.
+        aluno.DomainEvents.OfType<LimiteAtrasosAtingidoEvent>().Should().ContainSingle();
+        var evento = aluno.DomainEvents.OfType<LimiteAtrasosAtingidoEvent>().Single();
+        evento.Nivel.Should().Be(NivelAlertaFalta.Intermediario);
+        evento.TotalAtrasos.Should().Be(6);
+    }
+
+    [Fact]
+    public void RecalcularEstatisticas_ComCicloTrimestralAtivo_DevePreservarFronteiraERestringirReplay()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        // Simula que o aluno já tem um ciclo iniciado há 30 dias (força via reflection)
+        var inicioCiclo = data.AddDays(-30).Date;
+        var prop = typeof(Aluno).GetProperty(nameof(Aluno.DataInicioTrimestre));
+        prop!.SetValue(aluno, inicioCiclo);
+
+        // Histórico: uma falta antiga (antes do ciclo) e uma falta dentro do ciclo
+        var chamadaAntiga = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(-100)), TurmaId, Guid.NewGuid());
+        var registroAntigo = chamadaAntiga.RegistrarPresenca(aluno.Id, StatusPresenca.Falta);
+
+        var chamadaAtual = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(-10)), TurmaId, Guid.NewGuid());
+        var registroAtual = chamadaAtual.RegistrarPresenca(aluno.Id, StatusPresenca.Falta);
+
+        // Act
+        aluno.RecalcularEstatisticas(new[] { registroAntigo, registroAtual });
+
+        // Assert
+        aluno.DataInicioTrimestre.Should().Be(inicioCiclo, "o ciclo ativo não deve ser movido para trás");
+        aluno.TotalFaltas.Should().Be(2, "total histórico conta todas as faltas");
+        aluno.FaltasNoTrimestre.Should().Be(1, "apenas a falta dentro do ciclo conta");
+        aluno.FaltasConsecutivasAtuais.Should().Be(1, "apenas registros dentro do ciclo contam para consecutivas");
+    }
+
+    [Fact]
+    public void RecalcularEstatisticas_SemCicloAtivo_DeveUsarPrimeiraPresencaComoInicio()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(-5)), TurmaId, Guid.NewGuid());
+        var registro = chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Falta);
+
+        // Act
+        aluno.RecalcularEstatisticas(new[] { registro });
+
+        // Assert
+        aluno.DataInicioTrimestre.Date.Should().Be(registro.Chamada.DataHora.UtcDateTime.Date);
+        aluno.FaltasNoTrimestre.Should().Be(1);
+        aluno.FaltasConsecutivasAtuais.Should().Be(1);
+    }
+
+    [Fact]
+    public void ReconciliarAlertasPendentes_AposCorrecaoDeFaltas_DeveEmitirEventoDeNormalizacaoDeFaltas()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        // Simula histórico anterior com 3 faltas que geraram alerta Vermelho
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data.AddDays(-3));
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data.AddDays(-2));
+        aluno.RegistrarPresenca(StatusPresenca.Falta, data.AddDays(-1));
+        aluno.ClearDomainEvents();
+
+        // Agora recalcula considerando apenas presenças (correção do histórico)
+        var registros = new List<RegistroPresenca>();
+        for (int i = 0; i < 3; i++)
+        {
+            var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(i - 3)), TurmaId, Guid.NewGuid());
+            registros.Add(chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Presente));
+        }
+
+        // Act
+        aluno.RecalcularEstatisticas(registros);
+        aluno.ReconciliarAlertasPendentes();
+
+        // Assert: deve emitir o evento de normalização de faltas consecutivas
+        aluno.DomainEvents.Should().ContainSingle(e => e is FaltasConsecutivasNormalizadasEvent);
+        var evento = aluno.DomainEvents.OfType<FaltasConsecutivasNormalizadasEvent>().Single();
+        evento.AlunoId.Should().Be(AlunoId);
+        evento.FaltasConsecutivasAtuais.Should().Be(0);
+    }
+
+    [Fact]
+    public void ReconciliarAlertasPendentes_AposCorrecaoDeAtrasos_DeveEmitirEventoDeNormalizacaoDeAtrasos()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        // Simula histórico anterior com 6 atrasos que geraram alerta Intermediário
+        for (int i = 0; i < 6; i++)
+            aluno.RegistrarPresenca(StatusPresenca.Atraso, data.AddDays(i - 6));
+        aluno.ClearDomainEvents();
+
+        // Agora recalcula considerando apenas presenças (correção do histórico)
+        var registros = new List<RegistroPresenca>();
+        for (int i = 0; i < 6; i++)
+        {
+            var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(i - 6)), TurmaId, Guid.NewGuid());
+            registros.Add(chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Presente));
+        }
+
+        // Act
+        aluno.RecalcularEstatisticas(registros);
+        aluno.ReconciliarAlertasPendentes();
+
+        // Assert: deve emitir o evento de normalização de atrasos
+        aluno.DomainEvents.Should().ContainSingle(e => e is AtrasosTrimestreNormalizadosEvent);
+        var evento = aluno.DomainEvents.OfType<AtrasosTrimestreNormalizadosEvent>().Single();
+        evento.AlunoId.Should().Be(AlunoId);
+        evento.AtrasosNoTrimestre.Should().Be(0);
+    }
+
+    [Fact]
+    public void ReconciliarAlertasPendentes_QuandoContadoresAcimaDosLimiares_DeveEmitirEventosDeThreshold()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        var registros = new List<RegistroPresenca>();
+        for (int i = 0; i < 3; i++)
+        {
+            var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(i)), TurmaId, Guid.NewGuid());
+            registros.Add(chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Falta));
+        }
+        for (int i = 0; i < 3; i++)
+        {
+            var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(i + 4)), TurmaId, Guid.NewGuid());
+            registros.Add(chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Atraso));
+        }
+
+        aluno.RecalcularEstatisticas(registros);
+        aluno.ClearDomainEvents();
+
+        // Act
+        aluno.ReconciliarAlertasPendentes();
+
+        // Assert: deve emitir eventos de threshold para o estado final (3 faltas = Vermelho, 3 atrasos = Aviso)
+        aluno.DomainEvents.Should().ContainSingle(e => e is LimiteFaltasAtingidoEvent);
+        aluno.DomainEvents.Should().ContainSingle(e => e is LimiteAtrasosAtingidoEvent);
+    }
+
+    [Fact]
+    public void ReconciliarAlertasPendentes_QuandoFaltasCaemParaThresholdInferior_DeveRebaixarAlerta()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        var data = DateTime.UtcNow;
+
+        // Simula histórico anterior com 5 faltas (Preto)
+        var registrosPreto = new List<RegistroPresenca>();
+        for (int i = 0; i < 5; i++)
+        {
+            var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(i)), TurmaId, Guid.NewGuid());
+            registrosPreto.Add(chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Falta));
+        }
+        aluno.RecalcularEstatisticas(registrosPreto);
+        aluno.ClearDomainEvents();
+
+        // Agora corrige a falta mais antiga para Presente, deixando 4 faltas consecutivas (Vermelho)
+        var registrosVermelho = new List<RegistroPresenca>(registrosPreto);
+        registrosVermelho[0] = new Chamada(Guid.NewGuid(), new DateTimeOffset(data.AddDays(-1)), TurmaId, Guid.NewGuid())
+            .RegistrarPresenca(aluno.Id, StatusPresenca.Presente);
+
+        // Act
+        aluno.RecalcularEstatisticas(registrosVermelho);
+        aluno.ReconciliarAlertasPendentes();
+
+        // Assert: deve emitir evento de threshold com nível Vermelho (rebaixamento)
+        aluno.DomainEvents.Should().ContainSingle(e => e is LimiteFaltasAtingidoEvent);
+        var evento = aluno.DomainEvents.OfType<LimiteFaltasAtingidoEvent>().Single();
+        evento.Nivel.Should().Be(NivelAlertaFalta.Vermelho);
     }
 }

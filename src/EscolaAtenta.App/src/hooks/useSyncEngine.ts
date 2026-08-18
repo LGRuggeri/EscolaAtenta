@@ -50,13 +50,18 @@ export function useSyncEngine() {
     }
 
     try {
-      await syncWithServer();
+      const resultado = await syncWithServer();
 
       if (isMounted.current) {
         setState((prev) => ({
           ...prev,
           isSyncing: false,
-          ultimoSync: Date.now(),
+          ultimoSync: resultado.sucesso ? Date.now() : prev.ultimoSync,
+          erro: resultado.sucesso
+            ? null
+            : resultado.rejeicoes.length > 0
+            ? `${resultado.rejeicoes.length} registro(s) foram rejeitados e revertidos localmente. Verifique a data/prazo/turma.`
+            : (resultado.erro ?? 'Erro na sincronização.'),
         }));
       }
 

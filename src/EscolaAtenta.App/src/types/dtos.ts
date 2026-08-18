@@ -44,6 +44,23 @@ export interface RealizarChamadaPayload {
     turmaId: string;
     responsavelId: string;
     alunos: RegistroPresencaPayload[];
+    /** Data da chamada em ISO 8601 (ex: "2026-01-15T00:00:00.000Z"). Se omitido, usa a data/hora atual. */
+    data?: string;
+}
+
+export interface ChamadaPorDiaDto {
+    chamadaId: string;
+    dataHora: string;
+    responsavelId: string;
+    podeEditar: boolean;
+    registros: RegistroPorDiaDto[];
+}
+
+export interface RegistroPorDiaDto {
+    alunoId: string;
+    nomeAluno: string;
+    /** Status da presença como string (Presente, Falta, Atraso, FaltaJustificada). */
+    status: string;
 }
 
 export interface AlertaDto {

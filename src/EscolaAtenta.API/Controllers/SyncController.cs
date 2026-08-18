@@ -45,11 +45,20 @@ public class SyncController : ControllerBase
     /// </summary>
     [HttpPost("push")]
     [ProducesResponseType(typeof(SyncPushResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(SyncPushResult), StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Push([FromBody] SyncPushCommand command, CancellationToken ct)
     {
         var result = await _mediator.Send(command, ct);
+
+        if (result.Rejeicoes.Count > 0)
+        {
+            // WatermelonDB trata respostas 4xx como falha de sync, mantendo os registros
+            // locais como não sincronizados até o usuário resolver o conflito.
+            return StatusCode(StatusCodes.Status422UnprocessableEntity, result);
+        }
+
         return Ok(result);
     }
 }

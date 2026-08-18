@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, StyleSheet, FlatList, Alert, Pressable } from 'react-native';
-import { Text, Button, Surface } from 'react-native-paper';
+import { Text, Button, Surface, TextInput } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,8 @@ import RegistroPresenca, { StatusPresencaLocal } from '../../database/models/Reg
 import { AppHeader } from '../../components/ui';
 import { theme, palette } from '../../theme/colors';
 import { syncWithServer } from '../../services/sync/watermelondbSync';
+import { chamadasService } from '../../services/chamadasService';
+import { ChamadaPorDiaDto } from '../../types/dtos';
 
 import withObservables from '@nozbe/with-observables';
 
@@ -22,6 +24,12 @@ interface ChamadaScreenProps {
     route: ChamadaRouteProp;
     navigation: AppNavigationProp;
     alunos: Aluno[];
+}
+
+interface AlunoRosterItem {
+    id: string;
+    nome: string;
+    aluno?: Aluno;
 }
 
 const STATUS_OPTIONS: {
@@ -38,66 +46,686 @@ const STATUS_OPTIONS: {
     { key: 'FaltaJustificada', label: 'J', sub: 'Justif.', icon: 'file-document-check', color: theme.colors.info, bgColor: theme.colors.infoLight },
 ];
 
+function formatarDataBrasil(data: Date): string {
+    const dia = String(data.getDate()).padStart(2, '0');
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const ano = data.getFullYear();
+    return `${dia}/${mes}/${ano}`;
+}
+
+function parseDataBrasil(texto: string): Date | null {
+    const partes = texto.split('/');
+    if (partes.length !== 3) return null;
+
+    const dia = parseInt(partes[0], 10);
+    const mes = parseInt(partes[1], 10) - 1;
+    const ano = parseInt(partes[2], 10);
+
+    if (Number.isNaN(dia) || Number.isNaN(mes) || Number.isNaN(ano)) return null;
+
+    const data = new Date(ano, mes, dia);
+    if (data.getFullYear() !== ano || data.getMonth() !== mes || data.getDate() !== dia) return null;
+
+    return data;
+}
+
+function inicioDoDia(data: Date): Date {
+    return new Date(data.getFullYear(), data.getMonth(), data.getDate());
+}
+
+function fimDoDia(data: Date): Date {
+    return new Date(data.getFullYear(), data.getMonth(), data.getDate() + 1);
+}
+
+function mesmoDia(a: Date, b: Date): boolean {
+    return (
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate()
+    );
+}
+
+function hojeMeiaNoite(): Date {
+    const agora = new Date();
+    return new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+}
+
 function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
     const { turmaId, turmaNome } = route.params;
     const insets = useSafeAreaInsets();
 
+    const [dataTexto, setDataTexto] = useState(formatarDataBrasil(hojeMeiaNoite()));
+    const [dataSelecionada, setDataSelecionada] = useState(hojeMeiaNoite());
     const [statusMap, setStatusMap] = useState<Record<string, StatusPresencaLocal>>({});
+    const [somenteLeitura, setSomenteLeitura] = useState(false);
+    const [modoEdicao, setModoEdicao] = useState(false);
+    // null = ainda não verificou no servidor; true/false = resultado da verificação
+    const [podeEditarServidor, setPodeEditarServidor] = useState<boolean | null>(null);
+    const [registrosLocais, setRegistrosLocais] = useState<RegistroPresenca[]>([]);
+    const [chamadaServidorAtual, setChamadaServidorAtual] = useState<ChamadaPorDiaDto | null>(null);
+    const [rosterExibicao, setRosterExibicao] = useState<AlunoRosterItem[]>([]);
+    const [carregandoEdicao, setCarregandoEdicao] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Refs para detectar mudanças de data/turma entre renders, já que o closure
+    // do handler captura os valores do render em que foi disparado. Usamos refs
+    // atualizadas a cada render para comparar contra o valor presente após await.
+    const dataSelecionadaRef = useRef(dataSelecionada);
+    const turmaIdRef = useRef(turmaId);
 
     useEffect(() => {
-        if (alunos.length > 0 && Object.keys(statusMap).length === 0) {
+        dataSelecionadaRef.current = dataSelecionada;
+        turmaIdRef.current = turmaId;
+    }, [dataSelecionada, turmaId]);
+
+    // Ao trocar a data, reseta o estado e carrega registros locais se existirem.
+    // Se houver registros locais, consulta o servidor para respeitar o prazo de edição.
+    useEffect(() => {
+        setPodeEditarServidor(null);
+        setSomenteLeitura(false);
+        setModoEdicao(false);
+        setChamadaServidorAtual(null);
+        setCarregandoEdicao(false);
+        setStatusMap({});
+
+        let cancelado = false;
+        carregarRegistrosExistentes(dataSelecionada).then(async (registros) => {
+            if (cancelado) return;
+            setRegistrosLocais(registros);
+
+            if (registros.length > 0) {
+                aplicarStatusDosRegistros(registros);
+
+                try {
+                    const chamadaServidor = await chamadasService.obterChamadaPorDia(turmaId, dataSelecionada);
+                    if (cancelado) return;
+
+                    if (chamadaServidor) {
+                        // Sincroniza o status com o servidor (pode ter sido alterado por outro dispositivo)
+                        aplicarStatusDoServidor(chamadaServidor);
+                        setChamadaServidorAtual(chamadaServidor);
+                        setPodeEditarServidor(chamadaServidor.podeEditar);
+                        setSomenteLeitura(true);
+                        return;
+                    }
+                } catch (erroServidor) {
+                    if (cancelado) return;
+                    console.error('[CHAMADA] Erro ao consultar prazo no servidor:', erroServidor);
+                    // Offline: confia no registro local e permite edição.
+                }
+
+                setPodeEditarServidor(true);
+                setSomenteLeitura(true);
+                return;
+            }
+
             const initialMap: Record<string, StatusPresencaLocal> = {};
             alunos.forEach((a) => {
                 initialMap[a.id] = 'Presente';
             });
             setStatusMap(initialMap);
-        }
-    }, [alunos]);
+        });
+
+        return () => {
+            cancelado = true;
+        };
+    }, [dataSelecionada, turmaId, alunos]);
+
+    // P2: roster de exibição deve refletir a chamada salva, não apenas os alunos
+    // atualmente vinculados à turma. Alunos transferidos para outra turma ainda
+    // precisam aparecer para edição/visualização dentro do prazo de 7 dias.
+    useEffect(() => {
+        let cancelado = false;
+
+        const montarRoster = async () => {
+            const alunosAtuais = new Map<string, Aluno>();
+            alunos.forEach((a) => alunosAtuais.set(a.id, a));
+
+            // Prioridade: registros locais > chamada do servidor > turma atual
+            if (registrosLocais.length > 0) {
+                const ids = new Set(registrosLocais.map((r) => r.alunoId));
+                const faltantes = Array.from(ids).filter((id) => !alunosAtuais.has(id));
+
+                if (faltantes.length > 0) {
+                    const alunosBanco = await database
+                        .get<Aluno>('alunos')
+                        .query(Q.where('id', Q.oneOf(faltantes)))
+                        .fetch();
+                    alunosBanco.forEach((a) => alunosAtuais.set(a.id, a));
+                }
+
+                const roster = Array.from(ids)
+                    .map((id) => {
+                        const aluno = alunosAtuais.get(id);
+                        return {
+                            id,
+                            nome: aluno?.nome ?? 'Aluno não encontrado',
+                            aluno,
+                        };
+                    })
+                    .sort((a, b) => a.nome.localeCompare(b.nome));
+
+                if (!cancelado) setRosterExibicao(roster);
+                return;
+            }
+
+            if (chamadaServidorAtual) {
+                const ids = new Set(chamadaServidorAtual.registros.map((r) => r.alunoId));
+                const faltantes = Array.from(ids).filter((id) => !alunosAtuais.has(id));
+
+                if (faltantes.length > 0) {
+                    const alunosBanco = await database
+                        .get<Aluno>('alunos')
+                        .query(Q.where('id', Q.oneOf(faltantes)))
+                        .fetch();
+                    alunosBanco.forEach((a) => alunosAtuais.set(a.id, a));
+                }
+
+                const roster = Array.from(ids)
+                    .map((id) => {
+                        const aluno = alunosAtuais.get(id);
+                        const registro = chamadaServidorAtual!.registros.find((r) => r.alunoId === id);
+                        return {
+                            id,
+                            nome: aluno?.nome ?? registro?.nomeAluno ?? 'Aluno não encontrado',
+                            aluno,
+                        };
+                    })
+                    .sort((a, b) => a.nome.localeCompare(b.nome));
+
+                if (!cancelado) setRosterExibicao(roster);
+                return;
+            }
+
+            if (!cancelado) {
+                setRosterExibicao(alunos.map((a) => ({ id: a.id, nome: a.nome, aluno: a })));
+            }
+        };
+
+        montarRoster();
+
+        return () => {
+            cancelado = true;
+        };
+    }, [alunos, registrosLocais, chamadaServidorAtual]);
 
     const setStatus = (alunoId: string, status: StatusPresencaLocal) => {
+        if (somenteLeitura) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setStatusMap((prev) => ({ ...prev, [alunoId]: status }));
     };
 
+    const carregarRegistrosExistentes = useCallback(async (data: Date) => {
+        const registrosCollection = database.get<RegistroPresenca>('registros_presenca');
+        const registros = await registrosCollection
+            .query(Q.where('turma_id', turmaId))
+            .fetch();
+
+        const inicio = inicioDoDia(data).getTime();
+        const fim = fimDoDia(data).getTime();
+
+        return registros.filter((r) => {
+            const t = r.data.getTime();
+            return t >= inicio && t < fim;
+        });
+    }, [turmaId]);
+
+    const aplicarStatusDosRegistros = (registros: RegistroPresenca[]) => {
+        const novoMap: Record<string, StatusPresencaLocal> = {};
+        registros.forEach((r) => {
+            if (STATUS_OPTIONS.some((opt) => opt.key === r.status)) {
+                novoMap[r.alunoId] = r.status;
+            }
+        });
+        setStatusMap(novoMap);
+    };
+
+    const mapearStatusServidorParaLocal = (status: string): StatusPresencaLocal => {
+        // O domínio do servidor possui "Ausente", que não possui representação
+        // local própria; mapeamos para "Falta" para preservar a ausência escolar.
+        if (status === 'Ausente') return 'Falta';
+        if (STATUS_OPTIONS.some((opt) => opt.key === status)) {
+            return status as StatusPresencaLocal;
+        }
+        return 'Presente';
+    };
+
+    const aplicarStatusDoServidor = (chamada: ChamadaPorDiaDto) => {
+        const novoMap: Record<string, StatusPresencaLocal> = {};
+        chamada.registros.forEach((r) => {
+            novoMap[r.alunoId] = mapearStatusServidorParaLocal(r.status);
+        });
+        setStatusMap(novoMap);
+    };
+
+    const criarRegistrosLocaisDoServidor = async (chamada: ChamadaPorDiaDto) => {
+        // P2: captura data/turma no início do helper e descarta o trabalho se
+        // o usuário trocou de data/turma antes de sobrescrever o estado da tela.
+        const dataSelecionadaAntes = dataSelecionada;
+        const turmaIdAntes = turmaId;
+
+        const registrosCollection = database.get<RegistroPresenca>('registros_presenca');
+        const statusPorAluno: Record<string, StatusPresencaLocal> = {};
+        chamada.registros.forEach((r) => {
+            statusPorAluno[r.alunoId] = mapearStatusServidorParaLocal(r.status);
+        });
+
+        await database.write(async () => {
+            // Cria registros locais apenas para os alunos que efetivamente
+            // constam na chamada do servidor. Alunos novos na turma ficam como
+            // Presente no statusMap, mas não geram Created rows inválidos no sync.
+            const batch = chamada.registros.map((r) =>
+                registrosCollection.prepareCreate((record) => {
+                    record.alunoId = r.alunoId;
+                    record.turmaId = turmaId;
+                    record.data = dataSelecionada;
+                    record.status = statusPorAluno[r.alunoId] ?? 'Presente';
+                    record.sincronizado = true;
+                })
+            );
+            if (batch.length > 0) {
+                await database.batch(...batch);
+            }
+        });
+
+        const novosRegistros = await carregarRegistrosExistentes(dataSelecionada);
+
+        // P2: se a data/turma mudou enquanto o banco local era escrito/lido,
+        // não sobrescreve o estado da tela com dados de um dia/turma antigo.
+        if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+            return;
+        }
+
+        setRegistrosLocais(novosRegistros);
+        setStatusMap(statusPorAluno);
+    };
+
+    const handleDataChange = (texto: string) => {
+        setDataTexto(texto);
+        const data = parseDataBrasil(texto);
+        if (data) {
+            setDataSelecionada(data);
+            setSomenteLeitura(false);
+            setModoEdicao(false);
+            setPodeEditarServidor(null);
+            setChamadaServidorAtual(null);
+            setCarregandoEdicao(false);
+            setStatusMap({});
+        }
+    };
+
+    const handleHoje = () => {
+        const hoje = hojeMeiaNoite();
+        setDataTexto(formatarDataBrasil(hoje));
+        setDataSelecionada(hoje);
+        setSomenteLeitura(false);
+        setModoEdicao(false);
+        setPodeEditarServidor(null);
+        setChamadaServidorAtual(null);
+        setCarregandoEdicao(false);
+        setStatusMap({});
+    };
+
+    const salvarNovosRegistros = async () => {
+        const registrosCollection = database.get<RegistroPresenca>('registros_presenca');
+
+        await database.write(async () => {
+            const batch = rosterExibicao.map((aluno) =>
+                registrosCollection.prepareCreate((record) => {
+                    record.alunoId = aluno.id;
+                    record.turmaId = turmaId;
+                    record.data = dataSelecionada;
+                    record.status = statusMap[aluno.id] ?? 'Presente';
+                    record.sincronizado = false;
+                })
+            );
+
+            await database.batch(...batch);
+        });
+    };
+
+    const atualizarRegistrosExistentes = async (registros: RegistroPresenca[]) => {
+        const registrosPorAluno = new Map<string, RegistroPresenca>();
+        registros.forEach((r) => registrosPorAluno.set(r.alunoId, r));
+
+        await database.write(async () => {
+            const batch: RegistroPresenca[] = [];
+            rosterExibicao.forEach((aluno) => {
+                const registro = registrosPorAluno.get(aluno.id);
+                if (registro) {
+                    const novoStatus = statusMap[aluno.id] ?? 'Presente';
+                    if (registro.status !== novoStatus) {
+                        batch.push(
+                            registro.prepareUpdate((record) => {
+                                record.status = novoStatus;
+                                record.sincronizado = false;
+                            })
+                        );
+                    }
+                }
+            });
+
+            if (batch.length > 0) {
+                await database.batch(...batch);
+            }
+        });
+    };
+
+    const finalizarSalvamento = async () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setSomenteLeitura(true);
+        setModoEdicao(false);
+
+        try {
+            const resultado = await syncWithServer();
+            if (!resultado.sucesso && resultado.rejeicoes.length > 0) {
+                const resumo = resultado.rejeicoes.slice(0, 3).map((r) => r.motivo).join('\n');
+                Alert.alert(
+                    'Sincronização com rejeições',
+                    `Alguns registros foram rejeitados pelo servidor e revertidos localmente:\n\n${resumo}${resultado.rejeicoes.length > 3 ? '\n...' : ''}`
+                );
+            }
+        } catch {
+            // Erros de rede são silenciados; o sync será retentado automaticamente.
+        }
+    };
+
+    const mostrarAlertaConflitoLocal = (registrosExistentes: RegistroPresenca[], podeEditar: boolean) => {
+        const acoes: { text: string; onPress?: () => void; style?: 'cancel' }[] = [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+                text: 'Visualizar',
+                onPress: () => {
+                    setSomenteLeitura(true);
+                    setModoEdicao(false);
+                    setPodeEditarServidor(podeEditar);
+                },
+            },
+        ];
+
+        if (podeEditar) {
+            acoes.push({
+                text: 'Atualizar',
+                onPress: () => {
+                    // Apenas entra em modo de edição; a persistência ocorre no próximo toque em salvar.
+                    setSomenteLeitura(false);
+                    setModoEdicao(true);
+                    setPodeEditarServidor(true);
+                },
+            });
+        }
+
+        Alert.alert(
+            'Chamada já realizada',
+            podeEditar
+                ? `Já existe uma chamada local para o dia ${dataTexto}. Deseja visualizar ou atualizar?`
+                : `Já existe uma chamada local para o dia ${dataTexto}. O prazo de edição de 7 dias foi excedido, então ela será exibida em modo visualização.`,
+            acoes,
+            { cancelable: false }
+        );
+    };
+
+    const mostrarAlertaConflitoServidor = (chamada: ChamadaPorDiaDto) => {
+        const acoes: { text: string; onPress?: () => void; style?: 'cancel' }[] = [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+                text: 'Visualizar',
+                onPress: () => {
+                    setSomenteLeitura(true);
+                    setModoEdicao(false);
+                    setPodeEditarServidor(chamada.podeEditar);
+                },
+            },
+        ];
+
+        if (chamada.podeEditar) {
+            acoes.push({
+                text: 'Atualizar',
+                onPress: async () => {
+                    // P2: captura data/turma antes do await e descarta o trabalho se
+                    // o usuário trocou de data/turma enquanto os registros eram criados.
+                    const dataSelecionadaAntes = dataSelecionada;
+                    const turmaIdAntes = turmaId;
+
+                    await criarRegistrosLocaisDoServidor(chamada);
+
+                    if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                        return;
+                    }
+
+                    setModoEdicao(true);
+                    setPodeEditarServidor(true);
+                },
+            });
+        }
+
+        Alert.alert(
+            'Chamada já realizada',
+            chamada.podeEditar
+                ? `Já existe uma chamada no servidor para o dia ${dataTexto}. Deseja visualizar ou atualizar?`
+                : `Já existe uma chamada no servidor para o dia ${dataTexto}. O prazo de edição de 7 dias foi excedido, então ela será exibida em modo visualização.`,
+            acoes,
+            { cancelable: false }
+        );
+    };
+
+    const executarSalvamento = async (registrosExistentes: RegistroPresenca[]) => {
+        if (registrosExistentes.length > 0) {
+            await atualizarRegistrosExistentes(registrosExistentes);
+        } else {
+            await salvarNovosRegistros();
+        }
+        await finalizarSalvamento();
+    };
+
+    const perguntarContinuarOffline = (): Promise<boolean> => {
+        return new Promise((resolve) => {
+            Alert.alert(
+                'Sem conexão',
+                'Não foi possível verificar no servidor se já existe chamada para esta data. Deseja continuar offline?',
+                [
+                    { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+                    { text: 'Continuar offline', onPress: () => resolve(true) },
+                ],
+                { cancelable: false }
+            );
+        });
+    };
+
     const handleSalvar = async () => {
-        if (alunos.length === 0) {
+        if (rosterExibicao.length === 0) {
             Alert.alert('Aviso', 'Não há alunos nesta turma para registrar chamada.');
             return;
         }
 
+        // P2: previne reentrada/double-tap que pode criar duplicatas locais e
+        // corromper o batch atômico de sync.
+        if (isSaving) return;
+        setIsSaving(true);
+
         try {
-            const registrosCollection = database.get<RegistroPresenca>('registros_presenca');
+            // P2: sempre deriva a data do texto exibido e rejeita se estiver inválido.
+            const dataValida = parseDataBrasil(dataTexto);
+            if (!dataValida) {
+                Alert.alert('Data inválida', 'Informe uma data válida no formato DD/MM/AAAA.');
+                return;
+            }
 
-            await database.write(async () => {
-                const batch = alunos.map((aluno) =>
-                    registrosCollection.prepareCreate((record) => {
-                        record.alunoId = aluno.id;
-                        record.turmaId = turmaId;
-                        record.data = new Date();
-                        record.status = statusMap[aluno.id] ?? 'Presente';
-                        record.sincronizado = false;
-                    })
-                );
+            // P2: rejeita datas futuras antes de persistir localmente. Isso evita
+            // registros órfãos que o backend rejeitaria no sync, mantendo a fila limpa.
+            if (dataValida.getTime() > hojeMeiaNoite().getTime()) {
+                Alert.alert('Data inválida', 'A data da chamada não pode ser posterior ao dia atual.');
+                return;
+            }
 
-                await database.batch(...batch);
-            });
+            if (!mesmoDia(dataValida, dataSelecionada)) {
+                setDataSelecionada(dataValida);
+                // A mudança de data dispara o useEffect que recarrega os registros locais.
+                return;
+            }
 
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            navigation.goBack();
+            if (somenteLeitura) {
+                // Se o prazo do servidor expirou, não permite editar
+                if (podeEditarServidor === false) {
+                    Alert.alert('Aviso', 'Esta chamada já não pode mais ser alterada (prazo de 7 dias expirado).');
+                    return;
+                }
 
-            syncWithServer().catch(() => {});
+                // P2: se a visualização veio de uma chamada server-only, materializa os
+                // registros locais antes de habilitar a edição. Caso contrário, o próximo
+                // salvamento veria registrosLocais vazio e criaria novas linhas para toda
+                // a turma, gerando registros órfãos para alunos não presentes na chamada original.
+                if (registrosLocais.length === 0) {
+                    // Captura os valores atuais para detectar mudança de data/turma durante os awaits
+                    const dataSelecionadaAntes = dataSelecionada;
+                    const turmaIdAntes = turmaId;
+
+                    let chamada = chamadaServidorAtual;
+                    if (!chamada) {
+                        try {
+                            setCarregandoEdicao(true);
+                            chamada = await chamadasService.obterChamadaPorDia(turmaIdAntes, dataSelecionadaAntes);
+                        } catch (erroServidor) {
+                            console.error('[CHAMADA] Erro ao consultar servidor para edição:', erroServidor);
+                            Alert.alert('Erro', 'Não foi possível carregar a chamada do servidor para edição.');
+                            return;
+                        } finally {
+                            setCarregandoEdicao(false);
+                        }
+
+                        // P2: se o usuário trocou de data/turma enquanto a requisição estava em voo,
+                        // descarta a resposta stale e não altera o estado da tela.
+                        if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                            return;
+                        }
+                    }
+
+                    if (chamada) {
+                        setCarregandoEdicao(true);
+                        try {
+                            await criarRegistrosLocaisDoServidor(chamada);
+                        } finally {
+                            setCarregandoEdicao(false);
+                        }
+
+                        // P2: verifica novamente após a materialização dos registros locais
+                        if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                            return;
+                        }
+                    }
+                }
+
+                // Sai do modo visualização e permite edição
+                setSomenteLeitura(false);
+                setModoEdicao(true);
+                return;
+            }
+
+            const registrosExistentes = registrosLocais;
+
+            // P1: se já existem registros locais e ainda não estamos editando,
+            // consulta o servidor para respeitar o prazo de 7 dias antes de permitir alterações.
+            if (registrosExistentes.length > 0 && !modoEdicao) {
+                // Captura os valores atuais para detectar mudança de data/turma durante o await
+                const dataSelecionadaAntes = dataSelecionada;
+                const turmaIdAntes = turmaId;
+
+                try {
+                    const chamadaServidor = await chamadasService.obterChamadaPorDia(turmaIdAntes, dataSelecionadaAntes);
+
+                    // P2: se o usuário trocou de data/turma enquanto a requisição estava em voo,
+                    // descarta a resposta stale e não altera o estado da tela.
+                    if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                        return;
+                    }
+
+                    if (chamadaServidor) {
+                        aplicarStatusDoServidor(chamadaServidor);
+                        mostrarAlertaConflitoLocal(registrosExistentes, chamadaServidor.podeEditar);
+                    } else {
+                        // Registros locais sem correspondente no servidor: usa o próprio prazo local (presumivelmente dentro de 7 dias).
+                        mostrarAlertaConflitoLocal(registrosExistentes, true);
+                    }
+                } catch (erroServidor) {
+                    console.error('[CHAMADA] Erro ao consultar prazo no servidor:', erroServidor);
+
+                    // P2: verifica se a data/turma mudou durante o erro também
+                    if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                        return;
+                    }
+
+                    // P2: não permite editar offline registros já sincronizados com o servidor,
+                    // pois não conseguimos verificar se o prazo de 7 dias expirou. Edições nesse
+                    // estado sem conexão podem gerar rejeição 422 no sync, bloqueando o batch.
+                    const algumSincronizado = registrosExistentes.some((r) => r.sincronizado);
+                    if (algumSincronizado) {
+                        Alert.alert(
+                            'Conexão necessária',
+                            'Esta chamada já foi sincronizada com o servidor. Para verificar o prazo de edição, conecte o aplicativo à rede local da escola.'
+                        );
+                        return;
+                    }
+
+                    // Registros ainda não sincronizados: o prazo local ainda é válido.
+                    mostrarAlertaConflitoLocal(registrosExistentes, true);
+                }
+                return;
+            }
+
+            if (modoEdicao) {
+                await executarSalvamento(registrosExistentes);
+                return;
+            }
+
+            // Sem registros locais: consulta o servidor antes de tratar como nova chamada
+            // Captura os valores atuais para detectar mudança de data/turma durante o await
+            const dataSelecionadaAntes = dataSelecionada;
+            const turmaIdAntes = turmaId;
+
+            try {
+                const chamadaServidor = await chamadasService.obterChamadaPorDia(turmaIdAntes, dataSelecionadaAntes);
+
+                // P2: se o usuário trocou de data/turma enquanto a requisição estava em voo,
+                // descarta a resposta stale e não altera o estado da tela.
+                if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                    return;
+                }
+
+                if (chamadaServidor) {
+                    aplicarStatusDoServidor(chamadaServidor);
+                    mostrarAlertaConflitoServidor(chamadaServidor);
+                    return;
+                }
+
+                // Servidor não tem chamada para o dia: cria nova localmente
+                await executarSalvamento([]);
+            } catch (erroServidor) {
+                console.error('[CHAMADA] Erro ao consultar servidor:', erroServidor);
+
+                // P2: verifica se a data/turma mudou durante o erro também
+                if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                    return;
+                }
+
+                const deveContinuar = await perguntarContinuarOffline();
+                if (deveContinuar) {
+                    await executarSalvamento([]);
+                }
+            }
         } catch (error) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             console.error('[CHAMADA] Erro ao salvar localmente:', error);
             Alert.alert('Erro', 'Falha ao salvar a chamada no dispositivo.');
+        } finally {
+            setIsSaving(false);
         }
     };
 
-    const renderItem = ({ item }: { item: Aluno }) => {
+    const renderItem = ({ item }: { item: AlunoRosterItem }) => {
         const currentStatus = statusMap[item.id] ?? 'Presente';
 
         return (
-            <Surface style={styles.card} elevation={1}>
+            <Surface style={[styles.card, somenteLeitura && styles.cardDesabilitado]} elevation={1}>
                 <Text variant="titleMedium" style={styles.alunoNome}>{item.nome}</Text>
 
                 <View style={styles.statusRow}>
@@ -109,8 +737,10 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                                 style={[
                                     styles.statusButton,
                                     isActive && { backgroundColor: opt.color, borderColor: opt.color },
+                                    somenteLeitura && !isActive && styles.statusButtonDesabilitado,
                                 ]}
                                 onPress={() => setStatus(item.id, opt.key)}
+                                disabled={somenteLeitura}
                             >
                                 <MaterialCommunityIcons
                                     name={opt.icon}
@@ -143,16 +773,56 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         {} as Record<string, number>
     );
 
+    const bloqueadoParaSempre = somenteLeitura && podeEditarServidor === false;
+    const tituloBotao = somenteLeitura
+        ? bloqueadoParaSempre
+            ? 'Visualizar'
+            : 'Editar Chamada'
+        : modoEdicao
+        ? 'Atualizar Chamada'
+        : 'Salvar Chamada';
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <AppHeader
-                title="Chamada Diária"
+                title="Chamada"
                 subtitle={turmaNome}
                 onBack={() => navigation.goBack()}
             />
 
+            {/* Seletor de data */}
+            <View style={styles.dataRow}>
+                <TextInput
+                    label="Data da chamada"
+                    value={dataTexto}
+                    onChangeText={handleDataChange}
+                    mode="outlined"
+                    style={styles.dataInput}
+                    keyboardType="numeric"
+                    placeholder="DD/MM/AAAA"
+                />
+                <Button
+                    mode="outlined"
+                    onPress={handleHoje}
+                    style={styles.hojeButton}
+                >
+                    Hoje
+                </Button>
+            </View>
+
+            {somenteLeitura && (
+                <View style={styles.badgeLeitura}>
+                    <MaterialCommunityIcons name="eye" size={16} color={theme.colors.info} />
+                    <Text variant="labelMedium" style={styles.textoLeitura}>
+                        {bloqueadoParaSempre
+                            ? 'Modo visualização — o prazo de 7 dias para edição expirou'
+                            : 'Modo visualização — selecione outra data ou toque em "Editar" para alterar'}
+                    </Text>
+                </View>
+            )}
+
             {/* Resumo visual */}
-            {alunos.length > 0 && (
+            {rosterExibicao.length > 0 && (
                 <View style={styles.resumoBar}>
                     {STATUS_OPTIONS.map((opt) => (
                         <View key={opt.key} style={[styles.resumoItem, { backgroundColor: opt.bgColor }]}>
@@ -166,7 +836,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             )}
 
             <FlatList
-                data={alunos}
+                data={rosterExibicao}
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
                 contentContainerStyle={styles.listContainer}
@@ -176,12 +846,14 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                 <Button
                     mode="contained"
                     onPress={handleSalvar}
-                    icon="content-save-check"
+                    icon={bloqueadoParaSempre ? 'eye' : somenteLeitura ? 'pencil' : 'content-save-check'}
+                    disabled={bloqueadoParaSempre || carregandoEdicao || isSaving}
+                    loading={carregandoEdicao || isSaving}
                     style={styles.saveButton}
                     contentStyle={styles.saveButtonContent}
                     labelStyle={styles.saveButtonLabel}
                 >
-                    Salvar Chamada
+                    {carregandoEdicao || isSaving ? 'Carregando...' : tituloBotao}
                 </Button>
             </View>
         </SafeAreaView>
@@ -200,6 +872,33 @@ export function ChamadaScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
+    dataRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: theme.spacing.md,
+        paddingTop: theme.spacing.sm,
+        gap: theme.spacing.sm,
+    },
+    dataInput: {
+        flex: 1,
+    },
+    hojeButton: {
+        marginTop: 6,
+    },
+    badgeLeitura: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        marginHorizontal: theme.spacing.md,
+        marginTop: theme.spacing.sm,
+        padding: theme.spacing.sm,
+        backgroundColor: theme.colors.infoLight,
+        borderRadius: theme.borderRadius.sm,
+    },
+    textoLeitura: {
+        color: theme.colors.info,
+        flex: 1,
+    },
     resumoBar: {
         flexDirection: 'row',
         paddingHorizontal: theme.spacing.md,
@@ -222,6 +921,9 @@ const styles = StyleSheet.create({
         borderRadius: theme.borderRadius.md,
         marginBottom: theme.spacing.sm + 4,
     },
+    cardDesabilitado: {
+        opacity: 0.7,
+    },
     alunoNome: {
         fontWeight: 'bold',
         color: theme.colors.textPrimary,
@@ -240,6 +942,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 2,
+    },
+    statusButtonDesabilitado: {
+        borderColor: theme.colors.border,
+        backgroundColor: theme.colors.background,
     },
     statusLabel: {
         fontWeight: '700',

@@ -4,7 +4,12 @@ namespace EscolaAtenta.Application.Chamadas.Commands;
 
 // ── Resultado ────────────────────────────────────────────────────────────────
 
-public record SyncPushResult(int RegistrosSincronizados, int AlertasGerados);
+public record SyncPushResult(
+    int RegistrosSincronizados,
+    int AlertasGerados,
+    List<SyncRejeicao> Rejeicoes);
+
+public record SyncRejeicao(string IdExterno, string Motivo);
 
 // ── Command principal ────────────────────────────────────────────────────────
 
