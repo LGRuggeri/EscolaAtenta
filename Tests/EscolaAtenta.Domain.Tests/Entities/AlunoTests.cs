@@ -268,20 +268,61 @@ public class AlunoTests
         aluno.Matricula.Should().Be("2024002");
     }
 
-    // ── Testes de TransferirTurma ──────────────────────────────────────────────
+    // ── Testes de Matrícula ────────────────────────────────────────────────────
 
     [Fact]
-    public void TransferirTurma_ParaTurmaValida_DeveAtualizarTurmaId()
+    public void Matricular_ComDadosValidos_DeveCriarMatriculaAtiva()
     {
         // Arrange
         var aluno = CriarAlunoValido();
-        var novaTurmaId = Guid.NewGuid();
+        var turmaId = Guid.NewGuid();
+        var anoLetivo = 2025;
+        var dataInicio = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         // Act
-        aluno.TransferirTurma(novaTurmaId);
+        aluno.Matricular(turmaId, anoLetivo, dataInicio, "Matrícula inicial");
+
+        // Assert
+        aluno.HistoricoTurmas.Should().ContainSingle();
+        aluno.ObterMatriculaAtiva()!.TurmaId.Should().Be(turmaId);
+        aluno.ObterMatriculaAtiva()!.AnoLetivo.Should().Be(anoLetivo);
+        aluno.ObterMatriculaAtiva()!.Ativa.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Matricular_AlunoJaMatriculado_DeveLancarDomainException()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        aluno.Matricular(Guid.NewGuid(), 2025, DateTime.UtcNow, "Matrícula inicial");
+
+        // Act
+        var acao = () => aluno.Matricular(Guid.NewGuid(), 2025, DateTime.UtcNow, "Segunda matrícula");
+
+        // Assert
+        acao.Should().Throw<DomainException>()
+            .WithMessage("*matrícula ativa*");
+    }
+
+    // ── Testes de TransferirTurma ──────────────────────────────────────────────
+
+    [Fact]
+    public void TransferirTurma_ParaTurmaValida_DeveAtualizarTurmaIdECriarHistorico()
+    {
+        // Arrange
+        var aluno = CriarAlunoValido();
+        aluno.Matricular(TurmaId, 2025, new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), "Matrícula inicial");
+        var novaTurmaId = Guid.NewGuid();
+        var dataTransferencia = new DateTime(2025, 12, 10, 0, 0, 0, DateTimeKind.Utc);
+
+        // Act
+        var novaMatricula = aluno.TransferirTurma(novaTurmaId, 2026, dataTransferencia, "Promoção");
 
         // Assert
         aluno.TurmaId.Should().Be(novaTurmaId);
+        novaMatricula.TurmaId.Should().Be(novaTurmaId);
+        novaMatricula.Ativa.Should().BeTrue();
+        aluno.ObterMatriculaAtiva().Should().BeNull(); // ainda não adicionada à coleção
     }
 
     [Fact]
@@ -289,9 +330,10 @@ public class AlunoTests
     {
         // Arrange
         var aluno = CriarAlunoValido();
+        aluno.Matricular(TurmaId, 2025, DateTime.UtcNow, "Matrícula inicial");
 
         // Act
-        var acao = () => aluno.TransferirTurma(TurmaId);
+        var acao = () => aluno.TransferirTurma(TurmaId, 2025, DateTime.UtcNow, "Troca inválida");
 
         // Assert
         acao.Should().Throw<DomainException>()

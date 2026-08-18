@@ -72,4 +72,35 @@ public class AlunosController : ControllerBase
         var result = await _mediator.Send(new GetHistoricoPresencasAlunoQuery(id, dias), ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Transfere o aluno para outra turma, registrando o histórico.
+    /// </summary>
+    [HttpPost("{id:guid}/transferir")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> TransferirAluno(
+        [FromRoute] Guid id,
+        [FromBody] TransferirAlunoCommand command,
+        CancellationToken ct)
+    {
+        if (id != command.AlunoId)
+        {
+            command = command with { AlunoId = id };
+        }
+
+        await _mediator.Send(command, ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Retorna o histórico de turmas por onde o aluno passou.
+    /// </summary>
+    [HttpGet("{id}/historico-turmas")]
+    [ProducesResponseType(typeof(IEnumerable<HistoricoTurmaAlunoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetHistoricoTurmas([FromRoute] string id, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new ObterHistoricoTurmasAlunoQuery(id), ct);
+        return Ok(result);
+    }
 }

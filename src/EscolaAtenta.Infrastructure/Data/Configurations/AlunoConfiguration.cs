@@ -51,6 +51,9 @@ public class AlunoConfiguration : IEntityTypeConfiguration<Aluno>
         builder.Navigation(a => a.AlertasEvasao)
                .UsePropertyAccessMode(PropertyAccessMode.Field);
 
+        builder.Navigation(a => a.HistoricoTurmas)
+               .UsePropertyAccessMode(PropertyAccessMode.Field);
+
         // ── Relacionamentos ────────────────────────────────────────────────────
         builder.HasMany(a => a.RegistrosPresenca)
                .WithOne(rp => rp.Aluno)
@@ -60,6 +63,11 @@ public class AlunoConfiguration : IEntityTypeConfiguration<Aluno>
         builder.HasMany(a => a.AlertasEvasao)
                .WithOne(ae => ae.Aluno)
                .HasForeignKey(ae => ae.AlunoId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(a => a.HistoricoTurmas)
+               .WithOne(h => h.Aluno)
+               .HasForeignKey(h => h.AlunoId)
                .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(a => a.Ativo);

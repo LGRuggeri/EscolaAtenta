@@ -27,6 +27,7 @@ public class Aluno : EntityBase, ISoftDeletable
 {
     private readonly List<RegistroPresenca> _registrosPresenca = [];
     private readonly List<AlertaEvasao> _alertasEvasao = [];
+    private readonly List<AlunoTurmaHistorico> _historicoTurmas = [];
 
     // Construtor privado para uso exclusivo do EF Core
     private Aluno() { }
@@ -85,6 +86,9 @@ public class Aluno : EntityBase, ISoftDeletable
     public IReadOnlyCollection<AlertaEvasao> AlertasEvasao =>
         _alertasEvasao.AsReadOnly();
 
+    public IReadOnlyCollection<AlunoTurmaHistorico> HistoricoTurmas =>
+        _historicoTurmas.AsReadOnly();
+
     // ── Métodos de Negócio ─────────────────────────────────────────────────────
 
     /// <summary>
@@ -98,9 +102,35 @@ public class Aluno : EntityBase, ISoftDeletable
     }
 
     /// <summary>
-    /// Transfere o aluno para outra turma.
+    /// Cria a primeira matrícula do aluno na turma informada.
+    /// Deve ser chamado pelo handler logo após a criação do aluno.
     /// </summary>
-    public void TransferirTurma(Guid novaTurmaId)
+    public void Matricular(Guid turmaId, int anoLetivo, DateTime dataInicio, string? motivo)
+    {
+        if (turmaId == Guid.Empty)
+            throw new DomainException("A turma de matrícula deve ser válida.");
+
+        if (_historicoTurmas.Any(h => h.Ativa))
+            throw new DomainException("O aluno já possui uma matrícula ativa.");
+
+        var matricula = new AlunoTurmaHistorico(
+            Guid.NewGuid(),
+            Id,
+            turmaId,
+            anoLetivo,
+            dataInicio,
+            dataFim: null,
+            motivo);
+
+        _historicoTurmas.Add(matricula);
+    }
+
+    /// <summary>
+    /// Transfere o aluno para outra turma, encerrando a matrícula ativa e
+    /// retornando a nova matrícula para que o repositório/camada de aplicação
+    /// possa persisti-la.
+    /// </summary>
+    public AlunoTurmaHistorico TransferirTurma(Guid novaTurmaId, int anoLetivoDestino, DateTime dataTransferencia, string? motivo)
     {
         if (novaTurmaId == Guid.Empty)
             throw new DomainException("A turma de destino deve ser válida.");
@@ -108,7 +138,46 @@ public class Aluno : EntityBase, ISoftDeletable
         if (novaTurmaId == TurmaId)
             throw new DomainException("O aluno já pertence a esta turma.");
 
+        var matriculaAtiva = _historicoTurmas.FirstOrDefault(h => h.Ativa);
+        if (matriculaAtiva != null)
+        {
+            matriculaAtiva.Encerrar(dataTransferencia);
+        }
+
         TurmaId = novaTurmaId;
+
+        var novaMatricula = new AlunoTurmaHistorico(
+            Guid.NewGuid(),
+            Id,
+            novaTurmaId,
+            anoLetivoDestino,
+            dataTransferencia,
+            dataFim: null,
+            motivo);
+
+        // Nota: a nova matrícula não é adicionada à coleção de navegação aqui
+        // porque, em alguns providers EF Core (InMemory/SQLite), a detecção de
+        // mudanças em coleções privadas com backing field após o primeiro
+        // SaveChanges pode falhar. O handler/adicionador persiste a entidade
+        // diretamente no contexto.
+
+        AddDomainEvent(new AlunoTransferidoEvent(
+            Id,
+            Nome,
+            matriculaAtiva?.TurmaId ?? Guid.Empty,
+            novaTurmaId,
+            dataTransferencia,
+            motivo));
+
+        return novaMatricula;
+    }
+
+    /// <summary>
+    /// Retorna a matrícula ativa do aluno, se houver.
+    /// </summary>
+    public AlunoTurmaHistorico? ObterMatriculaAtiva()
+    {
+        return _historicoTurmas.FirstOrDefault(h => h.Ativa);
     }
 
     public void VerificarEReiniciarCicloTrimestral(DateTime dataAtual)

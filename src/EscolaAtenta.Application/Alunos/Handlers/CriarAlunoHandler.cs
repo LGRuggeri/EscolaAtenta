@@ -19,8 +19,8 @@ public class CriarAlunoHandler : IRequestHandler<CriarAlunoCommand, AlunoDto>
     public async Task<AlunoDto> Handle(CriarAlunoCommand request, CancellationToken cancellationToken)
     {
         // Verifica se a Turma existe
-        var turmaExiste = await _context.Turmas.AnyAsync(t => t.Id == request.TurmaId, cancellationToken);
-        if (!turmaExiste)
+        var turma = await _context.Turmas.FirstOrDefaultAsync(t => t.Id == request.TurmaId, cancellationToken);
+        if (turma == null)
             throw new ArgumentException("A Turma informada não existe.");
 
         var aluno = new Aluno(
@@ -29,6 +29,9 @@ public class CriarAlunoHandler : IRequestHandler<CriarAlunoCommand, AlunoDto>
             matricula: request.Matricula,
             turmaId: request.TurmaId
         );
+
+        // Registra o vínculo inicial no histórico de matrículas
+        aluno.Matricular(turma.Id, turma.AnoLetivo, DateTime.UtcNow, "Matrícula inicial");
 
         _context.Alunos.Add(aluno);
         await _context.SaveChangesAsync(cancellationToken);

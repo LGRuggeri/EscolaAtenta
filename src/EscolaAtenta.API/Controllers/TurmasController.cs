@@ -58,4 +58,39 @@ public class TurmasController : ControllerBase
         await _mediator.Send(command, ct);
         return NoContent();
     }
+
+    /// <summary>
+    /// Migra todos os alunos ativos de uma turma origem para uma turma destino.
+    /// </summary>
+    [HttpPost("{id:guid}/migrar")]
+    [ProducesResponseType(typeof(MigrarTurmaResultadoDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> MigrarTurma(
+        [FromRoute] Guid id,
+        [FromBody] MigrarTurmaCommand command,
+        CancellationToken ct)
+    {
+        if (id != command.TurmaOrigemId)
+        {
+            command = command with { TurmaOrigemId = id };
+        }
+
+        var result = await _mediator.Send(command, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Retorna o relatório de frequência da turma para um ano/período letivo.
+    /// </summary>
+    [HttpGet("{id:guid}/relatorio")]
+    [ProducesResponseType(typeof(RelatorioTurmaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRelatorioTurma(
+        [FromRoute] Guid id,
+        [FromQuery] int anoLetivo,
+        [FromQuery] int? periodoLetivo = null,
+        CancellationToken ct = default)
+    {
+        var result = await _mediator.Send(new RelatorioTurmaQuery(id, anoLetivo, periodoLetivo), ct);
+        return Ok(result);
+    }
 }

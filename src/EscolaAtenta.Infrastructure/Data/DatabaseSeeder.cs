@@ -26,7 +26,67 @@ public class DatabaseSeeder
     /// </summary>
     public async Task SeedAsync()
     {
+        await SeedConfiguracaoEscolaAsync();
+        await SeedHistoricoMatriculasAsync();
         await SeedAdminAsync();
+    }
+
+    private async Task SeedConfiguracaoEscolaAsync()
+    {
+        bool existeConfiguracao = await _context.ConfiguracoesEscola.AnyAsync();
+        if (existeConfiguracao)
+            return;
+
+        _logger.LogInformation("Nenhuma configuração da escola encontrada. Criando configuração padrão (Trimestre)...");
+
+        var configuracao = new ConfiguracaoEscola(Guid.NewGuid(), TipoPeriodoLetivo.Trimestre);
+        _context.ConfiguracoesEscola.Add(configuracao);
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task SeedHistoricoMatriculasAsync()
+    {
+        // Alunos criados antes da existência do histórico de matrículas precisam
+        // receber uma matrícula ativa retroalimentada com base na turma atual.
+        var alunosSemHistorico = await _context.Alunos
+            .AsNoTracking()
+            .Where(a => !_context.AlunosTurmasHistorico.Any(h => h.AlunoId == a.Id))
+            .Select(a => new { a.Id, a.TurmaId })
+            .ToListAsync();
+
+        if (alunosSemHistorico.Count == 0)
+            return;
+
+        _logger.LogInformation(
+            "Retroalimentando histórico de matrículas para {Quantidade} aluno(s) sem histórico...",
+            alunosSemHistorico.Count);
+
+        var turmas = await _context.Turmas
+            .AsNoTracking()
+            .Where(t => alunosSemHistorico.Select(a => a.TurmaId).Contains(t.Id))
+            .ToDictionaryAsync(t => t.Id, t => t.AnoLetivo);
+
+        foreach (var aluno in alunosSemHistorico)
+        {
+            if (!turmas.TryGetValue(aluno.TurmaId, out var anoLetivo))
+                continue;
+
+            // Data de início retroalimentada como o primeiro dia do ano letivo
+            var dataInicio = new DateTime(anoLetivo, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            var historico = new AlunoTurmaHistorico(
+                Guid.NewGuid(),
+                aluno.Id,
+                aluno.TurmaId,
+                anoLetivo,
+                dataInicio,
+                dataFim: null,
+                "Retroalimentação automática");
+
+            _context.AlunosTurmasHistorico.Add(historico);
+        }
+
+        await _context.SaveChangesAsync();
     }
 
     private async Task SeedAdminAsync()
