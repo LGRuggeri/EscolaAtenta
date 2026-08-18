@@ -1,7 +1,10 @@
 import { synchronize, hasUnsyncedChanges } from '@nozbe/watermelondb/sync';
 import database from '../../database';
 import Aluno from '../../database/models/Aluno';
+import RegistroPresenca from '../../database/models/RegistroPresenca';
+import Turma from '../../database/models/Turma';
 import { api } from '../api';
+import { AxiosError } from 'axios';
 
 // ── Tipos do payload PUSH (enviado à API .NET) ──────────────────────────────
 
@@ -60,6 +63,17 @@ interface SyncTableChanges {
   created: Record<string, any>[];
   updated: Record<string, any>[];
   deleted: string[];
+}
+
+export interface SyncRejeicao {
+  idExterno: string;
+  motivo: string;
+}
+
+export interface SyncResult {
+  sucesso: boolean;
+  rejeicoes: SyncRejeicao[];
+  erro?: string;
 }
 
 // ── Transformações snake_case ↔ camelCase ────────────────────────────────────
@@ -131,138 +145,260 @@ function normalizarTurma(raw: Record<string, any>): Record<string, any> {
  * o erro propaga para o `synchronize()`, que aborta o ciclo sem
  * marcar nada como sincronizado. Na próxima tentativa, tudo é reenviado.
  */
-export async function syncWithServer(): Promise<void> {
+export async function syncWithServer(): Promise<SyncResult> {
   let houvePresencaEnviada = false;
+  let rejeicoesCapturadas: SyncRejeicao[] = [];
   // Registra o timestamp ANTES do sync para garantir que o pull pós-push
   // capture as atualizações feitas durante o push (independente da duração do ciclo)
   const timestampAntesDoCiclo = Date.now() - 5_000;
 
-  await synchronize({
-    database,
-
-    // ── PULL: servidor → celular (turmas + alunos) ────────────────────
-    pullChanges: async ({ lastPulledAt }) => {
-      const response = await api.get<SyncPullResponse>('/sync/pull', {
-        params: { lastPulledAt: lastPulledAt ?? 0 },
-      });
-
-      const { changes, timestamp } = response.data;
-
-      const turmasNormalizadas: SyncTableChanges = {
-        created: changes.turmas.created.map(normalizarTurma),
-        updated: changes.turmas.updated.map(normalizarTurma),
-        deleted: changes.turmas.deleted,
-      };
-
-      const alunosNormalizados: SyncTableChanges = {
-        created: changes.alunos.created.map(normalizarAluno),
-        updated: changes.alunos.updated.map(normalizarAluno),
-        deleted: changes.alunos.deleted,
-      };
-
-      return {
-        changes: {
-          turmas: turmasNormalizadas,
-          alunos: alunosNormalizados,
-          registros_presenca: changes.registros_presenca,
-        },
-        timestamp,
-      };
-    },
-
-    // ── PUSH: celular → servidor (turmas + registros de presença) ─────
-    pushChanges: async ({ changes, lastPulledAt }) => {
-      const c = changes as Record<string, any>;
-
-      const turmasCreated = (c['turmas']?.created ?? []) as Record<string, any>[];
-      const turmasUpdated = (c['turmas']?.updated ?? []) as Record<string, any>[];
-      const turmasDeleted = (c['turmas']?.deleted ?? []) as string[];
-
-      const alunosCreated = (c['alunos']?.created ?? []) as Record<string, any>[];
-
-      const rawCreated = (c['registros_presenca']?.created ?? []) as Record<string, any>[];
-      const rawUpdated = (c['registros_presenca']?.updated ?? []) as Record<string, any>[];
-      const rawDeleted = (c['registros_presenca']?.deleted ?? []) as string[];
-
-      console.log('[SYNC-PUSH] Delta:', {
-        turmasCriadas: turmasCreated.length,
-        turmasAtualizadas: turmasUpdated.length,
-        alunosCriados: alunosCreated.length,
-        presencasCriadas: rawCreated.length,
-        presencasAtualizadas: rawUpdated.length,
-      });
-
-      const temAlgo =
-        turmasCreated.length > 0 || turmasUpdated.length > 0 || turmasDeleted.length > 0 ||
-        alunosCreated.length > 0 ||
-        rawCreated.length > 0 || rawUpdated.length > 0 || rawDeleted.length > 0;
-
-      if (!temAlgo) {
-        console.log('[SYNC-PUSH] Nada a enviar.');
-        return;
-      }
-
-      const payload: SyncPushPayload = {
-        changes: {
-          turmas: {
-            created: turmasCreated.map(transformarTurmaPush),
-            updated: turmasUpdated.map(transformarTurmaPush),
-            deleted: turmasDeleted,
-          },
-          alunos: {
-            created: alunosCreated.map(transformarAlunoPush),
-          },
-          registrosPresenca: {
-            created: rawCreated.map(transformarRegistroPush),
-            updated: rawUpdated.map(transformarRegistroPush),
-            deleted: rawDeleted,
-          },
-        },
-        lastPulledAt: lastPulledAt ?? 0,
-      };
-
-      await api.post('/sync/push', payload);
-      houvePresencaEnviada = rawCreated.length > 0 || rawUpdated.length > 0;
-    },
-
-    migrationsEnabledAtVersion: 2,
-  });
-
-  // Se enviou presenças, busca os contadores atualizados diretamente via API
-  // e atualiza o WatermelonDB local sem passar pelo synchronize().
-  // Isso evita o problema de timing: o synchronize() usa o lastPulledAt já avançado
-  // (pós-primeiro-ciclo), que é posterior à atualização do servidor feita pelo push.
-  if (houvePresencaEnviada) {
-    // Segundo ciclo de sync usando o timestamp ANTES do push como lastPulledAt,
-    // garantindo que o servidor retorne os contadores atualizados pelo push.
-    // O pushChanges é vazio pois não há mais nada a enviar.
+  try {
     await synchronize({
       database,
-      pullChanges: async () => {
+
+      // ── PULL: servidor → celular (turmas + alunos) ────────────────────
+      pullChanges: async ({ lastPulledAt }) => {
         const response = await api.get<SyncPullResponse>('/sync/pull', {
-          params: { lastPulledAt: timestampAntesDoCiclo },
+          params: { lastPulledAt: lastPulledAt ?? 0 },
         });
+
         const { changes, timestamp } = response.data;
+
+        const turmasNormalizadas: SyncTableChanges = {
+          created: changes.turmas.created.map(normalizarTurma),
+          updated: changes.turmas.updated.map(normalizarTurma),
+          deleted: changes.turmas.deleted,
+        };
+
+        const alunosNormalizados: SyncTableChanges = {
+          created: changes.alunos.created.map(normalizarAluno),
+          updated: changes.alunos.updated.map(normalizarAluno),
+          deleted: changes.alunos.deleted,
+        };
+
         return {
           changes: {
-            turmas: {
-              created: changes.turmas.created.map(normalizarTurma),
-              updated: changes.turmas.updated.map(normalizarTurma),
-              deleted: changes.turmas.deleted,
-            },
-            alunos: {
-              created: changes.alunos.created.map(normalizarAluno),
-              updated: changes.alunos.updated.map(normalizarAluno),
-              deleted: changes.alunos.deleted,
-            },
+            turmas: turmasNormalizadas,
+            alunos: alunosNormalizados,
             registros_presenca: changes.registros_presenca,
           },
           timestamp,
         };
       },
-      pushChanges: async () => { /* nada a enviar */ },
+
+      // ── PUSH: celular → servidor (turmas + registros de presença) ─────
+      pushChanges: async ({ changes, lastPulledAt }) => {
+        const c = changes as Record<string, any>;
+
+        const turmasCreated = (c['turmas']?.created ?? []) as Record<string, any>[];
+        const turmasUpdated = (c['turmas']?.updated ?? []) as Record<string, any>[];
+        const turmasDeleted = (c['turmas']?.deleted ?? []) as string[];
+
+        const alunosCreated = (c['alunos']?.created ?? []) as Record<string, any>[];
+
+        const rawCreated = (c['registros_presenca']?.created ?? []) as Record<string, any>[];
+        const rawUpdated = (c['registros_presenca']?.updated ?? []) as Record<string, any>[];
+        const rawDeleted = (c['registros_presenca']?.deleted ?? []) as string[];
+
+        console.log('[SYNC-PUSH] Delta:', {
+          turmasCriadas: turmasCreated.length,
+          turmasAtualizadas: turmasUpdated.length,
+          alunosCriados: alunosCreated.length,
+          presencasCriadas: rawCreated.length,
+          presencasAtualizadas: rawUpdated.length,
+        });
+
+        const temAlgo =
+          turmasCreated.length > 0 || turmasUpdated.length > 0 || turmasDeleted.length > 0 ||
+          alunosCreated.length > 0 ||
+          rawCreated.length > 0 || rawUpdated.length > 0 || rawDeleted.length > 0;
+
+        if (!temAlgo) {
+          console.log('[SYNC-PUSH] Nada a enviar.');
+          return;
+        }
+
+        const payload: SyncPushPayload = {
+          changes: {
+            turmas: {
+              created: turmasCreated.map(transformarTurmaPush),
+              updated: turmasUpdated.map(transformarTurmaPush),
+              deleted: turmasDeleted,
+            },
+            alunos: {
+              created: alunosCreated.map(transformarAlunoPush),
+            },
+            registrosPresenca: {
+              created: rawCreated.map(transformarRegistroPush),
+              updated: rawUpdated.map(transformarRegistroPush),
+              deleted: rawDeleted,
+            },
+          },
+          lastPulledAt: lastPulledAt ?? 0,
+        };
+
+        try {
+          await api.post('/sync/push', payload);
+          houvePresencaEnviada = rawCreated.length > 0 || rawUpdated.length > 0;
+        } catch (erro: any) {
+          const axiosError = erro as AxiosError<any>;
+          if (axiosError.response?.status === 422) {
+            const rejeicoes: SyncRejeicao[] = (axiosError.response.data?.rejeicoes ?? []).map(
+              (r: any) => ({ idExterno: r.idExterno ?? r.id_externo ?? '', motivo: r.motivo ?? '' })
+            );
+
+            console.warn('[SYNC-PUSH] Rejeições do backend:', rejeicoes);
+
+            // Reverte alterações rejeitadas para não bloquear o próximo push.
+            await reverterAlteracoesRejeitadas({
+              turmasCreated,
+              turmasUpdated,
+              alunosCreated,
+              presencasCreated: rawCreated,
+              presencasUpdated: rawUpdated,
+              rejeicoes,
+            });
+
+            rejeicoesCapturadas = rejeicoes;
+            return;
+          }
+
+          throw erro;
+        }
+      },
+
       migrationsEnabledAtVersion: 2,
     });
+
+    // Se enviou presenças, busca os contadores atualizados diretamente via API
+    // e atualiza o WatermelonDB local sem passar pelo synchronize().
+    // Isso evita o problema de timing: o synchronize() usa o lastPulledAt já avançado
+    // (pós-primeiro-ciclo), que é posterior à atualização do servidor feita pelo push.
+    if (houvePresencaEnviada) {
+      // Segundo ciclo de sync usando o timestamp ANTES do push como lastPulledAt,
+      // garantindo que o servidor retorne os contadores atualizados pelo push.
+      // O pushChanges é vazio pois não há mais nada a enviar.
+      await synchronize({
+        database,
+        pullChanges: async () => {
+          const response = await api.get<SyncPullResponse>('/sync/pull', {
+            params: { lastPulledAt: timestampAntesDoCiclo },
+          });
+          const { changes, timestamp } = response.data;
+          return {
+            changes: {
+              turmas: {
+                created: changes.turmas.created.map(normalizarTurma),
+                updated: changes.turmas.updated.map(normalizarTurma),
+                deleted: changes.turmas.deleted,
+              },
+              alunos: {
+                created: changes.alunos.created.map(normalizarAluno),
+                updated: changes.alunos.updated.map(normalizarAluno),
+                deleted: changes.alunos.deleted,
+              },
+              registros_presenca: changes.registros_presenca,
+            },
+            timestamp,
+          };
+        },
+        pushChanges: async () => { /* nada a enviar */ },
+        migrationsEnabledAtVersion: 2,
+      });
+    }
+
+    if (rejeicoesCapturadas.length > 0) {
+      return {
+        sucesso: false,
+        rejeicoes: rejeicoesCapturadas,
+        erro: `${rejeicoesCapturadas.length} registro(s) foram rejeitados pelo servidor e revertidos localmente.`,
+      };
+    }
+
+    return { sucesso: true, rejeicoes: [] };
+  } catch (erro: any) {
+    const mensagem =
+      erro?.response?.data?.detail ||
+      erro?.message ||
+      'Sem conexão. Os registros serão enviados quando houver rede.';
+
+    return { sucesso: false, rejeicoes: [], erro: mensagem };
+  }
+}
+
+interface ReverterPayload {
+  turmasCreated: Record<string, any>[];
+  turmasUpdated: Record<string, any>[];
+  alunosCreated: Record<string, any>[];
+  presencasCreated: Record<string, any>[];
+  presencasUpdated: Record<string, any>[];
+  rejeicoes: SyncRejeicao[];
+}
+
+/**
+ * Reverte alterações locais que foram rejeitadas pelo backend (HTTP 422).
+ * Isso evita que um registro inválido fique preso no batch atômico de sync,
+ * bloqueando alterações válidas subsequentes.
+ *
+ * Estratégia:
+ * - Created rejeitado: destrói o registro local (o servidor nunca o aceitou).
+ * - Updated rejeitado: marca como sincronizado para não reenviar; o próximo
+ *   pull trará o estado atual do servidor e sobrescreverá o status local.
+ */
+async function reverterAlteracoesRejeitadas(payload: ReverterPayload): Promise<void> {
+  const { turmasCreated, alunosCreated, presencasCreated, presencasUpdated, rejeicoes } = payload;
+
+  const idsTurmasCreated = new Set(turmasCreated.map((t) => String(t.id)));
+  const idsAlunosCreated = new Set(alunosCreated.map((a) => String(a.id)));
+  const idsPresencasCreated = new Set(presencasCreated.map((r) => String(r.id)));
+  const idsPresencasUpdated = new Set(presencasUpdated.map((r) => String(r.id)));
+
+  for (const rejeicao of rejeicoes) {
+    const id = rejeicao.idExterno;
+    if (!id) continue;
+
+    try {
+      // Created rejeitado: destrói o registro local (o servidor nunca o aceitou).
+      if (idsPresencasCreated.has(id)) {
+        const registro = await database.get<RegistroPresenca>('registros_presenca').find(id);
+        await database.write(async () => {
+          await registro.destroyPermanently();
+        });
+        console.log('[SYNC-RECOVERY] Presença created destruída:', id);
+        continue;
+      }
+
+      // Updated rejeitado: remove o registro local para que o próximo pull
+      // traga o estado autoritativo do servidor, evitando reenvio da alteração
+      // rejeitada e desbloqueando o batch atômico.
+      if (idsPresencasUpdated.has(id)) {
+        const registro = await database.get<RegistroPresenca>('registros_presenca').find(id);
+        await database.write(async () => {
+          await registro.destroyPermanently();
+        });
+        console.log('[SYNC-RECOVERY] Presença updated destruída (será recriada pelo pull):', id);
+        continue;
+      }
+
+      if (idsTurmasCreated.has(id)) {
+        const turma = await database.get<Turma>('turmas').find(id);
+        await database.write(async () => {
+          await turma.destroyPermanently();
+        });
+        console.log('[SYNC-RECOVERY] Turma created destruída:', id);
+        continue;
+      }
+
+      if (idsAlunosCreated.has(id)) {
+        const aluno = await database.get<Aluno>('alunos').find(id);
+        await database.write(async () => {
+          await aluno.destroyPermanently();
+        });
+        console.log('[SYNC-RECOVERY] Aluno created destruído:', id);
+      }
+    } catch (erroLocal) {
+      console.warn('[SYNC-RECOVERY] Falha ao reverter registro rejeitado:', id, erroLocal);
+    }
   }
 }
 

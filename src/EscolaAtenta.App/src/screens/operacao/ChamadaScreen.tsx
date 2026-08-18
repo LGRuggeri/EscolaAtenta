@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, StyleSheet, FlatList, Alert, Pressable } from 'react-native';
 import { Text, Button, Surface, TextInput } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -98,6 +98,18 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
     const [registrosLocais, setRegistrosLocais] = useState<RegistroPresenca[]>([]);
     const [chamadaServidorAtual, setChamadaServidorAtual] = useState<ChamadaPorDiaDto | null>(null);
     const [carregandoEdicao, setCarregandoEdicao] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Refs para detectar mudanças de data/turma entre renders, já que o closure
+    // do handler captura os valores do render em que foi disparado. Usamos refs
+    // atualizadas a cada render para comparar contra o valor presente após await.
+    const dataSelecionadaRef = useRef(dataSelecionada);
+    const turmaIdRef = useRef(turmaId);
+
+    useEffect(() => {
+        dataSelecionadaRef.current = dataSelecionada;
+        turmaIdRef.current = turmaId;
+    }, [dataSelecionada, turmaId]);
 
     // Ao trocar a data, reseta o estado e carrega registros locais se existirem.
     // Se houver registros locais, consulta o servidor para respeitar o prazo de edição.
@@ -319,7 +331,18 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         setSomenteLeitura(true);
         setModoEdicao(false);
 
-        syncWithServer().catch(() => {});
+        try {
+            const resultado = await syncWithServer();
+            if (!resultado.sucesso && resultado.rejeicoes.length > 0) {
+                const resumo = resultado.rejeicoes.slice(0, 3).map((r) => r.motivo).join('\n');
+                Alert.alert(
+                    'Sincronização com rejeições',
+                    `Alguns registros foram rejeitados pelo servidor e revertidos localmente:\n\n${resumo}${resultado.rejeicoes.length > 3 ? '\n...' : ''}`
+                );
+            }
+        } catch {
+            // Erros de rede são silenciados; o sync será retentado automaticamente.
+        }
     };
 
     const mostrarAlertaConflitoLocal = (registrosExistentes: RegistroPresenca[], podeEditar: boolean) => {
@@ -400,90 +423,109 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         await finalizarSalvamento();
     };
 
+    const perguntarContinuarOffline = (): Promise<boolean> => {
+        return new Promise((resolve) => {
+            Alert.alert(
+                'Sem conexão',
+                'Não foi possível verificar no servidor se já existe chamada para esta data. Deseja continuar offline?',
+                [
+                    { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+                    { text: 'Continuar offline', onPress: () => resolve(true) },
+                ],
+                { cancelable: false }
+            );
+        });
+    };
+
     const handleSalvar = async () => {
         if (alunos.length === 0) {
             Alert.alert('Aviso', 'Não há alunos nesta turma para registrar chamada.');
             return;
         }
 
-        // P2: sempre deriva a data do texto exibido e rejeita se estiver inválido.
-        const dataValida = parseDataBrasil(dataTexto);
-        if (!dataValida) {
-            Alert.alert('Data inválida', 'Informe uma data válida no formato DD/MM/AAAA.');
-            return;
-        }
+        // P2: previne reentrada/double-tap que pode criar duplicatas locais e
+        // corromper o batch atômico de sync.
+        if (isSaving) return;
+        setIsSaving(true);
 
-        // P2: rejeita datas futuras antes de persistir localmente. Isso evita
-        // registros órfãos que o backend rejeitaria no sync, mantendo a fila limpa.
-        if (dataValida.getTime() > hojeMeiaNoite().getTime()) {
-            Alert.alert('Data inválida', 'A data da chamada não pode ser posterior ao dia atual.');
-            return;
-        }
-
-        if (!mesmoDia(dataValida, dataSelecionada)) {
-            setDataSelecionada(dataValida);
-            // A mudança de data dispara o useEffect que recarrega os registros locais.
-            return;
-        }
-
-        if (somenteLeitura) {
-            // Se o prazo do servidor expirou, não permite editar
-            if (podeEditarServidor === false) {
-                Alert.alert('Aviso', 'Esta chamada já não pode mais ser alterada (prazo de 7 dias expirado).');
+        try {
+            // P2: sempre deriva a data do texto exibido e rejeita se estiver inválido.
+            const dataValida = parseDataBrasil(dataTexto);
+            if (!dataValida) {
+                Alert.alert('Data inválida', 'Informe uma data válida no formato DD/MM/AAAA.');
                 return;
             }
 
-            // P2: se a visualização veio de uma chamada server-only, materializa os
-            // registros locais antes de habilitar a edição. Caso contrário, o próximo
-            // salvamento veria registrosLocais vazio e criaria novas linhas para toda
-            // a turma, gerando registros órfãos para alunos não presentes na chamada original.
-            if (registrosLocais.length === 0) {
-                // Captura os valores atuais para detectar mudança de data/turma durante os awaits
-                const dataSelecionadaAntes = dataSelecionada;
-                const turmaIdAntes = turmaId;
-
-                let chamada = chamadaServidorAtual;
-                if (!chamada) {
-                    try {
-                        setCarregandoEdicao(true);
-                        chamada = await chamadasService.obterChamadaPorDia(turmaIdAntes, dataSelecionadaAntes);
-                    } catch (erroServidor) {
-                        console.error('[CHAMADA] Erro ao consultar servidor para edição:', erroServidor);
-                        Alert.alert('Erro', 'Não foi possível carregar a chamada do servidor para edição.');
-                        return;
-                    } finally {
-                        setCarregandoEdicao(false);
-                    }
-
-                    // P2: se o usuário trocou de data/turma enquanto a requisição estava em voo,
-                    // descarta a resposta stale e não altera o estado da tela.
-                    if (dataSelecionada !== dataSelecionadaAntes || turmaId !== turmaIdAntes) {
-                        return;
-                    }
-                }
-
-                if (chamada) {
-                    setCarregandoEdicao(true);
-                    try {
-                        await criarRegistrosLocaisDoServidor(chamada);
-                    } finally {
-                        setCarregandoEdicao(false);
-                    }
-
-                    // P2: verifica novamente após a materialização dos registros locais
-                    if (dataSelecionada !== dataSelecionadaAntes || turmaId !== turmaIdAntes) {
-                        return;
-                    }
-                }
+            // P2: rejeita datas futuras antes de persistir localmente. Isso evita
+            // registros órfãos que o backend rejeitaria no sync, mantendo a fila limpa.
+            if (dataValida.getTime() > hojeMeiaNoite().getTime()) {
+                Alert.alert('Data inválida', 'A data da chamada não pode ser posterior ao dia atual.');
+                return;
             }
 
-            // Sai do modo visualização e permite edição
-            setSomenteLeitura(false);
-            setModoEdicao(true);
-            return;
-        }
+            if (!mesmoDia(dataValida, dataSelecionada)) {
+                setDataSelecionada(dataValida);
+                // A mudança de data dispara o useEffect que recarrega os registros locais.
+                return;
+            }
 
-        try {
+            if (somenteLeitura) {
+                // Se o prazo do servidor expirou, não permite editar
+                if (podeEditarServidor === false) {
+                    Alert.alert('Aviso', 'Esta chamada já não pode mais ser alterada (prazo de 7 dias expirado).');
+                    return;
+                }
+
+                // P2: se a visualização veio de uma chamada server-only, materializa os
+                // registros locais antes de habilitar a edição. Caso contrário, o próximo
+                // salvamento veria registrosLocais vazio e criaria novas linhas para toda
+                // a turma, gerando registros órfãos para alunos não presentes na chamada original.
+                if (registrosLocais.length === 0) {
+                    // Captura os valores atuais para detectar mudança de data/turma durante os awaits
+                    const dataSelecionadaAntes = dataSelecionada;
+                    const turmaIdAntes = turmaId;
+
+                    let chamada = chamadaServidorAtual;
+                    if (!chamada) {
+                        try {
+                            setCarregandoEdicao(true);
+                            chamada = await chamadasService.obterChamadaPorDia(turmaIdAntes, dataSelecionadaAntes);
+                        } catch (erroServidor) {
+                            console.error('[CHAMADA] Erro ao consultar servidor para edição:', erroServidor);
+                            Alert.alert('Erro', 'Não foi possível carregar a chamada do servidor para edição.');
+                            return;
+                        } finally {
+                            setCarregandoEdicao(false);
+                        }
+
+                        // P2: se o usuário trocou de data/turma enquanto a requisição estava em voo,
+                        // descarta a resposta stale e não altera o estado da tela.
+                        if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                            return;
+                        }
+                    }
+
+                    if (chamada) {
+                        setCarregandoEdicao(true);
+                        try {
+                            await criarRegistrosLocaisDoServidor(chamada);
+                        } finally {
+                            setCarregandoEdicao(false);
+                        }
+
+                        // P2: verifica novamente após a materialização dos registros locais
+                        if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                            return;
+                        }
+                    }
+                }
+
+                // Sai do modo visualização e permite edição
+                setSomenteLeitura(false);
+                setModoEdicao(true);
+                return;
+            }
+
             const registrosExistentes = registrosLocais;
 
             // P1: se já existem registros locais e ainda não estamos editando,
@@ -498,7 +540,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
 
                     // P2: se o usuário trocou de data/turma enquanto a requisição estava em voo,
                     // descarta a resposta stale e não altera o estado da tela.
-                    if (dataSelecionada !== dataSelecionadaAntes || turmaId !== turmaIdAntes) {
+                    if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
                         return;
                     }
 
@@ -513,11 +555,23 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                     console.error('[CHAMADA] Erro ao consultar prazo no servidor:', erroServidor);
 
                     // P2: verifica se a data/turma mudou durante o erro também
-                    if (dataSelecionada !== dataSelecionadaAntes || turmaId !== turmaIdAntes) {
+                    if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
                         return;
                     }
 
-                    // Offline: permite a edição local, mas o sync posterior pode ser rejeitado pelo servidor.
+                    // P2: não permite editar offline registros já sincronizados com o servidor,
+                    // pois não conseguimos verificar se o prazo de 7 dias expirou. Edições nesse
+                    // estado sem conexão podem gerar rejeição 422 no sync, bloqueando o batch.
+                    const algumSincronizado = registrosExistentes.some((r) => r.sincronizado);
+                    if (algumSincronizado) {
+                        Alert.alert(
+                            'Conexão necessária',
+                            'Esta chamada já foi sincronizada com o servidor. Para verificar o prazo de edição, conecte o aplicativo à rede local da escola.'
+                        );
+                        return;
+                    }
+
+                    // Registros ainda não sincronizados: o prazo local ainda é válido.
                     mostrarAlertaConflitoLocal(registrosExistentes, true);
                 }
                 return;
@@ -538,7 +592,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
 
                 // P2: se o usuário trocou de data/turma enquanto a requisição estava em voo,
                 // descarta a resposta stale e não altera o estado da tela.
-                if (dataSelecionada !== dataSelecionadaAntes || turmaId !== turmaIdAntes) {
+                if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
                     return;
                 }
 
@@ -554,29 +608,21 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                 console.error('[CHAMADA] Erro ao consultar servidor:', erroServidor);
 
                 // P2: verifica se a data/turma mudou durante o erro também
-                if (dataSelecionada !== dataSelecionadaAntes || turmaId !== turmaIdAntes) {
+                if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
                     return;
                 }
 
-                Alert.alert(
-                    'Sem conexão',
-                    'Não foi possível verificar no servidor se já existe chamada para esta data. Deseja continuar offline?',
-                    [
-                        { text: 'Cancelar', style: 'cancel' },
-                        {
-                            text: 'Continuar offline',
-                            onPress: async () => {
-                                await executarSalvamento([]);
-                            },
-                        },
-                    ],
-                    { cancelable: false }
-                );
+                const deveContinuar = await perguntarContinuarOffline();
+                if (deveContinuar) {
+                    await executarSalvamento([]);
+                }
             }
         } catch (error) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             console.error('[CHAMADA] Erro ao salvar localmente:', error);
             Alert.alert('Erro', 'Falha ao salvar a chamada no dispositivo.');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -706,13 +752,13 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                     mode="contained"
                     onPress={handleSalvar}
                     icon={bloqueadoParaSempre ? 'eye' : somenteLeitura ? 'pencil' : 'content-save-check'}
-                    disabled={bloqueadoParaSempre || carregandoEdicao}
-                    loading={carregandoEdicao}
+                    disabled={bloqueadoParaSempre || carregandoEdicao || isSaving}
+                    loading={carregandoEdicao || isSaving}
                     style={styles.saveButton}
                     contentStyle={styles.saveButtonContent}
                     labelStyle={styles.saveButtonLabel}
                 >
-                    {carregandoEdicao ? 'Carregando...' : tituloBotao}
+                    {carregandoEdicao || isSaving ? 'Carregando...' : tituloBotao}
                 </Button>
             </View>
         </SafeAreaView>
