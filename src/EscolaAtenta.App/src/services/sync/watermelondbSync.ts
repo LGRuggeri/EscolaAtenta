@@ -1,4 +1,5 @@
 import { synchronize, hasUnsyncedChanges } from '@nozbe/watermelondb/sync';
+import { Model } from '@nozbe/watermelondb';
 import database from '../../database';
 import Aluno from '../../database/models/Aluno';
 import RegistroPresenca, { StatusPresencaLocal } from '../../database/models/RegistroPresenca';
@@ -472,19 +473,31 @@ async function restaurarPresencaDoServidor(idExterno: string): Promise<void> {
         r.sincronizado = true;
       });
 
-      // Limpa o status nativo do WatermelonDB para que o registro não seja
-      // reenviado como 'updated' no próximo sync. O campo sincronizado é
-      // apenas da aplicação; o sync engine olha para _status/_changed.
-      // @ts-ignore — campos internos do WatermelonDB
-      registro._raw._status = 'synced';
-      // @ts-ignore
-      registro._raw._changed = '';
+      // Marca o registro como sincronizado no próprio WatermelonDB.
+      // registro.update() deixa o registro como 'updated' para o sync engine;
+      // para evitar reenvio infinito, replicamos o que markLocalChangesAsSynced
+      // faz internamente: _status='synced' e _changed=''.
+      marcarComoSincronizado(registro);
     });
 
     console.log('[SYNC-RECOVERY] Presença updated restaurada do servidor:', idExterno, statusServidor);
   } catch (erro) {
     console.warn('[SYNC-RECOVERY] Falha ao restaurar presença do servidor:', idExterno, erro);
   }
+}
+
+/**
+ * Marca um registro WatermelonDB como sincronizado, limpando os campos
+ * internos _status e _changed. Usado no recovery de rejeições 422.
+ *
+ * Nota: esta é a mesma operação que a função interna markLocalChangesAsSynced
+ * realiza. Não há API pública para isso; portanto, acessamos _raw com cuidado.
+ */
+function marcarComoSincronizado(record: Model): void {
+  // @ts-ignore — campos internos do WatermelonDB
+  record._raw._status = 'synced';
+  // @ts-ignore
+  record._raw._changed = '';
 }
 
 function mapearStatusServidorParaLocal(status: string): StatusPresencaLocal {
