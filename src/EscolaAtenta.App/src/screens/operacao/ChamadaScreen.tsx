@@ -26,6 +26,12 @@ interface ChamadaScreenProps {
     alunos: Aluno[];
 }
 
+interface AlunoRosterItem {
+    id: string;
+    nome: string;
+    aluno?: Aluno;
+}
+
 const STATUS_OPTIONS: {
     key: StatusPresencaLocal;
     label: string;
@@ -97,6 +103,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
     const [podeEditarServidor, setPodeEditarServidor] = useState<boolean | null>(null);
     const [registrosLocais, setRegistrosLocais] = useState<RegistroPresenca[]>([]);
     const [chamadaServidorAtual, setChamadaServidorAtual] = useState<ChamadaPorDiaDto | null>(null);
+    const [rosterExibicao, setRosterExibicao] = useState<AlunoRosterItem[]>([]);
     const [carregandoEdicao, setCarregandoEdicao] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -164,6 +171,84 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         };
     }, [dataSelecionada, turmaId, alunos]);
 
+    // P2: roster de exibição deve refletir a chamada salva, não apenas os alunos
+    // atualmente vinculados à turma. Alunos transferidos para outra turma ainda
+    // precisam aparecer para edição/visualização dentro do prazo de 7 dias.
+    useEffect(() => {
+        let cancelado = false;
+
+        const montarRoster = async () => {
+            const alunosAtuais = new Map<string, Aluno>();
+            alunos.forEach((a) => alunosAtuais.set(a.id, a));
+
+            // Prioridade: registros locais > chamada do servidor > turma atual
+            if (registrosLocais.length > 0) {
+                const ids = new Set(registrosLocais.map((r) => r.alunoId));
+                const faltantes = Array.from(ids).filter((id) => !alunosAtuais.has(id));
+
+                if (faltantes.length > 0) {
+                    const alunosBanco = await database
+                        .get<Aluno>('alunos')
+                        .query(Q.where('id', Q.oneOf(faltantes)))
+                        .fetch();
+                    alunosBanco.forEach((a) => alunosAtuais.set(a.id, a));
+                }
+
+                const roster = Array.from(ids)
+                    .map((id) => {
+                        const aluno = alunosAtuais.get(id);
+                        return {
+                            id,
+                            nome: aluno?.nome ?? 'Aluno não encontrado',
+                            aluno,
+                        };
+                    })
+                    .sort((a, b) => a.nome.localeCompare(b.nome));
+
+                if (!cancelado) setRosterExibicao(roster);
+                return;
+            }
+
+            if (chamadaServidorAtual) {
+                const ids = new Set(chamadaServidorAtual.registros.map((r) => r.alunoId));
+                const faltantes = Array.from(ids).filter((id) => !alunosAtuais.has(id));
+
+                if (faltantes.length > 0) {
+                    const alunosBanco = await database
+                        .get<Aluno>('alunos')
+                        .query(Q.where('id', Q.oneOf(faltantes)))
+                        .fetch();
+                    alunosBanco.forEach((a) => alunosAtuais.set(a.id, a));
+                }
+
+                const roster = Array.from(ids)
+                    .map((id) => {
+                        const aluno = alunosAtuais.get(id);
+                        const registro = chamadaServidorAtual!.registros.find((r) => r.alunoId === id);
+                        return {
+                            id,
+                            nome: aluno?.nome ?? registro?.nomeAluno ?? 'Aluno não encontrado',
+                            aluno,
+                        };
+                    })
+                    .sort((a, b) => a.nome.localeCompare(b.nome));
+
+                if (!cancelado) setRosterExibicao(roster);
+                return;
+            }
+
+            if (!cancelado) {
+                setRosterExibicao(alunos.map((a) => ({ id: a.id, nome: a.nome, aluno: a })));
+            }
+        };
+
+        montarRoster();
+
+        return () => {
+            cancelado = true;
+        };
+    }, [alunos, registrosLocais, chamadaServidorAtual]);
+
     const setStatus = (alunoId: string, status: StatusPresencaLocal) => {
         if (somenteLeitura) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -192,12 +277,6 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                 novoMap[r.alunoId] = r.status;
             }
         });
-        // Mantém os alunos sem registro como Presente
-        alunos.forEach((a) => {
-            if (!(a.id in novoMap)) {
-                novoMap[a.id] = 'Presente';
-            }
-        });
         setStatusMap(novoMap);
     };
 
@@ -215,12 +294,6 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         const novoMap: Record<string, StatusPresencaLocal> = {};
         chamada.registros.forEach((r) => {
             novoMap[r.alunoId] = mapearStatusServidorParaLocal(r.status);
-        });
-        // Alunos ausentes no servidor (ex: criados offline) ficam como Presente
-        alunos.forEach((a) => {
-            if (!(a.id in novoMap)) {
-                novoMap[a.id] = 'Presente';
-            }
         });
         setStatusMap(novoMap);
     };
@@ -297,7 +370,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         const registrosCollection = database.get<RegistroPresenca>('registros_presenca');
 
         await database.write(async () => {
-            const batch = alunos.map((aluno) =>
+            const batch = rosterExibicao.map((aluno) =>
                 registrosCollection.prepareCreate((record) => {
                     record.alunoId = aluno.id;
                     record.turmaId = turmaId;
@@ -317,7 +390,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
 
         await database.write(async () => {
             const batch: RegistroPresenca[] = [];
-            alunos.forEach((aluno) => {
+            rosterExibicao.forEach((aluno) => {
                 const registro = registrosPorAluno.get(aluno.id);
                 if (registro) {
                     const novoStatus = statusMap[aluno.id] ?? 'Presente';
@@ -460,7 +533,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
     };
 
     const handleSalvar = async () => {
-        if (alunos.length === 0) {
+        if (rosterExibicao.length === 0) {
             Alert.alert('Aviso', 'Não há alunos nesta turma para registrar chamada.');
             return;
         }
@@ -648,7 +721,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         }
     };
 
-    const renderItem = ({ item }: { item: Aluno }) => {
+    const renderItem = ({ item }: { item: AlunoRosterItem }) => {
         const currentStatus = statusMap[item.id] ?? 'Presente';
 
         return (
@@ -749,7 +822,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             )}
 
             {/* Resumo visual */}
-            {alunos.length > 0 && (
+            {rosterExibicao.length > 0 && (
                 <View style={styles.resumoBar}>
                     {STATUS_OPTIONS.map((opt) => (
                         <View key={opt.key} style={[styles.resumoItem, { backgroundColor: opt.bgColor }]}>
@@ -763,7 +836,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             )}
 
             <FlatList
-                data={alunos}
+                data={rosterExibicao}
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
                 contentContainerStyle={styles.listContainer}
