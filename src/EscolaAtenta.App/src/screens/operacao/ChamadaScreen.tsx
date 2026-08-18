@@ -226,6 +226,11 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
     };
 
     const criarRegistrosLocaisDoServidor = async (chamada: ChamadaPorDiaDto) => {
+        // P2: captura data/turma no início do helper e descarta o trabalho se
+        // o usuário trocou de data/turma antes de sobrescrever o estado da tela.
+        const dataSelecionadaAntes = dataSelecionada;
+        const turmaIdAntes = turmaId;
+
         const registrosCollection = database.get<RegistroPresenca>('registros_presenca');
         const statusPorAluno: Record<string, StatusPresencaLocal> = {};
         chamada.registros.forEach((r) => {
@@ -251,6 +256,13 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         });
 
         const novosRegistros = await carregarRegistrosExistentes(dataSelecionada);
+
+        // P2: se a data/turma mudou enquanto o banco local era escrito/lido,
+        // não sobrescreve o estado da tela com dados de um dia/turma antigo.
+        if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+            return;
+        }
+
         setRegistrosLocais(novosRegistros);
         setStatusMap(statusPorAluno);
     };

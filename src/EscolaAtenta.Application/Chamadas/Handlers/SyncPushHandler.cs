@@ -406,6 +406,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
                     var dataPresenca = ConvertTimestamp(dto.Data).UtcDateTime;
                     aluno.RegistrarPresenca(status, dataPresenca);
+                    afetados.Add(alunoGuid);
 
                     _context.SyncLogs.Add(new SyncLog
                     {
