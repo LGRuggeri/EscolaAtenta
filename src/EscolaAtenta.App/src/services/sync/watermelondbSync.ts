@@ -471,6 +471,14 @@ async function restaurarPresencaDoServidor(idExterno: string): Promise<void> {
         r.status = statusLocal;
         r.sincronizado = true;
       });
+
+      // Limpa o status nativo do WatermelonDB para que o registro não seja
+      // reenviado como 'updated' no próximo sync. O campo sincronizado é
+      // apenas da aplicação; o sync engine olha para _status/_changed.
+      // @ts-ignore — campos internos do WatermelonDB
+      registro._raw._status = 'synced';
+      // @ts-ignore
+      registro._raw._changed = '';
     });
 
     console.log('[SYNC-RECOVERY] Presença updated restaurada do servidor:', idExterno, statusServidor);

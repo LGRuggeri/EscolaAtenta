@@ -397,7 +397,17 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             acoes.push({
                 text: 'Atualizar',
                 onPress: async () => {
+                    // P2: captura data/turma antes do await e descarta o trabalho se
+                    // o usuário trocou de data/turma enquanto os registros eram criados.
+                    const dataSelecionadaAntes = dataSelecionada;
+                    const turmaIdAntes = turmaId;
+
                     await criarRegistrosLocaisDoServidor(chamada);
+
+                    if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                        return;
+                    }
+
                     setModoEdicao(true);
                     setPodeEditarServidor(true);
                 },
