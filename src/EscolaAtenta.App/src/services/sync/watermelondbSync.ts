@@ -1,10 +1,11 @@
 import { synchronize, hasUnsyncedChanges } from '@nozbe/watermelondb/sync';
 import database from '../../database';
 import Aluno from '../../database/models/Aluno';
-import RegistroPresenca from '../../database/models/RegistroPresenca';
+import RegistroPresenca, { StatusPresencaLocal } from '../../database/models/RegistroPresenca';
 import Turma from '../../database/models/Turma';
 import { api } from '../api';
 import { AxiosError } from 'axios';
+import { chamadasService } from '../chamadasService';
 
 // ── Tipos do payload PUSH (enviado à API .NET) ──────────────────────────────
 
@@ -74,6 +75,22 @@ export interface SyncResult {
   sucesso: boolean;
   rejeicoes: SyncRejeicao[];
   erro?: string;
+}
+
+/**
+ * Erro levantado dentro do pushChanges quando o backend retorna 422.
+ * Faz o synchronize() falhar para que o WatermelonDB NÃO marque as demais
+ * alterações do batch como sincronizadas; elas serão reenviadas na próxima
+ * tentativa, enquanto os registros rejeitados já foram revertidos localmente.
+ */
+class SyncRejeitadoError extends Error {
+  constructor(
+    public readonly rejeicoes: SyncRejeicao[],
+    message = 'Sync rejeitado pelo servidor'
+  ) {
+    super(message);
+    this.name = 'SyncRejeitadoError';
+  }
 }
 
 // ── Transformações snake_case ↔ camelCase ────────────────────────────────────
@@ -259,8 +276,10 @@ export async function syncWithServer(): Promise<SyncResult> {
               rejeicoes,
             });
 
-            rejeicoesCapturadas = rejeicoes;
-            return;
+            // Lança erro para que o WatermelonDB não marque as demais alterações
+            // do batch como sincronizadas. As linhas válidas serão reenviadas na
+            // próxima tentativa; as rejeitadas já foram revertidas localmente.
+            throw new SyncRejeitadoError(rejeicoes);
           }
 
           throw erro;
@@ -317,6 +336,14 @@ export async function syncWithServer(): Promise<SyncResult> {
 
     return { sucesso: true, rejeicoes: [] };
   } catch (erro: any) {
+    if (erro instanceof SyncRejeitadoError) {
+      return {
+        sucesso: false,
+        rejeicoes: erro.rejeicoes,
+        erro: `${erro.rejeicoes.length} registro(s) foram rejeitados pelo servidor e revertidos localmente. As alterações válidas serão reenviadas automaticamente.`,
+      };
+    }
+
     const mensagem =
       erro?.response?.data?.detail ||
       erro?.message ||
@@ -368,15 +395,10 @@ async function reverterAlteracoesRejeitadas(payload: ReverterPayload): Promise<v
         continue;
       }
 
-      // Updated rejeitado: remove o registro local para que o próximo pull
-      // traga o estado autoritativo do servidor, evitando reenvio da alteração
-      // rejeitada e desbloqueando o batch atômico.
+      // Updated rejeitado: restaura o status autoritativo do servidor consultando
+      // a chamada do dia. Se não for possível recuperar, destrói o registro local.
       if (idsPresencasUpdated.has(id)) {
-        const registro = await database.get<RegistroPresenca>('registros_presenca').find(id);
-        await database.write(async () => {
-          await registro.destroyPermanently();
-        });
-        console.log('[SYNC-RECOVERY] Presença updated destruída (será recriada pelo pull):', id);
+        await restaurarPresencaDoServidor(id);
         continue;
       }
 
@@ -400,6 +422,69 @@ async function reverterAlteracoesRejeitadas(payload: ReverterPayload): Promise<v
       console.warn('[SYNC-RECOVERY] Falha ao reverter registro rejeitado:', id, erroLocal);
     }
   }
+}
+
+/**
+ * Restaura o status de uma presença updated rejeitada a partir do estado
+ * autoritativo do servidor. Se a chamada não existir no servidor ou o aluno
+ * não constar nela, o registro local é destruído.
+ */
+async function restaurarPresencaDoServidor(idExterno: string): Promise<void> {
+  try {
+    const registro = await database.get<RegistroPresenca>('registros_presenca').find(idExterno);
+    const turmaId = registro.turmaId;
+    const data = registro.data;
+    const alunoId = registro.alunoId;
+
+    if (!turmaId || !data) {
+      await database.write(async () => {
+        await registro.destroyPermanently();
+      });
+      console.log('[SYNC-RECOVERY] Presença updated destruída (sem turma/data):', idExterno);
+      return;
+    }
+
+    const chamada = await chamadasService.obterChamadaPorDia(turmaId, data);
+
+    if (!chamada) {
+      await database.write(async () => {
+        await registro.destroyPermanently();
+      });
+      console.log('[SYNC-RECOVERY] Presença updated destruída (chamada não encontrada):', idExterno);
+      return;
+    }
+
+    const statusServidor = chamada.registros.find((r) => r.alunoId === alunoId)?.status;
+
+    if (!statusServidor) {
+      await database.write(async () => {
+        await registro.destroyPermanently();
+      });
+      console.log('[SYNC-RECOVERY] Presença updated destruída (aluno não consta na chamada):', idExterno);
+      return;
+    }
+
+    const statusLocal = mapearStatusServidorParaLocal(statusServidor);
+
+    await database.write(async () => {
+      await registro.update((r) => {
+        r.status = statusLocal;
+        r.sincronizado = true;
+      });
+    });
+
+    console.log('[SYNC-RECOVERY] Presença updated restaurada do servidor:', idExterno, statusServidor);
+  } catch (erro) {
+    console.warn('[SYNC-RECOVERY] Falha ao restaurar presença do servidor:', idExterno, erro);
+  }
+}
+
+function mapearStatusServidorParaLocal(status: string): StatusPresencaLocal {
+  if (status === 'Ausente') return 'Falta';
+  if (['Presente', 'Falta', 'Atraso', 'FaltaJustificada'].includes(status)) {
+    return status as StatusPresencaLocal;
+  }
+  return 'Presente';
 }
 
 /**
