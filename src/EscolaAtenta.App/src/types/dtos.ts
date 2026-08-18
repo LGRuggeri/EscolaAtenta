@@ -112,3 +112,50 @@ export interface AuditoriaAlertaDto {
     dataAlerta: string;        // ISO 8601 UTC
 }
 
+export interface PeriodoLetivoDisponivelDto {
+    numero: number;
+    descricao: string;
+}
+
+export interface PeriodosLetivosDisponiveisDto {
+    tipoPeriodoLetivo: string;
+    periodos: PeriodoLetivoDisponivelDto[];
+}
+
+export interface RelatorioTurmaAlunoDto {
+    alunoId: string;
+    nomeAluno: string;
+    matricula: string | null;
+    presentes: number;
+    faltas: number;
+    faltasJustificadas: number;
+    atrasos: number;
+    percentualPresenca: number;
+}
+
+export interface RelatorioTurmaResumoDto {
+    totalAlunos: number;
+    totalPresentes: number;
+    totalFaltas: number;
+    totalFaltasJustificadas: number;
+    totalAtrasos: number;
+    percentualPresencaTurma: number;
+}
+
+export interface RelatorioTurmaDto {
+    turmaId: string;
+    nomeTurma: string;
+    turno: string;
+    anoLetivo: number;
+    periodoInicio: string;
+    periodoFim: string;
+    alunos: RelatorioTurmaAlunoDto[];
+    resumo: RelatorioTurmaResumoDto;
+}
+
+export interface MigrarTurmaResultadoDto {
+    quantidadeTransferida: number;
+    quantidadeIgnorada: number;
+    erros: string[];
+}
+

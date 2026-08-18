@@ -82,22 +82,33 @@ export function HomeScreen() {
 
                         <View style={styles.gridItem}>
                             <AppCard
-                                title="Relatório"
+                                title="Relatórios"
                                 icon="chart-bar"
                                 iconColor={theme.colors.secondary}
-                                onPress={() => navigation.navigate('RelatorioPresencas')}
+                                onPress={() => navigation.navigate('RelatoriosMenu')}
                             />
                         </View>
 
                         {user?.papel === PapelUsuario.Administrador && (
-                            <View style={styles.gridItem}>
-                                <AppCard
-                                    title="Usuários"
-                                    icon="account-group-outline"
-                                    iconColor={theme.colors.info}
-                                    onPress={() => navigation.navigate('Usuarios')}
-                                />
-                            </View>
+                            <>
+                                <View style={styles.gridItem}>
+                                    <AppCard
+                                        title="Migração"
+                                        icon="swap-horizontal"
+                                        iconColor={theme.colors.warning}
+                                        onPress={() => navigation.navigate('MigracaoTurma')}
+                                    />
+                                </View>
+
+                                <View style={styles.gridItem}>
+                                    <AppCard
+                                        title="Usuários"
+                                        icon="account-group-outline"
+                                        iconColor={theme.colors.info}
+                                        onPress={() => navigation.navigate('Usuarios')}
+                                    />
+                                </View>
+                            </>
                         )}
                     </View>
                 </View>

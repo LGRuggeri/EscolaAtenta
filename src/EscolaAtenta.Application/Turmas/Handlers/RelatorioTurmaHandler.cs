@@ -34,9 +34,10 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
 
         var tipoPeriodo = configuracao?.TipoPeriodoLetivo ?? TipoPeriodoLetivo.Trimestre;
 
-        var (inicio, fim) = request.PeriodoLetivo.HasValue
-            ? CalendarioEscolar.ObterPeriodo(request.AnoLetivo, tipoPeriodo, request.PeriodoLetivo.Value)
-            : (new DateTime(request.AnoLetivo, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(request.AnoLetivo, 12, 31, 23, 59, 59, DateTimeKind.Utc));
+        var periodoEfetivo = request.PeriodoLetivo ?? CalendarioEscolar.ObterPeriodoAtual(
+            DateTime.UtcNow, tipoPeriodo, request.AnoLetivo);
+
+        var (inicio, fim) = CalendarioEscolar.ObterPeriodo(request.AnoLetivo, tipoPeriodo, periodoEfetivo);
 
         // Alunos matriculados na turma durante o período
         var alunosMatriculados = await _context.AlunosTurmasHistorico

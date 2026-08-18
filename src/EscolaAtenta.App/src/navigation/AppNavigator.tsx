@@ -18,7 +18,10 @@ import { UsuariosScreen } from '../screens/gestao/UsuariosScreen';
 import { UsuarioFormScreen } from '../screens/gestao/UsuarioFormScreen';
 import { AlertasScreen } from '../screens/dashboard/AlertasScreen';
 import { HistoricoAlertasScreen } from '../screens/dashboard/HistoricoAlertasScreen';
+import { RelatoriosMenuScreen } from '../screens/relatorios/RelatoriosMenuScreen';
 import { RelatorioPresencasScreen } from '../screens/relatorios/RelatorioPresencasScreen';
+import { RelatorioTurmaScreen } from '../screens/relatorios/RelatorioTurmaScreen';
+import { MigracaoTurmaScreen } from '../screens/gestao/MigracaoTurmaScreen';
 import { ConfiguracaoServidorScreen } from '../screens/settings/ConfiguracaoServidorScreen';
 import { RootStackParamList } from './types';
 
@@ -57,7 +60,10 @@ export function AppNavigator() {
                     <Stack.Screen name="UsuarioForm" component={UsuarioFormScreen} />
                     <Stack.Screen name="Alertas" component={AlertasScreen} />
                     <Stack.Screen name="HistoricoAlertas" component={HistoricoAlertasScreen} />
+                    <Stack.Screen name="RelatoriosMenu" component={RelatoriosMenuScreen} />
                     <Stack.Screen name="RelatorioPresencas" component={RelatorioPresencasScreen} />
+                    <Stack.Screen name="RelatorioTurma" component={RelatorioTurmaScreen} />
+                    <Stack.Screen name="MigracaoTurma" component={MigracaoTurmaScreen} />
                     <Stack.Screen name="TrocarSenha" component={TrocarSenhaScreen} />
                 </>
             ) : (

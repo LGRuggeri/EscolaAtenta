@@ -52,6 +52,69 @@ public static class CalendarioEscolar
         return (inicio, fim);
     }
 
+    /// <summary>
+    /// Retorna o número do período letivo vigente para uma determinada data.
+    /// </summary>
+    /// <param name="data">Data de referência (geralmente UtcNow).</param>
+    /// <param name="tipoPeriodo">Tipo de divisão do ano letivo.</param>
+    /// <param name="anoLetivo">Ano letivo.</param>
+    /// <returns>Número do período atual (1-based).</returns>
+    public static int ObterPeriodoAtual(DateTime data, TipoPeriodoLetivo tipoPeriodo, int anoLetivo)
+    {
+        var quantidadePeriodos = tipoPeriodo switch
+        {
+            TipoPeriodoLetivo.Semestre => 2,
+            TipoPeriodoLetivo.Trimestre => 4,
+            TipoPeriodoLetivo.Bimestre => 5,
+            _ => throw new DomainException("Tipo de período letivo inválido.")
+        };
+
+        for (var periodo = 1; periodo <= quantidadePeriodos; periodo++)
+        {
+            var (inicio, fim) = ObterPeriodo(anoLetivo, tipoPeriodo, periodo);
+            if (data >= inicio && data <= fim)
+                return periodo;
+        }
+
+        // Se a data estiver fora do calendário escolar (ex: antes do início ou depois do fim),
+        // retorna o primeiro ou último período respectivamente.
+        if (data < new DateTime(anoLetivo, 1, 1, 0, 0, 0, DateTimeKind.Utc))
+            return 1;
+
+        return quantidadePeriodos;
+    }
+
+    /// <summary>
+    /// Lista os períodos letivos que já iniciaram até uma determinada data.
+    /// </summary>
+    /// <param name="data">Data de referência.</param>
+    /// <param name="tipoPeriodo">Tipo de divisão do ano letivo.</param>
+    /// <param name="anoLetivo">Ano letivo.</param>
+    /// <returns>Lista de números dos períodos já iniciados.</returns>
+    public static List<int> ListarPeriodosAteData(DateTime data, TipoPeriodoLetivo tipoPeriodo, int anoLetivo)
+    {
+        var quantidadePeriodos = tipoPeriodo switch
+        {
+            TipoPeriodoLetivo.Semestre => 2,
+            TipoPeriodoLetivo.Trimestre => 4,
+            TipoPeriodoLetivo.Bimestre => 5,
+            _ => throw new DomainException("Tipo de período letivo inválido.")
+        };
+
+        var periodos = new List<int>();
+
+        for (var periodo = 1; periodo <= quantidadePeriodos; periodo++)
+        {
+            var (inicio, _) = ObterPeriodo(anoLetivo, tipoPeriodo, periodo);
+            if (inicio <= data)
+                periodos.Add(periodo);
+            else
+                break;
+        }
+
+        return periodos;
+    }
+
     private static DateTime Data(int ano, int mes, int dia)
     {
         return new DateTime(ano, mes, dia, 0, 0, 0, DateTimeKind.Utc);

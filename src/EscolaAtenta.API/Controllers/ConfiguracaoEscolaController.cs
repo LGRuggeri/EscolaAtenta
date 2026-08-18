@@ -33,6 +33,18 @@ public class ConfiguracaoEscolaController : ControllerBase
     }
 
     /// <summary>
+    /// Retorna os períodos letivos já iniciados para um ano letivo,
+    /// de acordo com o tipo de período configurado na escola.
+    /// </summary>
+    [HttpGet("periodos-disponiveis")]
+    [ProducesResponseType(typeof(PeriodosLetivosDisponiveisDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPeriodosDisponiveis([FromQuery] int anoLetivo, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new ObterPeriodosLetivosDisponiveisQuery(anoLetivo), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Atualiza a configuração global da escola.
     /// </summary>
     [HttpPut]

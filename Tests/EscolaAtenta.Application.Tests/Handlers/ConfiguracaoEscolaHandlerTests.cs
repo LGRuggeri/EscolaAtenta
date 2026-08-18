@@ -59,4 +59,54 @@ public class ConfiguracaoEscolaHandlerTests
         var atualizada = await ctx.ConfiguracoesEscola.FindAsync(configuracao.Id);
         atualizada!.TipoPeriodoLetivo.Should().Be(TipoPeriodoLetivo.Bimestre);
     }
+
+    [Fact]
+    public async Task ObterPeriodosDisponiveis_QuandoTrimestreEmAbril_DeveRetornarDoisPeriodos()
+    {
+        await using var ctx = CriarContexto();
+        ctx.ConfiguracoesEscola.Add(new ConfiguracaoEscola(Guid.NewGuid(), TipoPeriodoLetivo.Trimestre));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var handler = new ObterPeriodosLetivosDisponiveisHandler(ctx);
+        var resultado = await handler.Handle(
+            new ObterPeriodosLetivosDisponiveisQuery(2025),
+            CancellationToken.None);
+
+        resultado.TipoPeriodoLetivo.Should().Be(TipoPeriodoLetivo.Trimestre);
+        resultado.Periodos.Should().HaveCountGreaterOrEqualTo(1);
+        resultado.Periodos.Select(p => p.Numero).Should().BeInAscendingOrder();
+    }
+
+    [Fact]
+    public async Task ObterPeriodosDisponiveis_QuandoSemestre_DeveRetornarAteDoisPeriodos()
+    {
+        await using var ctx = CriarContexto();
+        ctx.ConfiguracoesEscola.Add(new ConfiguracaoEscola(Guid.NewGuid(), TipoPeriodoLetivo.Semestre));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var handler = new ObterPeriodosLetivosDisponiveisHandler(ctx);
+        var resultado = await handler.Handle(
+            new ObterPeriodosLetivosDisponiveisQuery(2025),
+            CancellationToken.None);
+
+        resultado.TipoPeriodoLetivo.Should().Be(TipoPeriodoLetivo.Semestre);
+        resultado.Periodos.Should().HaveCountGreaterOrEqualTo(1);
+        resultado.Periodos.Should().HaveCountLessOrEqualTo(2);
+    }
+
+    [Fact]
+    public async Task ObterPeriodosDisponiveis_QuandoSemConfiguracao_DeveUsarTrimestrePadrao()
+    {
+        await using var ctx = CriarContexto();
+
+        var handler = new ObterPeriodosLetivosDisponiveisHandler(ctx);
+        var resultado = await handler.Handle(
+            new ObterPeriodosLetivosDisponiveisQuery(2025),
+            CancellationToken.None);
+
+        resultado.TipoPeriodoLetivo.Should().Be(TipoPeriodoLetivo.Trimestre);
+        resultado.Periodos.Should().NotBeEmpty();
+    }
 }
