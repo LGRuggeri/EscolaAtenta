@@ -14,8 +14,15 @@ import { theme } from '../../theme/colors';
 const PAGE_SIZE = 20;
 const DEBOUNCE_MS = 500;
 
-function getNivelIcon(nivelAlerta: string): { name: string; color: string } {
-    switch (nivelAlerta) {
+function isAtraso(item: AuditoriaAlertaDto): boolean {
+    return item.tipoAlerta === 'Atraso';
+}
+
+function getNivelIcon(item: AuditoriaAlertaDto): { name: string; color: string } {
+    if (isAtraso(item)) {
+        return { name: 'clock-alert', color: theme.colors.warning };
+    }
+    switch (item.nivelAlerta) {
         case 'Preto': return { name: 'alert-octagon', color: theme.colors.textPrimary };
         case 'Vermelho': return { name: 'alert-circle', color: theme.colors.error };
         case 'Intermediario': return { name: 'alert', color: theme.colors.warning };
@@ -25,6 +32,9 @@ function getNivelIcon(nivelAlerta: string): { name: string; color: string } {
 }
 
 function getTituloExibicao(item: AuditoriaAlertaDto): string {
+    if (isAtraso(item)) {
+        return 'Alerta de Atraso (legado)';
+    }
     switch (item.nivelAlerta) {
         case 'Preto': return 'Risco Crítico - Ação Legal';
         case 'Vermelho': return 'Alto Risco de Evasão';
@@ -42,8 +52,9 @@ function formatarData(isoDate: string): string {
 }
 
 function AuditoriaCard({ item }: { item: AuditoriaAlertaDto }) {
-    const nivelIcon = getNivelIcon(item.nivelAlerta);
+    const nivelIcon = getNivelIcon(item);
     const titulo = getTituloExibicao(item);
+    const legadoAtraso = isAtraso(item);
 
     return (
         <Surface
@@ -59,8 +70,8 @@ function AuditoriaCard({ item }: { item: AuditoriaAlertaDto }) {
                     </Text>
                 </View>
                 <StatusChip
-                    label="Falta"
-                    variant="error"
+                    label={legadoAtraso ? 'Atraso' : 'Falta'}
+                    variant={legadoAtraso ? 'warning' : 'error'}
                 />
             </View>
 

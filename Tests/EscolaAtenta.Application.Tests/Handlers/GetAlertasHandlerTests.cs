@@ -203,4 +203,34 @@ public class GetAlertasHandlerTests : IDisposable
         dto.Tipo.Should().Be("Evasao");
         dto.Resolvido.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Handle_AlertaAtrasoLegado_NaoDeveAparecerNoPainelPadrao()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        var alunoEvasaoId = Guid.NewGuid();
+        var alunoAtrasoId = Guid.NewGuid();
+
+        ctx.Turmas.Add(new Turma(turmaId, "5º Ano B", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoEvasaoId, "João Evasão", "MAT-001", turmaId));
+        ctx.Alunos.Add(new Aluno(alunoAtrasoId, "Maria Atraso", "MAT-002", turmaId));
+
+        ctx.AlertasEvasao.Add(AlertaEvasao.CriarAlertaAluno(alunoEvasaoId, turmaId, NivelAlertaFalta.Vermelho, "3 faltas"));
+
+        var alertaAtraso = AlertaEvasao.CriarAlertaAluno(alunoAtrasoId, turmaId, NivelAlertaFalta.Aviso, "Atraso legado");
+        typeof(AlertaEvasao).GetProperty(nameof(AlertaEvasao.Tipo))!.SetValue(alertaAtraso, TipoAlerta.Atraso);
+        ctx.AlertasEvasao.Add(alertaAtraso);
+
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var resultado = await CriarHandler(ctx).Handle(
+            new GetAlertasQuery(ApenasNaoResolvidos: true),
+            CancellationToken.None);
+
+        resultado.TotalCount.Should().Be(1);
+        resultado.Items.First().NomeAluno.Should().Be("João Evasão");
+        resultado.Items.First().Tipo.Should().Be("Evasao");
+    }
 }

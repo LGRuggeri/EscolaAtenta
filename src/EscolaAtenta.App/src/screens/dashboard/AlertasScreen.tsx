@@ -33,7 +33,14 @@ const PAGE_SIZE = 20;
 
 type FiltroAtivo = 'TODOS' | 'FALTAS';
 
+function isAlertaAtraso(item: AlertaDto): boolean {
+    return item.tipo === TipoAlerta.Atraso;
+}
+
 function getBorderColor(item: AlertaDto): string {
+    if (isAlertaAtraso(item)) {
+        return theme.colors.warning;
+    }
     const nivel = parseNivelAlertaFalta(item.nivel);
     if (nivel >= 5) return theme.colors.primaryDark;
     switch (nivel) {
@@ -47,6 +54,9 @@ function getBorderColor(item: AlertaDto): string {
 
 function getTituloExibicao(item: AlertaDto): string {
     if (item.tituloAmigavel) return item.tituloAmigavel;
+    if (isAlertaAtraso(item)) {
+        return 'Alerta de Atraso (legado)';
+    }
     const nivel = parseNivelAlertaFalta(item.nivel);
     if (nivel >= 5) return 'Risco Crítico - Ação Legal';
     switch (nivel) {
@@ -57,7 +67,10 @@ function getTituloExibicao(item: AlertaDto): string {
     }
 }
 
-function getPlaceholderTratativa(): string {
+function getPlaceholderTratativa(tipo: TipoAlerta | undefined): string {
+    if (tipo === TipoAlerta.Atraso) {
+        return 'Descreva a orientação dada ao aluno sobre pontualidade e regras da escola...';
+    }
     return 'Descreva a ligação feita aos pais, a conversa com o aluno, providências tomadas, etc...';
 }
 
@@ -69,6 +82,7 @@ function formatData(isoDate: string): string {
 }
 
 function getAlertIcon(item: AlertaDto): keyof typeof MaterialCommunityIcons.glyphMap {
+    if (isAlertaAtraso(item)) return 'clock-alert-outline';
     const nivel = parseNivelAlertaFalta(item.nivel);
     if (nivel >= 5) return 'alert-octagon';
     if (nivel >= NivelAlertaFalta.Vermelho) return 'alert-circle';
@@ -218,6 +232,7 @@ export function AlertasScreen() {
         const borderColor = getBorderColor(item);
         const tituloExibicao = getTituloExibicao(item);
         const alertIcon = getAlertIcon(item);
+        const isAtraso = isAlertaAtraso(item);
 
         return (
             <Pressable onPress={() => openModal(item)}>
@@ -250,9 +265,9 @@ export function AlertasScreen() {
 
                     <View style={styles.alertFooter}>
                         <StatusChip
-                            label="Falta"
-                            variant="error"
-                            icon="close-circle-outline"
+                            label={isAtraso ? 'Atraso' : 'Falta'}
+                            variant={isAtraso ? 'warning' : 'error'}
+                            icon={isAtraso ? 'clock-alert-outline' : 'close-circle-outline'}
                         />
                         <Text variant="labelSmall" style={styles.tapHint}>
                             {user?.papel === PapelUsuario.Monitor ? 'Visualizar' : 'Resolver'}
@@ -372,8 +387,8 @@ export function AlertasScreen() {
                         <Text variant="titleLarge" style={styles.modalTitle}>Resolver Alerta</Text>
                         {alertaSelecionado && (
                             <StatusChip
-                                label="Falta"
-                                variant="error"
+                                label={isAlertaAtraso(alertaSelecionado) ? 'Atraso' : 'Falta'}
+                                variant={isAlertaAtraso(alertaSelecionado) ? 'warning' : 'error'}
                             />
                         )}
                     </View>
@@ -407,7 +422,7 @@ export function AlertasScreen() {
                                 onChangeText={setTratativa}
                                 multiline
                                 numberOfLines={4}
-                                placeholder={getPlaceholderTratativa()}
+                                placeholder={getPlaceholderTratativa(alertaSelecionado?.tipo)}
                                 maxLength={500}
                                 mode="outlined"
                                 style={styles.treatmentInput}

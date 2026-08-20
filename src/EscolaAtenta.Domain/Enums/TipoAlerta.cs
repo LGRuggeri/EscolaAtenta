@@ -4,9 +4,11 @@ namespace EscolaAtenta.Domain.Enums;
 /// Classifica o tipo de alerta gerado pelo sistema.
 /// 
 /// Hoje o sistema gera apenas alertas de evasão (faltas consecutivas excessivas).
-/// O valor 1 é mantido para compatibilidade com registros pré-existentes.
+/// O valor 2 (Atraso) é mantido apenas para leitura compatível de alertas antigos;
+/// novos alertas de atraso não são mais emitidos.
 /// </summary>
 public enum TipoAlerta
 {
-    Evasao = 1 // faltas consecutivas excessivas
+    Evasao = 1, // faltas consecutivas excessivas
+    Atraso = 2  // legado: não gera novos alertas
 }

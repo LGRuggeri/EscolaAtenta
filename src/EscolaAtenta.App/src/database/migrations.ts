@@ -31,15 +31,14 @@ export default schemaMigrations({
     {
       toVersion: 4,
       steps: [
-        // Remove os contadores trimestrais descontinuados. SQLite ≥ 3.35 suporta DROP COLUMN;
-        // em versões anteriores a migration falharia, mas o WatermelonDB faria fallback
-        // recriando o banco caso necessário. Mantém dados essenciais (id, nome, turma_id,
-        // faltas_consecutivas_atuais, total_faltas).
+        // As colunas faltas_no_trimestre e atrasos_no_trimestre não são mais usadas pelo
+        // schema v4. Em vez de executar ALTER TABLE ... DROP COLUMN — incompatível com
+        // SQLite < 3.35 e capaz de corromper registros de presença offline caso o adapter
+        // recrie o banco — mantemos as colunas físicas legadas no SQLite. O WatermelonDB
+        // aceita colunas extras na tabela desde que todas as colunas do schema atual estejam
+        // presentes, preservando assim os dados offline em todos os dispositivos.
         unsafeExecuteSql(
-          'ALTER TABLE alunos DROP COLUMN faltas_no_trimestre;'
-        ),
-        unsafeExecuteSql(
-          'ALTER TABLE alunos DROP COLUMN atrasos_no_trimestre;'
+          'SELECT 1; -- v4: colunas trimestrais tornaram-se legadas e não são mais lidas/escritas'
         ),
       ],
     },

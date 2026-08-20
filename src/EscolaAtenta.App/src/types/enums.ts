@@ -64,9 +64,12 @@ export function parseNivelAlertaFalta(valor: string | number): NivelAlertaFalta 
  * Usa string enum para espelhar exatamente a serialização do C# (System.Text.Json).
  *
  * IMPORTANTE: Os valores devem ser idênticos ao que o C# serializa.
- * No backend: TipoAlerta.Evasao → "Evasao".
+ * No backend: TipoAlerta.Evasao → "Evasao", TipoAlerta.Atraso → "Atraso".
+ * Atraso é legado: o sistema não gera novos alertas de atraso, mas ainda reconhece
+ * registros antigos para evitar renderizá-los incorretamente como faltas.
  * (sem acentos — match exato do enum C#)
  */
 export enum TipoAlerta {
   Evasao = 'Evasao',
+  Atraso = 'Atraso',
 }

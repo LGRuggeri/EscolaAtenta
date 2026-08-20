@@ -40,9 +40,13 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
         var pageSize   = Math.Clamp(request.PageSize, 1, 100);
 
         // ── Base query ────────────────────────────────────────────────────────
+        // Filtra apenas alertas de evasão no painel padrão. Alertas de atraso são
+        // legados (não são mais gerados), mas podem existir no banco. Exibir um
+        // alerta de atraso como se fosse falta causaria ação errada da supervisão.
         var query = _context.AlertasEvasao
             .IgnoreQueryFilters() // Garante que Alunos/Turmas inativos apareçam no histórico
-            .AsNoTracking();
+            .AsNoTracking()
+            .Where(a => a.Tipo == TipoAlerta.Evasao);
 
         if (request.ApenasNaoResolvidos)
         {

@@ -78,6 +78,8 @@ export function RelatorioTurmaScreen() {
     const [dataFim, setDataFim] = useState<Date>(dataHojeLocal());
     const [inputInicio, setInputInicio] = useState(paraInputBr(dataHojeLocal()));
     const [inputFim, setInputFim] = useState(paraInputBr(dataHojeLocal()));
+    const [erroInicio, setErroInicio] = useState<string | undefined>(undefined);
+    const [erroFim, setErroFim] = useState<string | undefined>(undefined);
 
     const [relatorio, setRelatorio] = useState<RelatorioTurmaDto | null>(null);
     const [carregandoTurmas, setCarregandoTurmas] = useState(false);
@@ -103,13 +105,23 @@ export function RelatorioTurmaScreen() {
     function aplicarDataInicio(texto: string) {
         setInputInicio(texto);
         const data = parseDataBr(texto);
-        if (data) setDataInicio(data);
+        if (data) {
+            setDataInicio(data);
+            setErroInicio(undefined);
+        } else if (texto.length === 10) {
+            setErroInicio('Data inválida');
+        }
     }
 
     function aplicarDataFim(texto: string) {
         setInputFim(texto);
         const data = parseDataBr(texto);
-        if (data) setDataFim(data);
+        if (data) {
+            setDataFim(data);
+            setErroFim(undefined);
+        } else if (texto.length === 10) {
+            setErroFim('Data inválida');
+        }
     }
 
     function definirPreset(dias: number) {
@@ -126,7 +138,17 @@ export function RelatorioTurmaScreen() {
     async function buscarRelatorio() {
         if (!turmaSel) return;
 
-        if (dataInicio > dataFim) {
+        const inicio = parseDataBr(inputInicio);
+        const fim = parseDataBr(inputFim);
+
+        if (!inicio || !fim) {
+            if (!inicio) setErroInicio('Data inválida');
+            if (!fim) setErroFim('Data inválida');
+            Alert.alert('Datas inválidas', 'Informe uma data de início e fim válidas no formato DD/MM/AAAA.');
+            return;
+        }
+
+        if (inicio > fim) {
             Alert.alert('Datas inválidas', 'A data de início deve ser anterior ou igual à data de fim.');
             return;
         }
@@ -138,8 +160,8 @@ export function RelatorioTurmaScreen() {
                 `/turmas/${turmaSel.id}/relatorio`,
                 {
                     params: {
-                        dataInicio: paraIsoLocal(dataInicio),
-                        dataFim: paraIsoLocal(dataFim),
+                        dataInicio: paraIsoLocal(inicio),
+                        dataFim: paraIsoLocal(fim),
                     },
                 }
             );
@@ -250,12 +272,18 @@ export function RelatorioTurmaScreen() {
                                 onChangeText={aplicarDataInicio}
                                 onBlur={() => {
                                     const data = parseDataBr(inputInicio);
-                                    if (data) setInputInicio(paraInputBr(data));
+                                    if (data) {
+                                        setInputInicio(paraInputBr(data));
+                                        setErroInicio(undefined);
+                                    } else {
+                                        setErroInicio('Data inválida');
+                                    }
                                 }}
                                 keyboardType="numeric"
                                 mode="outlined"
                                 style={styles.dateInput}
                                 maxLength={10}
+                                error={!!erroInicio}
                             />
                             <TextInput
                                 label="Data fim (DD/MM/AAAA)"
@@ -263,12 +291,18 @@ export function RelatorioTurmaScreen() {
                                 onChangeText={aplicarDataFim}
                                 onBlur={() => {
                                     const data = parseDataBr(inputFim);
-                                    if (data) setInputFim(paraInputBr(data));
+                                    if (data) {
+                                        setInputFim(paraInputBr(data));
+                                        setErroFim(undefined);
+                                    } else {
+                                        setErroFim('Data inválida');
+                                    }
                                 }}
                                 keyboardType="numeric"
                                 mode="outlined"
                                 style={styles.dateInput}
                                 maxLength={10}
+                                error={!!erroFim}
                             />
                         </View>
 

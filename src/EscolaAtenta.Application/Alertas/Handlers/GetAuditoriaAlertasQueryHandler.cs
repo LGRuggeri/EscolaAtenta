@@ -1,6 +1,7 @@
 using EscolaAtenta.Application.Alertas.Dtos;
 using EscolaAtenta.Application.Alertas.Queries;
 using EscolaAtenta.Application.Common;
+using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -43,9 +44,11 @@ public class GetAuditoriaAlertasQueryHandler
         // ── Base query — AsNoTracking + filtro imediato por Resolvido == true ──────────
         // O filtro Resolvido=true na query base maximiza o aproveitamento do
         // índice composto IX_AlertasEvasao_Auditoria(Resolvido, DataResolucao, Tipo).
+        // Filtra apenas Evasao: alertas de atraso são legados e não devem ser
+        // renderizados como faltas, evitando ação incorreta da supervisão.
         var query = _context.AlertasEvasao
             .AsNoTracking()
-            .Where(a => a.Resolvido);
+            .Where(a => a.Resolvido && a.Tipo == TipoAlerta.Evasao);
 
         // ── Filtros opcionais — aplicados antes do COUNT para máxima performance ───────
 
