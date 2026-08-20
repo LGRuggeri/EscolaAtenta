@@ -63,6 +63,7 @@ public class TurmasController : ControllerBase
     /// Migra todos os alunos ativos de uma turma origem para uma turma destino.
     /// </summary>
     [HttpPost("{id:guid}/migrar")]
+    [Authorize(Roles = "Administrador")]
     [ProducesResponseType(typeof(MigrarTurmaResultadoDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> MigrarTurma(
@@ -83,6 +84,7 @@ public class TurmasController : ControllerBase
     /// Retorna o relatório de frequência da turma para um ano/período letivo.
     /// </summary>
     [HttpGet("{id:guid}/relatorio")]
+    [Authorize(Roles = "Supervisao,Administrador")]
     [ProducesResponseType(typeof(RelatorioTurmaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetRelatorioTurma(
         [FromRoute] Guid id,

@@ -36,11 +36,11 @@ public static class CalendarioEscolar
         {
             return periodo switch
             {
-                1 => (Data(anoLetivo, 1, 1), Data(anoLetivo, 2, DateTime.DaysInMonth(anoLetivo, 2))),
-                2 => (Data(anoLetivo, 3, 1), Data(anoLetivo, 4, 30)),
-                3 => (Data(anoLetivo, 5, 1), Data(anoLetivo, 6, 30)),
-                4 => (Data(anoLetivo, 7, 1), Data(anoLetivo, 8, 31)),
-                5 => (Data(anoLetivo, 9, 1), Data(anoLetivo, 12, 31)),
+                1 => (DataInicio(anoLetivo, 1, 1), DataFim(anoLetivo, 2, DateTime.DaysInMonth(anoLetivo, 2))),
+                2 => (DataInicio(anoLetivo, 3, 1), DataFim(anoLetivo, 4, 30)),
+                3 => (DataInicio(anoLetivo, 5, 1), DataFim(anoLetivo, 6, 30)),
+                4 => (DataInicio(anoLetivo, 7, 1), DataFim(anoLetivo, 8, 31)),
+                5 => (DataInicio(anoLetivo, 9, 1), DataFim(anoLetivo, 12, 31)),
                 _ => throw new DomainException("Período inválido.")
             };
         }
@@ -115,8 +115,13 @@ public static class CalendarioEscolar
         return periodos;
     }
 
-    private static DateTime Data(int ano, int mes, int dia)
+    private static DateTime DataInicio(int ano, int mes, int dia)
     {
         return new DateTime(ano, mes, dia, 0, 0, 0, DateTimeKind.Utc);
+    }
+
+    private static DateTime DataFim(int ano, int mes, int dia)
+    {
+        return new DateTime(ano, mes, dia, 23, 59, 59, DateTimeKind.Utc);
     }
 }

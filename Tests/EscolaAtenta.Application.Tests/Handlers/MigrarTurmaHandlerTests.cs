@@ -2,6 +2,7 @@ using EscolaAtenta.Application.Turmas.Commands;
 using EscolaAtenta.Application.Turmas.Handlers;
 using EscolaAtenta.Application.Tests.Fakes;
 using EscolaAtenta.Domain.Entities;
+using EscolaAtenta.Domain.Exceptions;
 using EscolaAtenta.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -35,7 +36,7 @@ public class MigrarTurmaHandlerTests
 
         await ctx.SaveChangesAsync();
 
-        var handler = new MigrarTurmaHandler(ctx, NullLogger<MigrarTurmaHandler>.Instance);
+        var handler = new MigrarTurmaHandler(ctx, new FakeCurrentUserService(), NullLogger<MigrarTurmaHandler>.Instance);
         var resultado = await handler.Handle(new MigrarTurmaCommand(
             origem.Id,
             destino.Id,
@@ -51,5 +52,29 @@ public class MigrarTurmaHandlerTests
             .CountAsync();
 
         alunosDestino.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Handle_QuandoUsuarioNaoEhAdministrador_DeveLancarDomainException()
+    {
+        await using var ctx = CriarContexto();
+
+        var origem = new Turma(Guid.NewGuid(), "5º Ano A", "Manhã", 2025);
+        var destino = new Turma(Guid.NewGuid(), "6º Ano A", "Manhã", 2026);
+        ctx.Turmas.AddRange(origem, destino);
+        await ctx.SaveChangesAsync();
+
+        var handler = new MigrarTurmaHandler(
+            ctx,
+            new FakeCurrentUserService { Papel = "Monitor" },
+            NullLogger<MigrarTurmaHandler>.Instance);
+
+        Func<Task> act = () => handler.Handle(new MigrarTurmaCommand(
+            origem.Id,
+            destino.Id,
+            new DateTime(2025, 12, 15, 0, 0, 0, DateTimeKind.Utc),
+            "Promoção de série"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<DomainException>();
     }
 }

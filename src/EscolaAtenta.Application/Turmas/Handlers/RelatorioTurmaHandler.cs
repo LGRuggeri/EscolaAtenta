@@ -51,8 +51,12 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
             .Distinct()
             .ToListAsync(cancellationToken);
 
+        // Inclui alunos inativos (soft-deleted) para manter consistência histórica:
+        // se o aluno estava ativo durante o período do relatório, seus registros
+        // de presença devem contar para os totais da turma.
         var alunos = await _context.Alunos
             .AsNoTracking()
+            .IgnoreQueryFilters()
             .Where(a => alunosMatriculados.Contains(a.Id))
             .Select(a => new { a.Id, a.Nome, a.Matricula })
             .ToListAsync(cancellationToken);

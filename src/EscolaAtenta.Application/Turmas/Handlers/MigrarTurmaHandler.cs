@@ -1,7 +1,9 @@
 using EscolaAtenta.Application.Turmas.Commands;
 using EscolaAtenta.Application.Turmas.DTOs;
 using EscolaAtenta.Domain.Entities;
+using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Domain.Exceptions;
+using EscolaAtenta.Domain.Interfaces;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -12,16 +14,22 @@ namespace EscolaAtenta.Application.Turmas.Handlers;
 public class MigrarTurmaHandler : IRequestHandler<MigrarTurmaCommand, MigrarTurmaResultadoDto>
 {
     private readonly AppDbContext _context;
+    private readonly ICurrentUserService _currentUser;
     private readonly ILogger<MigrarTurmaHandler> _logger;
 
-    public MigrarTurmaHandler(AppDbContext context, ILogger<MigrarTurmaHandler> logger)
+    public MigrarTurmaHandler(AppDbContext context, ICurrentUserService currentUser, ILogger<MigrarTurmaHandler> logger)
     {
         _context = context;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
     public async Task<MigrarTurmaResultadoDto> Handle(MigrarTurmaCommand request, CancellationToken cancellationToken)
     {
+        // IDOR: migração em lote altera todos os alunos de uma turma; restrita a administradores.
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador))
+            throw new DomainException("Apenas administradores podem executar migração em lote de turmas.");
+
         if (request.TurmaOrigemId == request.TurmaDestinoId)
             throw new DomainException("A turma de origem e destino devem ser diferentes.");
 
@@ -48,20 +56,28 @@ public class MigrarTurmaHandler : IRequestHandler<MigrarTurmaCommand, MigrarTurm
         {
             try
             {
-                if (!aluno.HistoricoTurmas.Any())
+                var alunoAtual = aluno;
+                if (!alunoAtual.HistoricoTurmas.Any())
                 {
+                    // Garante que a matrícula retroalimentada faça parte da coleção
+                    // do aluno, para que TransferirTurma possa encerrá-la corretamente.
                     var matriculaInicial = new AlunoTurmaHistorico(
                         Guid.NewGuid(),
-                        aluno.Id,
-                        aluno.TurmaId,
+                        alunoAtual.Id,
+                        alunoAtual.TurmaId,
                         turmaOrigem.AnoLetivo,
                         new DateTime(turmaOrigem.AnoLetivo, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                         dataFim: null,
                         "Retroalimentação automática");
                     _context.AlunosTurmasHistorico.Add(matriculaInicial);
+                    await _context.SaveChangesAsync(cancellationToken);
+
+                    alunoAtual = await _context.Alunos
+                        .Include(a => a.HistoricoTurmas)
+                        .FirstAsync(a => a.Id == alunoAtual.Id, cancellationToken);
                 }
 
-                var novaMatricula = aluno.TransferirTurma(
+                var novaMatricula = alunoAtual.TransferirTurma(
                     request.TurmaDestinoId,
                     turmaDestino.AnoLetivo,
                     request.DataTransferencia,

@@ -37,7 +37,7 @@ public class ObterHistoricoTurmasAlunoHandlerTests
         ctx.AlunosTurmasHistorico.Add(novaMatricula);
         await ctx.SaveChangesAsync();
 
-        var handler = new ObterHistoricoTurmasAlunoHandler(ctx, NullLogger<ObterHistoricoTurmasAlunoHandler>.Instance);
+        var handler = new ObterHistoricoTurmasAlunoHandler(ctx, new FakeCurrentUserService(), NullLogger<ObterHistoricoTurmasAlunoHandler>.Instance);
         var resultado = (await handler.Handle(new ObterHistoricoTurmasAlunoQuery(aluno.Id.ToString()), CancellationToken.None)).ToList();
 
         resultado.Should().HaveCount(2);
@@ -51,7 +51,7 @@ public class ObterHistoricoTurmasAlunoHandlerTests
     {
         await using var ctx = CriarContexto();
 
-        var handler = new ObterHistoricoTurmasAlunoHandler(ctx, NullLogger<ObterHistoricoTurmasAlunoHandler>.Instance);
+        var handler = new ObterHistoricoTurmasAlunoHandler(ctx, new FakeCurrentUserService(), NullLogger<ObterHistoricoTurmasAlunoHandler>.Instance);
         var resultado = await handler.Handle(new ObterHistoricoTurmasAlunoQuery(Guid.NewGuid().ToString()), CancellationToken.None);
 
         resultado.Should().BeEmpty();

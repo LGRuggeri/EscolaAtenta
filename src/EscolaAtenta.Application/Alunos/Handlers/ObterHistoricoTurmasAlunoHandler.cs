@@ -1,5 +1,7 @@
 using EscolaAtenta.Application.Alunos.DTOs;
 using EscolaAtenta.Application.Alunos.Queries;
+using EscolaAtenta.Domain.Enums;
+using EscolaAtenta.Domain.Interfaces;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -10,11 +12,16 @@ namespace EscolaAtenta.Application.Alunos.Handlers;
 public class ObterHistoricoTurmasAlunoHandler : IRequestHandler<ObterHistoricoTurmasAlunoQuery, IEnumerable<HistoricoTurmaAlunoDto>>
 {
     private readonly AppDbContext _context;
+    private readonly ICurrentUserService _currentUser;
     private readonly ILogger<ObterHistoricoTurmasAlunoHandler> _logger;
 
-    public ObterHistoricoTurmasAlunoHandler(AppDbContext context, ILogger<ObterHistoricoTurmasAlunoHandler> logger)
+    public ObterHistoricoTurmasAlunoHandler(
+        AppDbContext context,
+        ICurrentUserService currentUser,
+        ILogger<ObterHistoricoTurmasAlunoHandler> logger)
     {
         _context = context;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
@@ -33,6 +40,26 @@ public class ObterHistoricoTurmasAlunoHandler : IRequestHandler<ObterHistoricoTu
                 return Enumerable.Empty<HistoricoTurmaAlunoDto>();
 
             alunoGuid = syncLog;
+        }
+
+        // IDOR: apenas administradores ou usuários vinculados a alguma turma do histórico
+        // do aluno podem consultar seu histórico de turmas.
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
+            && Guid.TryParse(_currentUser.UsuarioId, out var usuarioId))
+        {
+            var turmasDoHistorico = await _context.AlunosTurmasHistorico
+                .AsNoTracking()
+                .Where(h => h.AlunoId == alunoGuid)
+                .Select(h => h.TurmaId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            var temVinculo = await _context.UsuarioTurmas
+                .AsNoTracking()
+                .AnyAsync(ut => ut.UsuarioId == usuarioId && turmasDoHistorico.Contains(ut.TurmaId), cancellationToken);
+
+            if (!temVinculo)
+                return Enumerable.Empty<HistoricoTurmaAlunoDto>();
         }
 
         var historico = await _context.AlunosTurmasHistorico

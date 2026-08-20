@@ -40,21 +40,27 @@ public class TransferirAlunoHandler : IRequestHandler<TransferirAlunoCommand>
             throw new DomainException("A turma de destino não existe.");
 
         // IDOR: Administrador pode transferir qualquer aluno; demais precisam estar vinculados
-        // à turma atual ou à turma de destino
+        // às turmas de origem E de destino para evitar movimentação cruzada não autorizada.
         if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
-            && Guid.TryParse(_currentUser.UsuarioId, out var uid)
-            && !await _context.UsuarioTurmas.AnyAsync(
-                ut => (ut.TurmaId == aluno.TurmaId || ut.TurmaId == request.NovaTurmaId) && ut.UsuarioId == uid,
-                cancellationToken))
+            && Guid.TryParse(_currentUser.UsuarioId, out var uid))
         {
-            throw new KeyNotFoundException($"Aluno com ID '{request.AlunoId}' não encontrado.");
+            var turmasVinculadas = await _context.UsuarioTurmas
+                .Where(ut => ut.UsuarioId == uid && (ut.TurmaId == aluno.TurmaId || ut.TurmaId == request.NovaTurmaId))
+                .Select(ut => ut.TurmaId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            if (!turmasVinculadas.Contains(aluno.TurmaId) || !turmasVinculadas.Contains(request.NovaTurmaId))
+            {
+                throw new KeyNotFoundException($"Aluno com ID '{request.AlunoId}' não encontrado.");
+            }
         }
 
         if (!aluno.HistoricoTurmas.Any())
         {
             // Compatibilidade: aluno sem histórico ainda não foi retroalimentado.
-            // Cria o histórico inicial diretamente no contexto para evitar problemas
-            // de detecção de mudanças em coleções privadas em alguns providers EF Core.
+            // Cria o histórico inicial diretamente no contexto, persiste e recarrega
+            // o aluno para que TransferirTurma encontre a matrícula ativa e a encerre.
             var turmaAtual = await _context.Turmas.AsNoTracking().FirstOrDefaultAsync(t => t.Id == aluno.TurmaId, cancellationToken);
             var anoLetivoAtual = turmaAtual?.AnoLetivo ?? DateTime.UtcNow.Year;
             var matriculaInicial = new AlunoTurmaHistorico(
@@ -66,6 +72,11 @@ public class TransferirAlunoHandler : IRequestHandler<TransferirAlunoCommand>
                 dataFim: null,
                 "Retroalimentação automática");
             _context.AlunosTurmasHistorico.Add(matriculaInicial);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            aluno = await _context.Alunos
+                .Include(a => a.HistoricoTurmas)
+                .FirstAsync(a => a.Id == request.AlunoId, cancellationToken);
         }
 
         var novaMatricula = aluno.TransferirTurma(
