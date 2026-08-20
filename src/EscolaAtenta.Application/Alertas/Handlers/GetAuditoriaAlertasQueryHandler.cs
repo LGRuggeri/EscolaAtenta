@@ -44,11 +44,12 @@ public class GetAuditoriaAlertasQueryHandler
         // ── Base query — AsNoTracking + filtro imediato por Resolvido == true ──────────
         // O filtro Resolvido=true na query base maximiza o aproveitamento do
         // índice composto IX_AlertasEvasao_Auditoria(Resolvido, DataResolucao, Tipo).
-        // Filtra apenas Evasao: alertas de atraso são legados e não devem ser
-        // renderizados como faltas, evitando ação incorreta da supervisão.
+        // Auditoria mantém todos os tipos de alerta resolvidos, inclusive atraso
+        // legado, pois o front-end já os renderiza distintamente ("Atraso (legado)").
+        // Ocultar esses registros deixaria o histórico de resolução incompleto.
         var query = _context.AlertasEvasao
             .AsNoTracking()
-            .Where(a => a.Resolvido && a.Tipo == TipoAlerta.Evasao);
+            .Where(a => a.Resolvido);
 
         // ── Filtros opcionais — aplicados antes do COUNT para máxima performance ───────
 

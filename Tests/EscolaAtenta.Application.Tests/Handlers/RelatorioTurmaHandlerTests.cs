@@ -218,14 +218,38 @@ public class RelatorioTurmaHandlerTests
     // ── Compatibilidade OTA: contrato legado anoLetivo/periodoLetivo ────────────
 
     [Fact]
-    public void DePeriodoLetivo_AnoSemPeriodo_DeveUsarAnoCompleto()
+    public void DePeriodoLetivo_AnoSemPeriodo_DeveUsarTrimestreAtualDoAnoCorrente()
     {
         var turmaId = Guid.NewGuid();
-        var query = RelatorioTurmaQuery.DePeriodoLetivo(turmaId, 2025);
+        var hoje = DateTime.Today;
+        var trimestreEsperado = hoje.Month switch
+        {
+            >= 1 and <= 3 => 1,
+            >= 4 and <= 6 => 2,
+            >= 7 and <= 9 => 3,
+            _ => 4
+        };
+
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(turmaId, hoje.Year);
 
         query.TurmaId.Should().Be(turmaId);
-        query.DataInicio.Should().Be(new DateTime(2025, 1, 1));
-        query.DataFim.Should().Be(new DateTime(2025, 12, 31));
+        query.DataInicio.Should().Be(new DateTime(hoje.Year, (trimestreEsperado - 1) * 3 + 1, 1));
+        query.DataFim.Should().Be(trimestreEsperado switch
+        {
+            1 => new DateTime(hoje.Year, 3, 31),
+            2 => new DateTime(hoje.Year, 6, 30),
+            3 => new DateTime(hoje.Year, 9, 30),
+            _ => new DateTime(hoje.Year, 12, 31)
+        });
+    }
+
+    [Fact]
+    public void DePeriodoLetivo_AnoSemPeriodoAnoDiferente_DeveUsarPrimeiroTrimestre()
+    {
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(Guid.NewGuid(), DateTime.Today.Year - 1);
+
+        query.DataInicio.Should().Be(new DateTime(DateTime.Today.Year - 1, 1, 1));
+        query.DataFim.Should().Be(new DateTime(DateTime.Today.Year - 1, 3, 31));
     }
 
     [Theory]

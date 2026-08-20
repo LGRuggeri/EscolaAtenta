@@ -150,4 +150,31 @@ public class GetAuditoriaAlertasQueryHandlerTests
         dto.MotivoResolucao.Should().Be("Justificativa de teste");
         dto.DataResolucao.Should().NotBe(DateTimeOffset.MinValue);
     }
+
+    [Fact]
+    public async Task Handle_AlertaAtrasoLegadoResolvido_DeveAparecerNaAuditoria()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+
+        ctx.Turmas.Add(new Turma(turmaId, "Turma Auditoria", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Atraso", null, turmaId));
+
+        var alertaAtraso = AlertaEvasao.CriarAlertaAluno(alunoId, turmaId, NivelAlertaFalta.Aviso, "Atraso antigo");
+        typeof(AlertaEvasao).GetProperty(nameof(AlertaEvasao.Tipo))!.SetValue(alertaAtraso, TipoAlerta.Atraso);
+        alertaAtraso.MarcarComoResolvido(Guid.NewGuid(), "Justificativa do atraso");
+        ctx.AlertasEvasao.Add(alertaAtraso);
+
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var resultado = await CriarHandler(ctx).Handle(
+            new GetAuditoriaAlertasQuery(), CancellationToken.None);
+
+        resultado.TotalCount.Should().Be(1);
+        resultado.Items.First().NomeAluno.Should().Be("Aluno Atraso");
+        resultado.Items.First().TipoAlerta.Should().Be("Atraso");
+        resultado.Items.First().MotivoResolucao.Should().Be("Justificativa do atraso");
+    }
 }
