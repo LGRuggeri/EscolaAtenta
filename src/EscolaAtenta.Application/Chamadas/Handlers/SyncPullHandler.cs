@@ -1,4 +1,5 @@
 using EscolaAtenta.Application.Chamadas.Queries;
+using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -115,14 +116,65 @@ public class SyncPullHandler : IRequestHandler<SyncPullQuery, SyncPullResult>
             .AsNoTracking()
             .ToListAsync(ct);
 
-        AlunoSyncDto MapAluno(Domain.Entities.Aluno a) => new()
+        // ── Contadores trimestrais legados (compatibilidade app v3) ────────────────
+        // Como ConfiguracaoEscola foi removida, deriva os totais do histórico de
+        // frequência do trimestre corrente. Campos ainda são esperados pelo app
+        // antigo para exibição na lista de alunos; valores zerados causariam
+        // informação falsa silenciosa após o OTA.
+        // Avaliação em memória: SQLite EF Core não traduz DateTimeOffset em
+        // comparações com navegação (r.Chamada.DataHora).
+        var (inicioTrimestre, fimTrimestre) = IntervaloTrimestreAtual(DateTime.Today);
+        var contadoresTrimestre = (await _context.RegistrosPresenca
+                .AsNoTracking()
+                .Include(r => r.Chamada)
+                .ToListAsync(ct))
+            .Where(r => r.Chamada.DataHora >= inicioTrimestre && r.Chamada.DataHora <= fimTrimestre)
+            .GroupBy(r => r.AlunoId)
+            .Select(g => new
+            {
+                AlunoId = g.Key,
+                Faltas = g.Count(r => r.Status == StatusPresenca.Falta || r.Status == StatusPresenca.Ausente),
+                Atrasos = g.Count(r => r.Status == StatusPresenca.Atraso)
+            })
+            .ToDictionary(x => x.AlunoId);
+
+        AlunoSyncDto MapAluno(Domain.Entities.Aluno a)
         {
-            Id = ResolverIdAluno(a.Id),
-            Nome = a.Nome,
-            TurmaId = ResolverTurmaId(a.TurmaId),
-            FaltasConsecutivasAtuais = a.FaltasConsecutivasAtuais,
-            TotalFaltas = a.TotalFaltas
-        };
+            _ = contadoresTrimestre.TryGetValue(a.Id, out var contador);
+            return new AlunoSyncDto
+            {
+                Id = ResolverIdAluno(a.Id),
+                Nome = a.Nome,
+                TurmaId = ResolverTurmaId(a.TurmaId),
+                FaltasConsecutivasAtuais = a.FaltasConsecutivasAtuais,
+                TotalFaltas = a.TotalFaltas,
+                FaltasNoTrimestre = contador?.Faltas ?? 0,
+                AtrasosNoTrimestre = contador?.Atrasos ?? 0
+            };
+        }
+
+        static (DateTime Inicio, DateTime Fim) IntervaloTrimestreAtual(DateTime hoje)
+        {
+            var trimestre = hoje.Month switch
+            {
+                >= 1 and <= 3 => 1,
+                >= 4 and <= 6 => 2,
+                >= 7 and <= 9 => 3,
+                _ => 4
+            };
+
+            return trimestre switch
+            {
+                1 => (new DateTime(hoje.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                      new DateTime(hoje.Year, 3, 31, 23, 59, 59, DateTimeKind.Utc)),
+                2 => (new DateTime(hoje.Year, 4, 1, 0, 0, 0, DateTimeKind.Utc),
+                      new DateTime(hoje.Year, 6, 30, 23, 59, 59, DateTimeKind.Utc)),
+                3 => (new DateTime(hoje.Year, 7, 1, 0, 0, 0, DateTimeKind.Utc),
+                      new DateTime(hoje.Year, 9, 30, 23, 59, 59, DateTimeKind.Utc)),
+                _ => (new DateTime(hoje.Year, 10, 1, 0, 0, 0, DateTimeKind.Utc),
+                      new DateTime(hoje.Year, 12, 31, 23, 59, 59, DateTimeKind.Utc))
+            };
+        }
 
         if (isPrimeiroSync)
         {

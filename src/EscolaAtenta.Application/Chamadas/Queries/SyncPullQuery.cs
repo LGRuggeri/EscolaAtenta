@@ -74,4 +74,18 @@ public class AlunoSyncDto
 
     [JsonPropertyName("total_faltas")]
     public int TotalFaltas { get; set; }
+
+    /// <summary>
+    /// Campo legado mantido para compatibilidade com app Android v3 durante OTA.
+    /// O servidor deriva o valor do histórico de frequência do trimestre corrente.
+    /// </summary>
+    [JsonPropertyName("faltas_no_trimestre")]
+    public int FaltasNoTrimestre { get; set; }
+
+    /// <summary>
+    /// Campo legado mantido para compatibilidade com app Android v3 durante OTA.
+    /// O servidor deriva o valor do histórico de frequência do trimestre corrente.
+    /// </summary>
+    [JsonPropertyName("atrasos_no_trimestre")]
+    public int AtrasosNoTrimestre { get; set; }
 }
