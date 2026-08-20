@@ -81,18 +81,40 @@ public class TurmasController : ControllerBase
     }
 
     /// <summary>
-    /// Retorna o relatório de frequência da turma para o intervalo de datas informado.
+    /// Retorna o relatório de frequência da turma.
+    ///
+    /// Contrato atual: informe dataInicio e dataFim.
+    /// Contrato legado (compatibilidade OTA com apps não atualizados):
+    /// informe anoLetivo e, opcionalmente, periodoLetivo (interpretado como trimestre).
     /// </summary>
     [HttpGet("{id:guid}/relatorio")]
     [Authorize(Roles = "Supervisao,Administrador")]
     [ProducesResponseType(typeof(RelatorioTurmaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetRelatorioTurma(
         [FromRoute] Guid id,
-        [FromQuery] DateTime dataInicio,
-        [FromQuery] DateTime dataFim,
+        [FromQuery] DateTime? dataInicio = null,
+        [FromQuery] DateTime? dataFim = null,
+        [FromQuery] int? anoLetivo = null,
+        [FromQuery] int? periodoLetivo = null,
         CancellationToken ct = default)
     {
-        var result = await _mediator.Send(new RelatorioTurmaQuery(id, dataInicio, dataFim), ct);
+        RelatorioTurmaQuery query;
+
+        if (dataInicio.HasValue && dataFim.HasValue)
+        {
+            query = new RelatorioTurmaQuery(id, dataInicio.Value, dataFim.Value);
+        }
+        else if (anoLetivo.HasValue)
+        {
+            query = RelatorioTurmaQuery.DePeriodoLetivo(id, anoLetivo.Value, periodoLetivo);
+        }
+        else
+        {
+            return BadRequest(new { erro = "Informe dataInicio/dataFim ou anoLetivo (com periodoLetivo opcional)." });
+        }
+
+        var result = await _mediator.Send(query, ct);
         return Ok(result);
     }
 }

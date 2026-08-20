@@ -214,4 +214,49 @@ public class RelatorioTurmaHandlerTests
         alunoDto.Presentes.Should().Be(1);
         alunoDto.PercentualPresenca.Should().Be(50);
     }
+
+    // ── Compatibilidade OTA: contrato legado anoLetivo/periodoLetivo ────────────
+
+    [Fact]
+    public void DePeriodoLetivo_AnoSemPeriodo_DeveUsarAnoCompleto()
+    {
+        var turmaId = Guid.NewGuid();
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(turmaId, 2025);
+
+        query.TurmaId.Should().Be(turmaId);
+        query.DataInicio.Should().Be(new DateTime(2025, 1, 1));
+        query.DataFim.Should().Be(new DateTime(2025, 12, 31));
+    }
+
+    [Theory]
+    [InlineData(1, 1, 1, 3, 31)]
+    [InlineData(2, 4, 1, 6, 30)]
+    [InlineData(3, 7, 1, 9, 30)]
+    [InlineData(4, 10, 1, 12, 31)]
+    public void DePeriodoLetivo_Trimestre_DeveRetornarIntervaloCorreto(
+        int periodo, int mesInicio, int diaInicio, int mesFim, int diaFim)
+    {
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(Guid.NewGuid(), 2025, periodo);
+
+        query.DataInicio.Should().Be(new DateTime(2025, mesInicio, diaInicio));
+        query.DataFim.Should().Be(new DateTime(2025, mesFim, diaFim));
+    }
+
+    [Fact]
+    public void DePeriodoLetivo_PeriodoMaiorQueQuatro_DeveClamparParaQuartoTrimestre()
+    {
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(Guid.NewGuid(), 2025, 99);
+
+        query.DataInicio.Should().Be(new DateTime(2025, 10, 1));
+        query.DataFim.Should().Be(new DateTime(2025, 12, 31));
+    }
+
+    [Fact]
+    public void DePeriodoLetivo_PeriodoZero_DeveClamparParaPrimeiroTrimestre()
+    {
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(Guid.NewGuid(), 2025, 0);
+
+        query.DataInicio.Should().Be(new DateTime(2025, 1, 1));
+        query.DataFim.Should().Be(new DateTime(2025, 3, 31));
+    }
 }
