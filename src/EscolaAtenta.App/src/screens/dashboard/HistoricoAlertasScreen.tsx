@@ -1,13 +1,12 @@
 import axios from 'axios';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, StyleSheet, FlatList, Alert } from 'react-native';
-import { Text, Searchbar, ActivityIndicator, Surface, Chip } from 'react-native-paper';
+import { Text, Searchbar, ActivityIndicator, Surface } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppNavigationProp } from '../../navigation/types';
 import { AuditoriaAlertaDto } from '../../types/dtos';
-import { TipoAlerta } from '../../types/enums';
 import { alertasService } from '../../services/alertasService';
 import { AppHeader, EmptyState, StatusChip } from '../../components/ui';
 import { theme } from '../../theme/colors';
@@ -15,20 +14,7 @@ import { theme } from '../../theme/colors';
 const PAGE_SIZE = 20;
 const DEBOUNCE_MS = 500;
 
-type TipoFiltro = 'Todos' | TipoAlerta.Evasao | TipoAlerta.Atraso;
-
-const FILTROS_TIPO: { label: string; valor: TipoFiltro; icon: string }[] = [
-    { label: 'Todos', valor: 'Todos', icon: 'filter-variant' },
-    { label: 'Faltas', valor: TipoAlerta.Evasao, icon: 'close-circle-outline' },
-    { label: 'Atrasos', valor: TipoAlerta.Atraso, icon: 'clock-alert-outline' },
-];
-
-function getNivelIcon(nivelAlerta: string, tipoAlerta: string): { name: string; color: string } {
-    if (tipoAlerta === 'Atraso') {
-        return nivelAlerta === 'Intermediario'
-            ? { name: 'alert', color: theme.colors.warning }
-            : { name: 'clock-alert', color: theme.colors.info };
-    }
+function getNivelIcon(nivelAlerta: string): { name: string; color: string } {
     switch (nivelAlerta) {
         case 'Preto': return { name: 'alert-octagon', color: theme.colors.textPrimary };
         case 'Vermelho': return { name: 'alert-circle', color: theme.colors.error };
@@ -39,9 +25,6 @@ function getNivelIcon(nivelAlerta: string, tipoAlerta: string): { name: string; 
 }
 
 function getTituloExibicao(item: AuditoriaAlertaDto): string {
-    if (item.tipoAlerta === 'Atraso') {
-        return item.nivelAlerta === 'Intermediario' ? 'Atrasos Reincidentes' : 'Aviso de Atrasos';
-    }
     switch (item.nivelAlerta) {
         case 'Preto': return 'Risco Crítico - Ação Legal';
         case 'Vermelho': return 'Alto Risco de Evasão';
@@ -59,9 +42,8 @@ function formatarData(isoDate: string): string {
 }
 
 function AuditoriaCard({ item }: { item: AuditoriaAlertaDto }) {
-    const nivelIcon = getNivelIcon(item.nivelAlerta, item.tipoAlerta);
+    const nivelIcon = getNivelIcon(item.nivelAlerta);
     const titulo = getTituloExibicao(item);
-    const isAtraso = item.tipoAlerta === 'Atraso';
 
     return (
         <Surface
@@ -77,29 +59,19 @@ function AuditoriaCard({ item }: { item: AuditoriaAlertaDto }) {
                     </Text>
                 </View>
                 <StatusChip
-                    label={isAtraso ? 'Atraso' : 'Falta'}
-                    variant={isAtraso ? 'warning' : 'error'}
+                    label="Falta"
+                    variant="error"
                 />
             </View>
 
-            {/* Meta: nome do aluno */}
+            {/* Meta: nome do aluno e data */}
             <View style={styles.cardMeta}>
-                <Chip
-                    compact
-                    icon="account"
-                    textStyle={styles.metaChipText}
-                    style={styles.metaChip}
-                >
-                    {item.nomeAluno}
-                </Chip>
-                <Chip
-                    compact
-                    icon="calendar"
-                    textStyle={styles.metaChipText}
-                    style={styles.metaChip}
-                >
-                    {formatarData(item.dataAlerta)}
-                </Chip>
+                <Text variant="bodySmall" style={styles.metaText}>
+                    <MaterialCommunityIcons name="account" size={12} color={theme.colors.textSecondary} /> {item.nomeAluno}
+                </Text>
+                <Text variant="bodySmall" style={styles.metaText}>
+                    <MaterialCommunityIcons name="calendar" size={12} color={theme.colors.textSecondary} /> {formatarData(item.dataAlerta)}
+                </Text>
             </View>
 
             {/* Bloco de auditoria */}
@@ -139,21 +111,17 @@ export function HistoricoAlertasScreen() {
     const [hasNextPage, setHasNextPage] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>('Todos');
 
     const isFetchingRef = useRef(false);
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
     const searchQueryRef = useRef(searchQuery);
-    const tipoFiltroRef = useRef(tipoFiltro);
 
     useEffect(() => { searchQueryRef.current = searchQuery; }, [searchQuery]);
-    useEffect(() => { tipoFiltroRef.current = tipoFiltro; }, [tipoFiltro]);
 
     const fetchAuditoria = useCallback(async (
         page: number,
         nome: string,
-        tipo: TipoFiltro,
         append: boolean,
     ) => {
         if (!append) {
@@ -174,7 +142,6 @@ export function HistoricoAlertasScreen() {
                 pageNumber: page,
                 pageSize: PAGE_SIZE,
                 ...(nome.trim() ? { nomeAluno: nome.trim() } : {}),
-                ...(tipo !== 'Todos' ? { tipo: tipo as TipoAlerta } : {}),
                 signal: currentSignal,
             });
 
@@ -202,7 +169,7 @@ export function HistoricoAlertasScreen() {
         useCallback(() => {
             setAuditoriaList([]);
             setCurrentPage(1);
-            fetchAuditoria(1, searchQueryRef.current, tipoFiltroRef.current, false);
+            fetchAuditoria(1, searchQueryRef.current, false);
         }, [fetchAuditoria])
     );
 
@@ -212,21 +179,13 @@ export function HistoricoAlertasScreen() {
         debounceTimer.current = setTimeout(() => {
             setAuditoriaList([]);
             setCurrentPage(1);
-            fetchAuditoria(1, texto, tipoFiltroRef.current, false);
+            fetchAuditoria(1, texto, false);
         }, DEBOUNCE_MS);
-    }, [fetchAuditoria]);
-
-    const handleTipoChange = useCallback((novoTipo: TipoFiltro) => {
-        if (novoTipo === tipoFiltroRef.current) return;
-        setTipoFiltro(novoTipo);
-        setAuditoriaList([]);
-        setCurrentPage(1);
-        fetchAuditoria(1, searchQueryRef.current, novoTipo, false);
     }, [fetchAuditoria]);
 
     const handleEndReached = useCallback(() => {
         if (!hasNextPage || isFetchingRef.current || loading) return;
-        fetchAuditoria(currentPage + 1, searchQueryRef.current, tipoFiltroRef.current, true);
+        fetchAuditoria(currentPage + 1, searchQueryRef.current, true);
     }, [hasNextPage, currentPage, loading, fetchAuditoria]);
 
     const renderItem = useCallback(
@@ -257,25 +216,6 @@ export function HistoricoAlertasScreen() {
                     style={styles.searchBar}
                     inputStyle={styles.searchInput}
                 />
-
-                <View style={styles.tipoFilterRow}>
-                    {FILTROS_TIPO.map(({ label, valor, icon }) => {
-                        const ativo = tipoFiltro === valor;
-                        return (
-                            <Chip
-                                key={valor}
-                                selected={ativo}
-                                showSelectedOverlay
-                                icon={icon as any}
-                                onPress={() => handleTipoChange(valor)}
-                                style={[styles.filterChip, ativo && styles.filterChipActive]}
-                                textStyle={[styles.filterChipText, ativo && styles.filterChipTextActive]}
-                            >
-                                {label}
-                            </Chip>
-                        );
-                    })}
-                </View>
             </View>
 
             {/* Lista */}
@@ -333,25 +273,6 @@ const styles = StyleSheet.create({
         elevation: 0,
     },
     searchInput: { fontSize: 15 },
-    tipoFilterRow: {
-        flexDirection: 'row',
-        gap: theme.spacing.sm,
-    },
-    filterChip: {
-        flex: 1,
-        backgroundColor: theme.colors.background,
-    },
-    filterChipActive: {
-        backgroundColor: theme.colors.primaryLight,
-    },
-    filterChipText: {
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    filterChipTextActive: {
-        color: theme.colors.primary,
-        fontWeight: '700',
-    },
 
     // Loading / Empty
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -394,10 +315,7 @@ const styles = StyleSheet.create({
         marginBottom: theme.spacing.sm,
         flexWrap: 'wrap',
     },
-    metaChip: {
-        backgroundColor: theme.colors.background,
-    },
-    metaChipText: {
+    metaText: {
         fontSize: 12,
         color: theme.colors.textSecondary,
     },

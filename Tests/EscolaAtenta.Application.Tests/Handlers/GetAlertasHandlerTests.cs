@@ -155,49 +155,7 @@ public class GetAlertasHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_FiltroTipoEvasao_DeveRetornarApenasFaltas()
-    {
-        await using var ctx = CriarContexto();
-        var turmaId = Guid.NewGuid();
-        var alunoId = Guid.NewGuid();
-        ctx.Turmas.Add(new Turma(turmaId, "Turma Filtro", "Manhã", 2026));
-        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Filtro", null, turmaId));
-
-        ctx.AlertasEvasao.Add(AlertaEvasao.CriarAlertaAluno(alunoId, turmaId, NivelAlertaFalta.Aviso, "Evasão"));
-        ctx.AlertasEvasao.Add(AlertaEvasao.CriarAlertaAtraso(alunoId, turmaId, NivelAlertaFalta.Aviso, "Atraso"));
-        await ctx.SaveChangesAsync();
-        ctx.ChangeTracker.Clear();
-
-        var query = new GetAlertasQuery(ApenasNaoResolvidos: true) { Tipo = TipoAlerta.Evasao };
-        var resultado = await CriarHandler(ctx).Handle(query, CancellationToken.None);
-
-        resultado.TotalCount.Should().Be(1);
-        resultado.Items.Should().AllSatisfy(a => a.Tipo.Should().Be("Evasao"));
-    }
-
-    [Fact]
-    public async Task Handle_FiltroTipoAtraso_DeveRetornarApenasAtrasos()
-    {
-        await using var ctx = CriarContexto();
-        var turmaId = Guid.NewGuid();
-        var alunoId = Guid.NewGuid();
-        ctx.Turmas.Add(new Turma(turmaId, "Turma Filtro2", "Tarde", 2026));
-        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Filtro2", null, turmaId));
-
-        ctx.AlertasEvasao.Add(AlertaEvasao.CriarAlertaAluno(alunoId, turmaId, NivelAlertaFalta.Aviso, "Evasão"));
-        ctx.AlertasEvasao.Add(AlertaEvasao.CriarAlertaAtraso(alunoId, turmaId, NivelAlertaFalta.Aviso, "Atraso"));
-        await ctx.SaveChangesAsync();
-        ctx.ChangeTracker.Clear();
-
-        var query = new GetAlertasQuery(ApenasNaoResolvidos: true) { Tipo = TipoAlerta.Atraso };
-        var resultado = await CriarHandler(ctx).Handle(query, CancellationToken.None);
-
-        resultado.TotalCount.Should().Be(1);
-        resultado.Items.Should().AllSatisfy(a => a.Tipo.Should().Be("Atraso"));
-    }
-
-    [Fact]
-    public async Task Handle_FiltroNivelSoFuncaonaComEvasao()
+    public async Task Handle_FiltroNivel_DeveRetornarApenasAlertasDoNivel()
     {
         await using var ctx = CriarContexto();
         var turmaId = Guid.NewGuid();
@@ -210,10 +168,8 @@ public class GetAlertasHandlerTests : IDisposable
         await ctx.SaveChangesAsync();
         ctx.ChangeTracker.Clear();
 
-        // Filtro por Nivel só funciona com Tipo=Evasao
         var query = new GetAlertasQuery(ApenasNaoResolvidos: true)
         {
-            Tipo = TipoAlerta.Evasao,
             Nivel = NivelAlertaFalta.Vermelho
         };
         var resultado = await CriarHandler(ctx).Handle(query, CancellationToken.None);

@@ -12,9 +12,7 @@ function alunoParaDto(a: Aluno): AlunoDto {
         turmaId: a.turmaId,
         matricula: '',
         faltasConsecutivasAtuais: a.faltasConsecutivasAtuais ?? 0,
-        faltasNoTrimestre: a.faltasNoTrimestre ?? 0,
         totalFaltas: a.totalFaltas ?? 0,
-        atrasosNoTrimestre: a.atrasosNoTrimestre ?? 0,
     };
 }
 

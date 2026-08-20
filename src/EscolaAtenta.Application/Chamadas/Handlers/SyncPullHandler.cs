@@ -121,9 +121,7 @@ public class SyncPullHandler : IRequestHandler<SyncPullQuery, SyncPullResult>
             Nome = a.Nome,
             TurmaId = ResolverTurmaId(a.TurmaId),
             FaltasConsecutivasAtuais = a.FaltasConsecutivasAtuais,
-            FaltasNoTrimestre = a.FaltasNoTrimestre,
-            TotalFaltas = a.TotalFaltas,
-            AtrasosNoTrimestre = a.AtrasosNoTrimestre
+            TotalFaltas = a.TotalFaltas
         };
 
         if (isPrimeiroSync)

@@ -91,47 +91,6 @@ public class RealizarChamadaHandlerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_ChamadaComSeisAtrasos_DeveCriarApenasUmAlertaDeAtraso()
-    {
-        // Arrange
-        var currentUser = new FakeCurrentUserService();
-        await using var scope = CriarServiceProvider(_connection, currentUser).CreateAsyncScope();
-
-        var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await ctx.Database.EnsureCreatedAsync();
-        ctx.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF");
-
-        var turmaId = Guid.NewGuid();
-        var alunoId = Guid.NewGuid();
-        ctx.Turmas.Add(new Turma(turmaId, "Integração Atraso", "Manhã", 2026));
-        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Atraso", null, turmaId));
-        await ctx.SaveChangesAsync();
-        ctx.ChangeTracker.Clear();
-
-        var handler = scope.ServiceProvider.GetRequiredService<RealizarChamadaHandler>();
-
-        for (int i = 0; i < 6; i++)
-        {
-            var cmd = new RealizarChamadaCommand(
-                turmaId,
-                Guid.NewGuid(),
-                [new RegistroAlunoDto(alunoId, StatusPresenca.Atraso)],
-                new DateTimeOffset(2026, 1, 10 + i, 8, 0, 0, TimeSpan.Zero));
-
-            await handler.Handle(cmd, CancellationToken.None);
-            ctx.ChangeTracker.Clear();
-        }
-
-        // Assert
-        var alertas = await ctx.AlertasEvasao
-            .Where(a => a.AlunoId == alunoId && !a.Resolvido && a.Tipo == TipoAlerta.Atraso)
-            .ToListAsync();
-
-        alertas.Should().HaveCount(1, "deve haver exatamente um alerta de atraso pendente");
-        alertas[0].Nivel.Should().Be(NivelAlertaFalta.Intermediario);
-    }
-
-    [Fact]
     public async Task Handle_ChamadaRetroativaComTresFaltas_DeveCriarApenasUmAlerta()
     {
         // Arrange

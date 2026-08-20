@@ -6,6 +6,4 @@ public record AlunoDto(
     string Matricula, 
     Guid TurmaId, 
     int FaltasConsecutivasAtuais, 
-    int FaltasNoTrimestre,
-    int TotalFaltas,
-    int AtrasosNoTrimestre);
+    int TotalFaltas);

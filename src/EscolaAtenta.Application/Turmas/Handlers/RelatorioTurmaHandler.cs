@@ -1,6 +1,5 @@
 using EscolaAtenta.Application.Turmas.DTOs;
 using EscolaAtenta.Application.Turmas.Queries;
-using EscolaAtenta.Domain.Common;
 using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Domain.Exceptions;
 using EscolaAtenta.Infrastructure.Data;
@@ -23,28 +22,23 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
 
     public async Task<RelatorioTurmaDto> Handle(RelatorioTurmaQuery request, CancellationToken cancellationToken)
     {
+        if (request.DataInicio > request.DataFim)
+            throw new DomainException("A data de início deve ser anterior ou igual à data de fim.");
+
+        var inicio = new DateTime(request.DataInicio.Year, request.DataInicio.Month, request.DataInicio.Day, 0, 0, 0, DateTimeKind.Utc);
+        var fim = new DateTime(request.DataFim.Year, request.DataFim.Month, request.DataFim.Day, 23, 59, 59, DateTimeKind.Utc);
+
         var turma = await _context.Turmas.AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == request.TurmaId, cancellationToken);
 
         if (turma == null)
             throw new KeyNotFoundException($"Turma com ID '{request.TurmaId}' não encontrada.");
 
-        var configuracao = await _context.ConfiguracoesEscola.AsNoTracking()
-            .FirstOrDefaultAsync(cancellationToken);
-
-        var tipoPeriodo = configuracao?.TipoPeriodoLetivo ?? TipoPeriodoLetivo.Trimestre;
-
-        var periodoEfetivo = request.PeriodoLetivo ?? CalendarioEscolar.ObterPeriodoAtual(
-            DateTime.UtcNow, tipoPeriodo, request.AnoLetivo);
-
-        var (inicio, fim) = CalendarioEscolar.ObterPeriodo(request.AnoLetivo, tipoPeriodo, periodoEfetivo);
-
         // Alunos matriculados na turma durante o período
         var alunosMatriculados = await _context.AlunosTurmasHistorico
             .AsNoTracking()
             .Where(h =>
                 h.TurmaId == request.TurmaId &&
-                h.AnoLetivo == request.AnoLetivo &&
                 h.DataInicio <= fim &&
                 (!h.DataFim.HasValue || h.DataFim.Value >= inicio))
             .Select(h => h.AlunoId)
@@ -120,16 +114,15 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
             percentualTurma);
 
         _logger.LogInformation(
-            "[AUDITORIA] Relatório de turma gerado — TurmaId={TurmaId} Ano={Ano} Periodo={Periodo}",
+            "[AUDITORIA] Relatório de turma gerado — TurmaId={TurmaId} Periodo={PeriodoInicio:yyyy-MM-dd} a {PeriodoFim:yyyy-MM-dd}",
             request.TurmaId,
-            request.AnoLetivo,
-            request.PeriodoLetivo);
+            inicio,
+            fim);
 
         return new RelatorioTurmaDto(
             turma.Id,
             turma.Nome,
             turma.Turno,
-            request.AnoLetivo,
             inicio,
             fim,
             alunosDto.AsReadOnly(),

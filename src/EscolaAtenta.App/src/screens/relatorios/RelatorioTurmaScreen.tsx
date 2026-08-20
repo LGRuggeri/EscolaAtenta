@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Alert, ScrollView } from 'react-native';
-import { Text, Button, Surface, ActivityIndicator, Chip, Divider } from 'react-native-paper';
+import { Text, Button, Surface, ActivityIndicator, Divider, TextInput, Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -9,13 +9,7 @@ import { AppHeader, EmptyState } from '../../components/ui';
 import { theme } from '../../theme/colors';
 import { api } from '../../services/api';
 import { turmasService } from '../../services/turmasService';
-import {
-    TurmaDto,
-    RelatorioTurmaDto,
-    RelatorioTurmaAlunoDto,
-    PeriodosLetivosDisponiveisDto,
-    PeriodoLetivoDisponivelDto,
-} from '../../types/dtos';
+import { TurmaDto, RelatorioTurmaDto, RelatorioTurmaAlunoDto } from '../../types/dtos';
 
 const VARIANT_COLORS: Record<string, { bg: string; color: string }> = {
     success: { bg: theme.colors.successLight, color: theme.colors.success },
@@ -34,21 +28,59 @@ function formatarData(isoUtc: string): string {
     }
 }
 
+function dataHojeLocal(): Date {
+    const agora = new Date();
+    return new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+}
+
+function paraIsoLocal(d: Date): string {
+    const ano = d.getFullYear();
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const dia = String(d.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+}
+
+function paraInputBr(d: Date): string {
+    const dia = String(d.getDate()).padStart(2, '0');
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const ano = d.getFullYear();
+    return `${dia}/${mes}/${ano}`;
+}
+
+function parseDataBr(texto: string): Date | null {
+    const limpo = texto.replace(/\D/g, '');
+    if (limpo.length !== 8) return null;
+
+    const dia = parseInt(limpo.substring(0, 2), 10);
+    const mes = parseInt(limpo.substring(2, 4), 10) - 1;
+    const ano = parseInt(limpo.substring(4, 8), 10);
+
+    const data = new Date(ano, mes, dia);
+    if (
+        data.getFullYear() !== ano ||
+        data.getMonth() !== mes ||
+        data.getDate() !== dia ||
+        ano < 2000 ||
+        ano > 2100
+    ) {
+        return null;
+    }
+    return data;
+}
+
 export function RelatorioTurmaScreen() {
     const navigation = useNavigation<AppNavigationProp>();
 
     const [turmas, setTurmas] = useState<TurmaDto[]>([]);
     const [turmaSel, setTurmaSel] = useState<TurmaDto | null>(null);
-    const [anoLetivo, setAnoLetivo] = useState<number>(new Date().getFullYear());
 
-    const [periodosDisponiveis, setPeriodosDisponiveis] = useState<PeriodoLetivoDisponivelDto[]>([]);
-    const [periodoSel, setPeriodoSel] = useState<PeriodoLetivoDisponivelDto | null>(null);
-    const [tipoPeriodo, setTipoPeriodo] = useState<string>('');
-    const [mostraSeletorPeriodo, setMostraSeletorPeriodo] = useState(false);
+    const [dataInicio, setDataInicio] = useState<Date>(dataHojeLocal());
+    const [dataFim, setDataFim] = useState<Date>(dataHojeLocal());
+    const [inputInicio, setInputInicio] = useState(paraInputBr(dataHojeLocal()));
+    const [inputFim, setInputFim] = useState(paraInputBr(dataHojeLocal()));
 
     const [relatorio, setRelatorio] = useState<RelatorioTurmaDto | null>(null);
     const [carregandoTurmas, setCarregandoTurmas] = useState(false);
-    const [carregandoPeriodos, setCarregandoPeriodos] = useState(false);
     const [buscando, setBuscando] = useState(false);
 
     async function carregarTurmas() {
@@ -63,55 +95,53 @@ export function RelatorioTurmaScreen() {
         }
     }
 
-    async function carregarPeriodosDisponiveis(turma: TurmaDto, ano: number) {
-        setCarregandoPeriodos(true);
-        try {
-            const resp = await api.get<PeriodosLetivosDisponiveisDto>(
-                '/configuracao-escola/periodos-disponiveis',
-                { params: { anoLetivo: ano } }
-            );
-            const periodos = resp.data.periodos;
-            setTipoPeriodo(resp.data.tipoPeriodoLetivo);
-            setPeriodosDisponiveis(periodos);
-
-            if (periodos.length > 1) {
-                setMostraSeletorPeriodo(true);
-                // Pré-seleciona o último período iniciado (mais próximo do atual).
-                setPeriodoSel(periodos[periodos.length - 1]);
-            } else {
-                setMostraSeletorPeriodo(false);
-                setPeriodoSel(periodos.length === 1 ? periodos[0] : null);
-            }
-        } catch {
-            // Fallback silencioso: oculta o seletor e permite buscar sem período.
-            setMostraSeletorPeriodo(false);
-            setPeriodoSel(null);
-            setPeriodosDisponiveis([]);
-        } finally {
-            setCarregandoPeriodos(false);
-        }
-    }
-
     function selecionarTurma(turma: TurmaDto) {
         setTurmaSel(turma);
-        setAnoLetivo(turma.anoLetivo ?? new Date().getFullYear());
         setRelatorio(null);
-        carregarPeriodosDisponiveis(turma, turma.anoLetivo ?? new Date().getFullYear());
+    }
+
+    function aplicarDataInicio(texto: string) {
+        setInputInicio(texto);
+        const data = parseDataBr(texto);
+        if (data) setDataInicio(data);
+    }
+
+    function aplicarDataFim(texto: string) {
+        setInputFim(texto);
+        const data = parseDataBr(texto);
+        if (data) setDataFim(data);
+    }
+
+    function definirPreset(dias: number) {
+        const fim = dataHojeLocal();
+        const inicio = new Date(fim);
+        inicio.setDate(fim.getDate() - dias);
+        setDataInicio(inicio);
+        setDataFim(fim);
+        setInputInicio(paraInputBr(inicio));
+        setInputFim(paraInputBr(fim));
+        setRelatorio(null);
     }
 
     async function buscarRelatorio() {
         if (!turmaSel) return;
 
+        if (dataInicio > dataFim) {
+            Alert.alert('Datas inválidas', 'A data de início deve ser anterior ou igual à data de fim.');
+            return;
+        }
+
         setBuscando(true);
         setRelatorio(null);
         try {
-            const params: Record<string, any> = { anoLetivo };
-            if (periodoSel) {
-                params.periodoLetivo = periodoSel.numero;
-            }
             const resp = await api.get<RelatorioTurmaDto>(
                 `/turmas/${turmaSel.id}/relatorio`,
-                { params }
+                {
+                    params: {
+                        dataInicio: paraIsoLocal(dataInicio),
+                        dataFim: paraIsoLocal(dataFim),
+                    },
+                }
             );
             setRelatorio(resp.data);
         } catch {
@@ -157,8 +187,6 @@ export function RelatorioTurmaScreen() {
                                 onPress={() => {
                                     setTurmaSel(null);
                                     setRelatorio(null);
-                                    setPeriodoSel(null);
-                                    setMostraSeletorPeriodo(false);
                                 }}
                             >
                                 Alterar
@@ -199,55 +227,50 @@ export function RelatorioTurmaScreen() {
                     )}
                 </Surface>
 
-                {/* Passo 2: Ano letivo e período */}
+                {/* Passo 2: Intervalo de datas */}
                 {turmaSel && (
                     <Surface style={styles.section} elevation={1}>
                         <View style={styles.sectionHeader}>
                             <View style={styles.stepBadge}>
                                 <Text variant="labelSmall" style={styles.stepBadgeText}>2</Text>
                             </View>
-                            <Text variant="labelLarge" style={styles.sectionTitle}>Ano e Período Letivo</Text>
+                            <Text variant="labelLarge" style={styles.sectionTitle}>Período</Text>
                         </View>
 
-                        <View style={styles.infoRow}>
-                            <MaterialCommunityIcons name="calendar" size={18} color={theme.colors.primary} />
-                            <Text variant="bodyMedium">
-                                Ano letivo: <Text style={styles.bold}>{anoLetivo}</Text>
-                            </Text>
+                        <View style={styles.presetRow}>
+                            <Button mode="outlined" compact onPress={() => definirPreset(0)} style={styles.presetButton}>Hoje</Button>
+                            <Button mode="outlined" compact onPress={() => definirPreset(6)} style={styles.presetButton}>7 dias</Button>
+                            <Button mode="outlined" compact onPress={() => definirPreset(29)} style={styles.presetButton}>30 dias</Button>
                         </View>
 
-                        {carregandoPeriodos ? (
-                            <View style={styles.loadingRow}>
-                                <ActivityIndicator size="small" />
-                                <Text variant="bodySmall" style={styles.loadingText}>Carregando períodos...</Text>
-                            </View>
-                        ) : mostraSeletorPeriodo ? (
-                            <>
-                                <Text variant="bodySmall" style={styles.helperText}>
-                                    Selecione o {tipoPeriodo.toLowerCase()} que deseja visualizar:
-                                </Text>
-                                <View style={styles.chipRow}>
-                                    {periodosDisponiveis.map(p => (
-                                        <Chip
-                                            key={p.numero}
-                                            selected={periodoSel?.numero === p.numero}
-                                            onPress={() => setPeriodoSel(p)}
-                                            style={styles.chip}
-                                            showSelectedOverlay
-                                        >
-                                            {p.descricao}
-                                        </Chip>
-                                    ))}
-                                </View>
-                            </>
-                        ) : periodoSel ? (
-                            <View style={styles.infoRow}>
-                                <MaterialCommunityIcons name="clock-outline" size={18} color={theme.colors.success} />
-                                <Text variant="bodyMedium">
-                                    Período atual: <Text style={styles.bold}>{periodoSel.descricao}</Text>
-                                </Text>
-                            </View>
-                        ) : null}
+                        <View style={styles.dateInputsRow}>
+                            <TextInput
+                                label="Data início (DD/MM/AAAA)"
+                                value={inputInicio}
+                                onChangeText={aplicarDataInicio}
+                                onBlur={() => {
+                                    const data = parseDataBr(inputInicio);
+                                    if (data) setInputInicio(paraInputBr(data));
+                                }}
+                                keyboardType="numeric"
+                                mode="outlined"
+                                style={styles.dateInput}
+                                maxLength={10}
+                            />
+                            <TextInput
+                                label="Data fim (DD/MM/AAAA)"
+                                value={inputFim}
+                                onChangeText={aplicarDataFim}
+                                onBlur={() => {
+                                    const data = parseDataBr(inputFim);
+                                    if (data) setInputFim(paraInputBr(data));
+                                }}
+                                keyboardType="numeric"
+                                mode="outlined"
+                                style={styles.dateInput}
+                                maxLength={10}
+                            />
+                        </View>
 
                         <Button
                             mode="contained"
@@ -454,26 +477,20 @@ const styles = StyleSheet.create({
     loadingText: {
         color: theme.colors.textSecondary,
     },
-    infoRow: {
+    presetRow: {
         flexDirection: 'row',
-        alignItems: 'center',
         gap: theme.spacing.sm,
-        marginBottom: theme.spacing.sm,
+        marginBottom: theme.spacing.md,
     },
-    helperText: {
-        color: theme.colors.textSecondary,
-        marginBottom: theme.spacing.sm,
+    presetButton: {
+        flex: 1,
     },
-    bold: {
-        fontWeight: 'bold',
-    },
-    chipRow: {
+    dateInputsRow: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: theme.spacing.sm,
+        gap: theme.spacing.md,
     },
-    chip: {
-        marginBottom: theme.spacing.xs,
+    dateInput: {
+        flex: 1,
     },
     periodoInfo: {
         color: theme.colors.textSecondary,

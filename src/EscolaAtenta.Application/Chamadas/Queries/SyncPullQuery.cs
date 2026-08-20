@@ -72,12 +72,6 @@ public class AlunoSyncDto
     [JsonPropertyName("faltas_consecutivas_atuais")]
     public int FaltasConsecutivasAtuais { get; set; }
 
-    [JsonPropertyName("faltas_no_trimestre")]
-    public int FaltasNoTrimestre { get; set; }
-
     [JsonPropertyName("total_faltas")]
     public int TotalFaltas { get; set; }
-
-    [JsonPropertyName("atrasos_no_trimestre")]
-    public int AtrasosNoTrimestre { get; set; }
 }

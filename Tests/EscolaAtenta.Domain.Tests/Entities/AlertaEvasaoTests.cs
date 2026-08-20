@@ -32,17 +32,6 @@ public class AlertaEvasaoTests
         alerta.Nivel.Should().Be(NivelAlertaFalta.Preto);
     }
 
-    // ── CriarAlertaAtraso ────────────────────────────────────────────────────
-
-    [Fact]
-    public void CriarAlertaAtraso_DeveRetornarTipoAtraso()
-    {
-        var alerta = AlertaEvasao.CriarAlertaAtraso(AlunoId, TurmaId, NivelAlertaFalta.Aviso, "3 atrasos");
-
-        alerta.Tipo.Should().Be(TipoAlerta.Atraso);
-        alerta.Resolvido.Should().BeFalse();
-    }
-
     // ── CriarAlertaTurma ─────────────────────────────────────────────────────
 
     [Fact]

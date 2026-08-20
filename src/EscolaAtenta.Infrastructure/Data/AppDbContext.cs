@@ -47,7 +47,6 @@ public class AppDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<UsuarioTurma> UsuarioTurmas => Set<UsuarioTurma>();
     public DbSet<AlunoTurmaHistorico> AlunosTurmasHistorico => Set<AlunoTurmaHistorico>();
-    public DbSet<ConfiguracaoEscola> ConfiguracoesEscola => Set<ConfiguracaoEscola>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -175,7 +174,6 @@ public class AppDbContext : DbContext
                 var chave = evt switch
                 {
                     LimiteFaltasAtingidoEvent e => $"{e.AlunoId}:{nameof(LimiteFaltasAtingidoEvent)}",
-                    LimiteAtrasosAtingidoEvent e => $"{e.AlunoId}:{nameof(LimiteAtrasosAtingidoEvent)}",
                     _ => string.Empty
                 };
 

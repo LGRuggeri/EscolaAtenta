@@ -31,13 +31,9 @@ import { theme, palette } from '../../theme/colors';
 
 const PAGE_SIZE = 20;
 
-type FiltroAtivo = 'TODOS' | 'FALTAS' | 'ATRASOS';
+type FiltroAtivo = 'TODOS' | 'FALTAS';
 
 function getBorderColor(item: AlertaDto): string {
-    if (item.tipo === TipoAlerta.Atraso) {
-        const nivel = parseNivelAlertaFalta(item.nivel);
-        return nivel >= 2 ? theme.colors.warning : theme.colors.border;
-    }
     const nivel = parseNivelAlertaFalta(item.nivel);
     if (nivel >= 5) return theme.colors.primaryDark;
     switch (nivel) {
@@ -51,10 +47,6 @@ function getBorderColor(item: AlertaDto): string {
 
 function getTituloExibicao(item: AlertaDto): string {
     if (item.tituloAmigavel) return item.tituloAmigavel;
-    if (item.tipo === TipoAlerta.Atraso) {
-        const nivel = parseNivelAlertaFalta(item.nivel);
-        return nivel >= 2 ? 'Atrasos Reincidentes' : 'Aviso de Atrasos';
-    }
     const nivel = parseNivelAlertaFalta(item.nivel);
     if (nivel >= 5) return 'Risco Crítico - Ação Legal';
     switch (nivel) {
@@ -65,10 +57,7 @@ function getTituloExibicao(item: AlertaDto): string {
     }
 }
 
-function getPlaceholderTratativa(tipo: TipoAlerta | undefined): string {
-    if (tipo === TipoAlerta.Atraso) {
-        return 'Descreva a orientação dada ao aluno sobre pontualidade e regras da escola...';
-    }
+function getPlaceholderTratativa(): string {
     return 'Descreva a ligação feita aos pais, a conversa com o aluno, providências tomadas, etc...';
 }
 
@@ -80,7 +69,6 @@ function formatData(isoDate: string): string {
 }
 
 function getAlertIcon(item: AlertaDto): keyof typeof MaterialCommunityIcons.glyphMap {
-    if (item.tipo === TipoAlerta.Atraso) return 'clock-alert-outline';
     const nivel = parseNivelAlertaFalta(item.nivel);
     if (nivel >= 5) return 'alert-octagon';
     if (nivel >= NivelAlertaFalta.Vermelho) return 'alert-circle';
@@ -113,14 +101,12 @@ export function AlertasScreen() {
 
     const alertasFiltrados = useMemo(() => {
         if (filtroAtivo === 'FALTAS') return alertas.filter(a => a.tipo === TipoAlerta.Evasao);
-        if (filtroAtivo === 'ATRASOS') return alertas.filter(a => a.tipo === TipoAlerta.Atraso);
         return alertas;
     }, [alertas, filtroAtivo]);
 
     const contadores = useMemo(() => ({
         todos: alertas.length,
         faltas: alertas.filter(a => a.tipo === TipoAlerta.Evasao).length,
-        atrasos: alertas.filter(a => a.tipo === TipoAlerta.Atraso).length,
     }), [alertas]);
 
     const carregarAlertas = useCallback(async () => {
@@ -231,7 +217,6 @@ export function AlertasScreen() {
     const renderItem = ({ item }: { item: AlertaDto }) => {
         const borderColor = getBorderColor(item);
         const tituloExibicao = getTituloExibicao(item);
-        const isAtraso = item.tipo === TipoAlerta.Atraso;
         const alertIcon = getAlertIcon(item);
 
         return (
@@ -265,9 +250,9 @@ export function AlertasScreen() {
 
                     <View style={styles.alertFooter}>
                         <StatusChip
-                            label={isAtraso ? 'Atraso' : 'Falta'}
-                            variant={isAtraso ? 'warning' : 'error'}
-                            icon={isAtraso ? 'clock-alert-outline' : 'close-circle-outline'}
+                            label="Falta"
+                            variant="error"
+                            icon="close-circle-outline"
                         />
                         <Text variant="labelSmall" style={styles.tapHint}>
                             {user?.papel === PapelUsuario.Monitor ? 'Visualizar' : 'Resolver'}
@@ -292,7 +277,6 @@ export function AlertasScreen() {
         const configs: Record<FiltroAtivo, { icon: keyof typeof MaterialCommunityIcons.glyphMap; text: string }> = {
             TODOS: { icon: 'check-circle-outline', text: 'Nenhuma situação de risco detectada.' },
             FALTAS: { icon: 'book-check-outline', text: 'Nenhum alerta de falta pendente.' },
-            ATRASOS: { icon: 'clock-check-outline', text: 'Nenhum alerta de atraso pendente.' },
         };
         const { icon, text } = configs[filtroAtivo];
         return (
@@ -324,7 +308,6 @@ export function AlertasScreen() {
                         buttons={[
                             { value: 'TODOS', label: `Todos (${contadores.todos})`, icon: 'format-list-bulleted' },
                             { value: 'FALTAS', label: `Faltas (${contadores.faltas})`, icon: 'close-circle-outline' },
-                            { value: 'ATRASOS', label: `Atrasos (${contadores.atrasos})`, icon: 'clock-alert-outline' },
                         ]}
                         style={styles.segmented}
                     />
@@ -389,8 +372,8 @@ export function AlertasScreen() {
                         <Text variant="titleLarge" style={styles.modalTitle}>Resolver Alerta</Text>
                         {alertaSelecionado && (
                             <StatusChip
-                                label={alertaSelecionado.tipo === TipoAlerta.Atraso ? 'Atraso' : 'Falta'}
-                                variant={alertaSelecionado.tipo === TipoAlerta.Atraso ? 'warning' : 'error'}
+                                label="Falta"
+                                variant="error"
                             />
                         )}
                     </View>
@@ -424,7 +407,7 @@ export function AlertasScreen() {
                                 onChangeText={setTratativa}
                                 multiline
                                 numberOfLines={4}
-                                placeholder={getPlaceholderTratativa(alertaSelecionado?.tipo)}
+                                placeholder={getPlaceholderTratativa()}
                                 maxLength={500}
                                 mode="outlined"
                                 style={styles.treatmentInput}

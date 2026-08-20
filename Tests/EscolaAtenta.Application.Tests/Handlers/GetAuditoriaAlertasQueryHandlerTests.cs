@@ -25,7 +25,6 @@ public class GetAuditoriaAlertasQueryHandlerTests
 
     private static async Task SeedAlertaResolvido(
         AppDbContext ctx,
-        TipoAlerta tipo = TipoAlerta.Evasao,
         NivelAlertaFalta nivel = NivelAlertaFalta.Aviso,
         string nomeAluno = "Aluno Teste")
     {
@@ -37,9 +36,7 @@ public class GetAuditoriaAlertasQueryHandlerTests
         ctx.Alunos.Add(new Aluno(alunoId, nomeAluno, null, turmaId));
         ctx.Usuarios.Add(new Usuario("Resolvedor", $"resolvedor{Guid.NewGuid():N}@escola.com", "$2a$11$fakehash000000000000000000000000000000000000000000000000", PapelUsuario.Administrador));
 
-        var alerta = tipo == TipoAlerta.Atraso
-            ? AlertaEvasao.CriarAlertaAtraso(alunoId, turmaId, nivel, "Atrasos excessivos")
-            : AlertaEvasao.CriarAlertaAluno(alunoId, turmaId, nivel, "Faltas excessivas");
+        var alerta = AlertaEvasao.CriarAlertaAluno(alunoId, turmaId, nivel, "Faltas excessivas");
 
         alerta.MarcarComoResolvido(resolvedorId, "Justificativa de teste");
         ctx.AlertasEvasao.Add(alerta);
@@ -105,20 +102,6 @@ public class GetAuditoriaAlertasQueryHandlerTests
 
         resultado.TotalCount.Should().Be(1);
         resultado.Items.First().NomeAluno.Should().Be("João Silva");
-    }
-
-    [Fact]
-    public async Task Handle_FiltroTipo_DeveRetornarApenasTipoSolicitado()
-    {
-        await using var ctx = CriarContexto();
-        await SeedAlertaResolvido(ctx, tipo: TipoAlerta.Evasao);
-        await SeedAlertaResolvido(ctx, tipo: TipoAlerta.Atraso);
-
-        var query = new GetAuditoriaAlertasQuery { Tipo = TipoAlerta.Atraso };
-        var resultado = await CriarHandler(ctx).Handle(query, CancellationToken.None);
-
-        resultado.TotalCount.Should().Be(1);
-        resultado.Items.First().TipoAlerta.Should().Be("Atraso");
     }
 
     [Fact]

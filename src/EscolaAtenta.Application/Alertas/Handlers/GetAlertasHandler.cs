@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace EscolaAtenta.Application.Alertas.Handlers;
 
 /// <summary>
-/// Handler para consulta paginada de alertas de evasão/atraso.
+/// Handler para consulta paginada de alertas de evasão.
 ///
 /// Padrão Read Model: Projeta os dados diretamente no banco (SELECT)
 /// evitando carregar entidades completas na memória.
@@ -47,16 +47,6 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
         if (request.ApenasNaoResolvidos)
         {
             query = query.Where(a => !a.Resolvido);
-        }
-
-        if (request.Tipo != TipoAlerta.Evasao && request.Nivel.HasValue)
-        {
-            request.Nivel = null;
-        }
-
-        if (request.Tipo.HasValue)
-        {
-            query = query.Where(a => a.Tipo == request.Tipo.Value);
         }
 
         if (request.Nivel.HasValue)
@@ -98,9 +88,8 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
                 ResolvidoPorNome = a.ResolvidoPor != null ? a.ResolvidoPor.Email : null,
                 a.DataResolucao,
                 a.JustificativaResolucao,
-                // Contadores atuais do aluno para mensagem precisa
+                // Contador atual do aluno para mensagem precisa
                 FaltasConsecutivasAtuais = a.Aluno != null ? a.Aluno.FaltasConsecutivasAtuais : 0,
-                AtrasosNoTrimestre = a.Aluno != null ? a.Aluno.AtrasosNoTrimestre : 0,
             })
             .ToListAsync(cancellationToken);
 
@@ -119,12 +108,12 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
             a.AlunoNome,
             a.TurmaNome,
             a.Nivel,
-            FormatarMensagem(a.TipoNome, a.AlunoNome, a.TurmaNome, a.DataAlerta.LocalDateTime, a.FaltasConsecutivasAtuais, a.AtrasosNoTrimestre),
+            FormatarMensagem(a.AlunoNome, a.TurmaNome, a.DataAlerta.LocalDateTime, a.FaltasConsecutivasAtuais),
             a.DataAlerta.UtcDateTime,
             a.Resolvido,
             a.ObservacaoResolucao,
-            GetTituloAmigavel(a.Nivel, a.TipoNome),
-            FormatarMensagem(a.TipoNome, a.AlunoNome, a.TurmaNome, a.DataAlerta.LocalDateTime, a.FaltasConsecutivasAtuais, a.AtrasosNoTrimestre),
+            GetTituloAmigavel(a.Nivel),
+            FormatarMensagem(a.AlunoNome, a.TurmaNome, a.DataAlerta.LocalDateTime, a.FaltasConsecutivasAtuais),
             a.TipoNome,
             a.ResolvidoPorNome,
             a.DataResolucao?.UtcDateTime,
@@ -139,38 +128,21 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
     /// legível para o usuário final de supervisão.
     /// </summary>
     private static string FormatarMensagem(
-        string tipoNome,
         string alunoNome,
         string turmaNome,
         DateTime dataInfracao,
-        int faltasConsecutivas,
-        int atrasosNoTrimestre)
+        int faltasConsecutivas)
     {
-        if (tipoNome == "Atraso")
-        {
-            return $"{alunoNome} ({turmaNome}) acumulou {atrasosNoTrimestre} atraso(s) no trimestre. " +
-                   $"Última ocorrência: {dataInfracao:dd/MM/yyyy HH:mm}";
-        }
-
         return $"{alunoNome} ({turmaNome}) está com {faltasConsecutivas} falta(s) consecutiva(s). " +
                $"Última falta: {dataInfracao:dd/MM/yyyy HH:mm}";
     }
 
     /// <summary>
-    /// Retorna título amigável baseado no nível e tipo do alerta.
+    /// Retorna título amigável baseado no nível do alerta.
     /// Exibição apenas — não é dado de negócio.
     /// </summary>
-    private static string GetTituloAmigavel(NivelAlertaFalta nivel, string tipo)
+    private static string GetTituloAmigavel(NivelAlertaFalta nivel)
     {
-        if (tipo == "Atraso")
-        {
-            return nivel switch
-            {
-                NivelAlertaFalta.Intermediario => "⚠️ Atrasos Reincidentes",
-                _ => "🕑 Aviso de Atrasos"
-            };
-        }
-
         return nivel switch
         {
             NivelAlertaFalta.Vermelho      => "🚨 Alto Risco de Evasão",

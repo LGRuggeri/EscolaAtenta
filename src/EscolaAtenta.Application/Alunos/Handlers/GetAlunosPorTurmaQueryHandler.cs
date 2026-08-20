@@ -56,9 +56,7 @@ public class GetAlunosPorTurmaQueryHandler : IRequestHandler<GetAlunosPorTurmaQu
                 a.Matricula,
                 a.TurmaId,
                 a.FaltasConsecutivasAtuais,
-                a.FaltasNoTrimestre,
-                a.TotalFaltas,
-                a.AtrasosNoTrimestre))
+                a.TotalFaltas))
             .ToListAsync(cancellationToken);
 
         return alunos;

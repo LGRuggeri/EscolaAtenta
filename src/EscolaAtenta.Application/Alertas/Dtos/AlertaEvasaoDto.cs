@@ -3,11 +3,10 @@ using EscolaAtenta.Domain.Enums;
 namespace EscolaAtenta.Application.Alertas.Dtos;
 
 /// <summary>
-/// DTO de leitura para alertas escolares (evasão e atraso).
-/// 
-/// Campo Tipo: retornado como string ("Evasao" | "Atraso") para não forçar
-/// a representação do enum no contrato REST — o frontend pode exibir
-/// ícones/cores distintos baseado nesse campo.
+/// DTO de leitura para alertas de evasão escolar.
+///
+/// Campo Tipo: retornado como string ("Evasao") para não forçar
+/// a representação do enum no contrato REST.
 /// </summary>
 public record AlertaEvasaoDto(
     Guid Id,

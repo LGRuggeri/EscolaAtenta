@@ -4,7 +4,6 @@ public record RelatorioTurmaDto(
     Guid TurmaId,
     string NomeTurma,
     string Turno,
-    int AnoLetivo,
     DateTime PeriodoInicio,
     DateTime PeriodoFim,
     IReadOnlyList<RelatorioTurmaAlunoDto> Alunos,

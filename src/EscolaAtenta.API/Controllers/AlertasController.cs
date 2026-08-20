@@ -26,13 +26,12 @@ public class AlertasController : ControllerBase
     }
 
     /// <summary>
-    /// Lista alertas de evasão/atraso com paginação server-side.
+    /// Lista alertas de evasão com paginação server-side.
     ///
     /// Parâmetros:
     /// - pageNumber: página a retornar (1-indexed, default=1)
     /// - pageSize: itens por página (default=20, max=100 — clampado pelo Handler)
-    /// - tipo: opcional — filtra por TipoAlerta (Evasao | Atraso)
-    /// - nivel: opcional — subfiltro de NivelAlertaFalta. Ignorado pelo backend se tipo ≠ Evasao.
+    /// - nivel: opcional — filtra por NivelAlertaFalta.
     ///
     /// Resposta: PagedResult{AlertaEvasaoDto} com TotalCount, TotalPages, 
     /// HasNextPage e HasPreviousPage para Infinite Scroll no cliente.
@@ -46,17 +45,15 @@ public class AlertasController : ControllerBase
         [FromQuery] bool apenasNaoResolvidos = true,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20,
-        [FromQuery] TipoAlerta? tipo = null,
         [FromQuery] NivelAlertaFalta? nivel = null)
     {
         // Logging estruturado: rastreabilidade para monitoramento do novo filtro de nível
         _logger.LogInformation(
-            "GET /alertas — ApenasNaoResolvidos={ApenasNaoResolvidos} Tipo={Tipo} Nivel={Nivel} Page={PageNumber}/{PageSize}",
-            apenasNaoResolvidos, tipo, nivel, pageNumber, pageSize);
+            "GET /alertas — ApenasNaoResolvidos={ApenasNaoResolvidos} Nivel={Nivel} Page={PageNumber}/{PageSize}",
+            apenasNaoResolvidos, nivel, pageNumber, pageSize);
 
         var query = new GetAlertasQuery(apenasNaoResolvidos, pageNumber, pageSize)
         {
-            Tipo = tipo,
             Nivel = nivel,
         };
 
@@ -65,7 +62,7 @@ public class AlertasController : ControllerBase
     }
 
     /// <summary>
-    /// Resolve (fecha) um alerta de evasão ou atraso.
+    /// Resolve (fecha) um alerta de evasão.
     /// Restrito para Supervisão e Administrador.
     ///
     /// Status codes:
@@ -89,7 +86,6 @@ public class AlertasController : ControllerBase
     ///
     /// Filtros opcionais via query string:
     /// - nomeAluno: busca parcial LIKE (case-insensitive no PostgreSQL)
-    /// - tipo: Evasao | Atraso
     /// - dataInicio / dataFim: intervalo de DataResolucao (dataFim inclui o dia inteiro)
     ///
     /// Paginação: pageNumber (1-indexed, default=1), pageSize (default=20, max=100).
@@ -103,20 +99,18 @@ public class AlertasController : ControllerBase
     [Authorize(Roles = "Monitor,Supervisao,Administrador")]
     public async Task<ActionResult<PagedResult<AuditoriaAlertaDto>>> GetAuditoria(
         [FromQuery] string? nomeAluno = null,
-        [FromQuery] TipoAlerta? tipo = null,
         [FromQuery] DateTime? dataInicio = null,
         [FromQuery] DateTime? dataFim = null,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20)
     {
         _logger.LogInformation(
-            "GET /alertas/auditoria — NomeAluno={NomeAluno} Tipo={Tipo} DataInicio={DataInicio} DataFim={DataFim} Page={PageNumber}/{PageSize}",
-            nomeAluno, tipo, dataInicio, dataFim, pageNumber, pageSize);
+            "GET /alertas/auditoria — NomeAluno={NomeAluno} DataInicio={DataInicio} DataFim={DataFim} Page={PageNumber}/{PageSize}",
+            nomeAluno, dataInicio, dataFim, pageNumber, pageSize);
 
         var query = new GetAuditoriaAlertasQuery(pageNumber, pageSize)
         {
             NomeAluno  = nomeAluno,
-            Tipo       = tipo,
             DataInicio = dataInicio,
             DataFim    = dataFim
         };

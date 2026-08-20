@@ -26,22 +26,8 @@ public class DatabaseSeeder
     /// </summary>
     public async Task SeedAsync()
     {
-        await SeedConfiguracaoEscolaAsync();
         await SeedHistoricoMatriculasAsync();
         await SeedAdminAsync();
-    }
-
-    private async Task SeedConfiguracaoEscolaAsync()
-    {
-        bool existeConfiguracao = await _context.ConfiguracoesEscola.AnyAsync();
-        if (existeConfiguracao)
-            return;
-
-        _logger.LogInformation("Nenhuma configuração da escola encontrada. Criando configuração padrão (Trimestre)...");
-
-        var configuracao = new ConfiguracaoEscola(Guid.NewGuid(), TipoPeriodoLetivo.Trimestre);
-        _context.ConfiguracoesEscola.Add(configuracao);
-        await _context.SaveChangesAsync();
     }
 
     private async Task SeedHistoricoMatriculasAsync()

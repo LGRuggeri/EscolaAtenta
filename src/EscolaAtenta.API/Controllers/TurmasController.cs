@@ -81,18 +81,18 @@ public class TurmasController : ControllerBase
     }
 
     /// <summary>
-    /// Retorna o relatório de frequência da turma para um ano/período letivo.
+    /// Retorna o relatório de frequência da turma para o intervalo de datas informado.
     /// </summary>
     [HttpGet("{id:guid}/relatorio")]
     [Authorize(Roles = "Supervisao,Administrador")]
     [ProducesResponseType(typeof(RelatorioTurmaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetRelatorioTurma(
         [FromRoute] Guid id,
-        [FromQuery] int anoLetivo,
-        [FromQuery] int? periodoLetivo = null,
+        [FromQuery] DateTime dataInicio,
+        [FromQuery] DateTime dataFim,
         CancellationToken ct = default)
     {
-        var result = await _mediator.Send(new RelatorioTurmaQuery(id, anoLetivo, periodoLetivo), ct);
+        var result = await _mediator.Send(new RelatorioTurmaQuery(id, dataInicio, dataFim), ct);
         return Ok(result);
     }
 }

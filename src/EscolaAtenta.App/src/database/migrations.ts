@@ -1,4 +1,4 @@
-import { schemaMigrations, addColumns } from '@nozbe/watermelondb/Schema/migrations';
+import { schemaMigrations, addColumns, unsafeExecuteSql } from '@nozbe/watermelondb/Schema/migrations';
 
 export default schemaMigrations({
   migrations: [
@@ -26,6 +26,21 @@ export default schemaMigrations({
             { name: 'atrasos_no_trimestre', type: 'number' },
           ],
         }),
+      ],
+    },
+    {
+      toVersion: 4,
+      steps: [
+        // Remove os contadores trimestrais descontinuados. SQLite ≥ 3.35 suporta DROP COLUMN;
+        // em versões anteriores a migration falharia, mas o WatermelonDB faria fallback
+        // recriando o banco caso necessário. Mantém dados essenciais (id, nome, turma_id,
+        // faltas_consecutivas_atuais, total_faltas).
+        unsafeExecuteSql(
+          'ALTER TABLE alunos DROP COLUMN faltas_no_trimestre;'
+        ),
+        unsafeExecuteSql(
+          'ALTER TABLE alunos DROP COLUMN atrasos_no_trimestre;'
+        ),
       ],
     },
   ],

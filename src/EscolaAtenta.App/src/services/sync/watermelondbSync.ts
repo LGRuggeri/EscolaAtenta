@@ -134,9 +134,7 @@ function normalizarAluno(raw: Record<string, any>): Record<string, any> {
     nome: raw.nome,
     turma_id: raw.turma_id ?? raw.turmaId,
     faltas_consecutivas_atuais: raw.faltas_consecutivas_atuais ?? 0,
-    faltas_no_trimestre: raw.faltas_no_trimestre ?? 0,
     total_faltas: raw.total_faltas ?? 0,
-    atrasos_no_trimestre: raw.atrasos_no_trimestre ?? 0,
   };
 }
 
