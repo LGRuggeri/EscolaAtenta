@@ -561,9 +561,8 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         var turmasExistentes = turmaGuidsCandidatos.Count > 0
             ? await _context.Turmas
                 .Where(t => turmaGuidsCandidatos.Contains(t.Id))
-                .Select(t => t.Id)
-                .ToHashSetAsync(ct)
-            : new HashSet<Guid>();
+                .ToDictionaryAsync(t => t.Id, t => t.AnoLetivo, ct)
+            : new Dictionary<Guid, int>();
 
         int criados = 0;
 
@@ -579,7 +578,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 }
             }
 
-            if (!turmasExistentes.Contains(turmaGuid))
+            if (!turmasExistentes.TryGetValue(turmaGuid, out var anoLetivo))
             {
                 _logger.LogWarning("[SYNC-ALUNO] Turma {TurmaId} não existe no servidor. Aluno {Nome} ignorado.", turmaGuid, dto.Nome);
                 continue;
@@ -587,6 +586,14 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
             var aluno = new Aluno(Guid.NewGuid(), dto.Nome, null, turmaGuid);
             _context.Alunos.Add(aluno);
+
+            // Cria o histórico de matrícula para que o aluno apareça em relatórios
+            // por turma e no histórico de turmas imediatamente após o sync.
+            aluno.Matricular(
+                turmaGuid,
+                anoLetivo,
+                new DateTime(anoLetivo, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                "Matrícula via sincronização offline");
 
             _context.SyncLogs.Add(new SyncLog
             {

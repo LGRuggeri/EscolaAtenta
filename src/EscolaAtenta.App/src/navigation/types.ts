@@ -14,7 +14,10 @@ export type RootStackParamList = {
     UsuarioForm: { id?: string } | undefined;
     Alertas: undefined;
     HistoricoAlertas: undefined;
+    RelatoriosMenu: undefined;
     RelatorioPresencas: undefined;
+    RelatorioTurma: undefined;
+    MigracaoTurma: undefined;
     TrocarSenha: undefined;
 };
 

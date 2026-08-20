@@ -213,6 +213,14 @@ public class SyncPushHandlerTests : IDisposable
         var syncLog = await ctx.SyncLogs.FirstOrDefaultAsync(s => s.IdExterno == "watermelon-aluno-1");
         syncLog.Should().NotBeNull();
         syncLog!.TabelaOrigem.Should().Be("alunos");
+
+        // Verifica que o histórico de matrícula foi criado para o aluno offline.
+        var historico = await ctx.AlunosTurmasHistorico
+            .Where(h => h.AlunoId == syncLog.EntidadeId)
+            .ToListAsync();
+        historico.Should().ContainSingle();
+        historico[0].TurmaId.Should().Be(turmaId);
+        historico[0].Ativa.Should().BeTrue();
     }
 
     [Fact]

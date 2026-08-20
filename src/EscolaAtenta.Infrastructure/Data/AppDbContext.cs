@@ -46,6 +46,8 @@ public class AppDbContext : DbContext
     public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<UsuarioTurma> UsuarioTurmas => Set<UsuarioTurma>();
+    public DbSet<AlunoTurmaHistorico> AlunosTurmasHistorico => Set<AlunoTurmaHistorico>();
+    public DbSet<ConfiguracaoEscola> ConfiguracoesEscola => Set<ConfiguracaoEscola>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
