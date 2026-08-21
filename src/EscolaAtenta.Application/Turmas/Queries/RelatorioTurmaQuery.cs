@@ -15,7 +15,7 @@ public record RelatorioTurmaQuery(
     /// o rollout OTA.
     ///
     /// O <paramref name="tipoPeriodoLetivo"/> define se periodoLetivo representa
-    /// bimestre (1..6), trimestre (1..4) ou semestre (1..2).
+    /// bimestre (1..5), trimestre (1..4) ou semestre (1..2).
     /// Quando periodoLetivo é omitido, usa o período corrente da data de hoje
     /// dentro da divisão configurada.
     /// </summary>
@@ -54,8 +54,7 @@ public record RelatorioTurmaQuery(
                 >= 3 and <= 4 => 2,
                 >= 5 and <= 6 => 3,
                 >= 7 and <= 8 => 4,
-                >= 9 and <= 10 => 5,
-                _ => 6
+                _ => 5   // setembro a dezembro: 5º bimestre legado
             },
             TipoPeriodoLetivo.Trimestre => data.Month switch
             {
@@ -82,8 +81,7 @@ public record RelatorioTurmaQuery(
                 2 => (new DateTime(ano, 3, 1), new DateTime(ano, 4, 30)),
                 3 => (new DateTime(ano, 5, 1), new DateTime(ano, 6, 30)),
                 4 => (new DateTime(ano, 7, 1), new DateTime(ano, 8, 31)),
-                5 => (new DateTime(ano, 9, 1), new DateTime(ano, 10, 31)),
-                >= 6 => (new DateTime(ano, 11, 1), new DateTime(ano, 12, 31))
+                >= 5 => (new DateTime(ano, 9, 1), new DateTime(ano, 12, 31))   // 5º bimestre legado: set-dez
             },
             TipoPeriodoLetivo.Trimestre => periodo switch
             {

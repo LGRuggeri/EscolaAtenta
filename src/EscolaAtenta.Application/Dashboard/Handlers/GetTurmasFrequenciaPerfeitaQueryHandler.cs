@@ -22,24 +22,27 @@ public class GetTurmasFrequenciaPerfeitaQueryHandler : IRequestHandler<GetTurmas
 
     public async Task<IEnumerable<TurmaFrequenciaPerfeitaDto>> Handle(GetTurmasFrequenciaPerfeitaQuery request, CancellationToken cancellationToken)
     {
-        // O provider SQLite do EF Core não traduz UtcTicks em projeção sobre coleção de navegação.
-        // Como o volume de dados de uma escola é pequeno, carregamos as chamadas do período em memória
-        // e fazemos a projeção final em LINQ-to-Objects, garantindo compatibilidade com SQLite.
-        var inicioUtc = request.DataInicio.ToUniversalTime();
-        var fimUtc = request.DataFim.ToUniversalTime();
+        // Pré-filtra no banco usando DataChamada (DateTime), que é traduzível pelo provider SQLite.
+        // Apenas os IDs das chamadas do período são carregados; depois as chamadas efetivas
+        // e seus registros de presença são materializados em memória para a projeção final.
+        var inicio = request.DataInicio.Date;
+        var fim = request.DataFim.Date;
 
         var turmas = await _context.Turmas
             .AsNoTracking()
             .ToDictionaryAsync(t => t.Id, cancellationToken);
 
-        // Carrega todas as chamadas (volume reduzido) e filtra o período em memória,
-        // evitando tradução de DateTimeOffset no provider SQLite.
-        var chamadasDoPeriodo = (await _context.Chamadas
+        var chamadaIdsDoPeriodo = await _context.Chamadas
             .AsNoTracking()
+            .Where(c => c.DataChamada >= inicio && c.DataChamada <= fim)
+            .Select(c => c.Id)
+            .ToListAsync(cancellationToken);
+
+        var chamadasDoPeriodo = await _context.Chamadas
+            .AsNoTracking()
+            .Where(c => chamadaIdsDoPeriodo.Contains(c.Id))
             .Include(c => c.RegistrosPresenca)
-            .ToListAsync(cancellationToken))
-            .Where(c => c.DataHora >= inicioUtc && c.DataHora <= fimUtc)
-            .ToList();
+            .ToListAsync(cancellationToken);
 
         var resultado = chamadasDoPeriodo
             .Where(c => turmas.ContainsKey(c.TurmaId))

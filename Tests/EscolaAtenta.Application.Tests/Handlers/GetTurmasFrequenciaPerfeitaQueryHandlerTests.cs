@@ -145,4 +145,32 @@ public class GetTurmasFrequenciaPerfeitaQueryHandlerTests : IDisposable
 
         resultado.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Handle_ChamadasDentroEForaDoPeriodo_DeveContarApenasDentro()
+    {
+        await using var ctx = CriarContexto();
+        ctx.Database.EnsureCreated();
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Turma Mista", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno", null, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        // Fora do período (fevereiro)
+        await SeedChamadaComPresenca(ctx, turmaId, alunoId,
+            new DateTimeOffset(2026, 2, 15, 8, 0, 0, TimeSpan.Zero), StatusPresenca.Presente);
+
+        // Dentro do período (março)
+        await SeedChamadaComPresenca(ctx, turmaId, alunoId,
+            new DateTimeOffset(2026, 3, 15, 8, 0, 0, TimeSpan.Zero), StatusPresenca.Presente);
+
+        var resultado = await CriarHandler(ctx).Handle(QueryMesAtual(), CancellationToken.None);
+
+        resultado.Should().ContainSingle();
+        var dto = resultado.First();
+        dto.NomeTurma.Should().Be("Turma Mista");
+        dto.QuantidadeAulasMinistradas.Should().Be(1);
+    }
 }

@@ -25,8 +25,10 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
         if (request.DataInicio > request.DataFim)
             throw new DomainException("A data de início deve ser anterior ou igual à data de fim.");
 
-        var inicio = new DateTime(request.DataInicio.Year, request.DataInicio.Month, request.DataInicio.Day, 0, 0, 0, DateTimeKind.Utc);
-        var fim = new DateTime(request.DataFim.Year, request.DataFim.Month, request.DataFim.Day, 23, 59, 59, DateTimeKind.Utc);
+        // Usa intervalo half-open [inicio, fim) para incluir todo o dia final,
+        // mesmo chamadas com subsegundos próximos à meia-noite.
+        var inicio = new DateTimeOffset(request.DataInicio.Date, TimeSpan.Zero);
+        var fim = new DateTimeOffset(request.DataFim.Date.AddDays(1), TimeSpan.Zero);
 
         var turma = await _context.Turmas.AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == request.TurmaId, cancellationToken);
@@ -39,7 +41,7 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
             .AsNoTracking()
             .Where(h =>
                 h.TurmaId == request.TurmaId &&
-                h.DataInicio <= fim &&
+                h.DataInicio < fim &&
                 (!h.DataFim.HasValue || h.DataFim.Value >= inicio))
             .Select(h => h.AlunoId)
             .Distinct()
@@ -60,7 +62,7 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
             .AsNoTracking()
             .Where(r => r.Chamada.TurmaId == request.TurmaId &&
                         r.Chamada.DataHora >= inicio &&
-                        r.Chamada.DataHora <= fim)
+                        r.Chamada.DataHora < fim)
             .Select(r => new { r.AlunoId, r.Status })
             .ToListAsync(cancellationToken);
 
@@ -113,18 +115,21 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
             totalAtrasos,
             percentualTurma);
 
+        var dataInicioRelatorio = request.DataInicio.Date;
+        var dataFimRelatorio = request.DataFim.Date;
+
         _logger.LogInformation(
             "[AUDITORIA] Relatório de turma gerado — TurmaId={TurmaId} Periodo={PeriodoInicio:yyyy-MM-dd} a {PeriodoFim:yyyy-MM-dd}",
             request.TurmaId,
-            inicio,
-            fim);
+            dataInicioRelatorio,
+            dataFimRelatorio);
 
         return new RelatorioTurmaDto(
             turma.Id,
             turma.Nome,
             turma.Turno,
-            inicio,
-            fim,
+            dataInicioRelatorio,
+            dataFimRelatorio,
             alunosDto.AsReadOnly(),
             resumo);
     }

@@ -113,6 +113,40 @@ public class RelatorioTurmaHandlerTests
     }
 
     [Fact]
+    public async Task Handle_ChamadaNoUltimoDiaComSubsegundos_DeveSerIncluida()
+    {
+        await using var ctx = CriarContexto();
+
+        var turma = new Turma(Guid.NewGuid(), "5º Ano A", "Manhã", 2025);
+        ctx.Turmas.Add(turma);
+
+        var usuario = new Usuario("Monitor", "monitor@teste.com", "hash", PapelUsuario.Monitor);
+        ctx.Usuarios.Add(usuario);
+
+        var aluno = new Aluno(Guid.NewGuid(), "Carlos", "MAT001", turma.Id);
+        aluno.Matricular(turma.Id, 2025, new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), "Matrícula inicial");
+        ctx.Alunos.Add(aluno);
+
+        await ctx.SaveChangesAsync();
+
+        var chamada = new Chamada(Guid.NewGuid(), new DateTimeOffset(2025, 4, 30, 23, 59, 59, 500, TimeSpan.Zero), turma.Id, usuario.Id);
+        chamada.RegistrarPresenca(aluno.Id, StatusPresenca.Presente);
+        ctx.Chamadas.Add(chamada);
+
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
+        var resultado = await handler.Handle(
+            new RelatorioTurmaQuery(turma.Id, new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
+            CancellationToken.None);
+
+        resultado.Resumo.TotalPresentes.Should().Be(1);
+        resultado.Resumo.TotalAlunos.Should().Be(1);
+        resultado.PeriodoFim.Should().Be(new DateTime(2025, 4, 30));
+    }
+
+    [Fact]
     public async Task Handle_QuandoDataInicioMaiorQueDataFim_DeveLancarDomainException()
     {
         await using var ctx = CriarContexto();
@@ -274,7 +308,9 @@ public class RelatorioTurmaHandlerTests
     [InlineData(1, 1, 1, 2, 28)]
     [InlineData(2, 3, 1, 4, 30)]
     [InlineData(3, 5, 1, 6, 30)]
-    [InlineData(6, 11, 1, 12, 31)]
+    [InlineData(4, 7, 1, 8, 31)]
+    [InlineData(5, 9, 1, 12, 31)]
+    [InlineData(6, 9, 1, 12, 31)]   // período maior que 5 clamp para 5º bimestre legado (set-dez)
     public void DePeriodoLetivo_Bimestre_DeveRetornarIntervaloCorreto(
         int periodo, int mesInicio, int diaInicio, int mesFim, int diaFim)
     {
