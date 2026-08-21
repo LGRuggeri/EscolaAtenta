@@ -1,4 +1,5 @@
 using EscolaAtenta.Application.Turmas.DTOs;
+using EscolaAtenta.Domain.Enums;
 using MediatR;
 
 namespace EscolaAtenta.Application.Turmas.Queries;
@@ -13,56 +14,90 @@ public record RelatorioTurmaQuery(
     /// preservando compatibilidade com apps Android ainda não atualizados durante
     /// o rollout OTA.
     ///
-    /// Quando periodoLetivo é informado, ele é interpretado como trimestre (1..4).
-    /// Quando omitido, usa o trimestre corrente da data de hoje — equivalente
-    /// ao antigo comportamento de "período letivo atual da escola", sem depender
-    /// da entidade ConfiguracaoEscola removida. Isso evita que clientes legados
-    /// recebam silenciosamente o ano letivo inteiro após o OTA.
+    /// O <paramref name="tipoPeriodoLetivo"/> define se periodoLetivo representa
+    /// bimestre (1..6), trimestre (1..4) ou semestre (1..2).
+    /// Quando periodoLetivo é omitido, usa o período corrente da data de hoje
+    /// dentro da divisão configurada.
     /// </summary>
-    public static RelatorioTurmaQuery DePeriodoLetivo(Guid turmaId, int anoLetivo, int? periodoLetivo = null)
+    public static RelatorioTurmaQuery DePeriodoLetivo(
+        Guid turmaId,
+        int anoLetivo,
+        TipoPeriodoLetivo tipoPeriodoLetivo,
+        int? periodoLetivo = null)
     {
         DateTime inicio;
         DateTime fim;
 
         if (periodoLetivo.HasValue)
         {
-            // Interpretação legada: período = trimestre (1..4)
-            var trimestre = Math.Clamp(periodoLetivo.Value, 1, 4);
-            (inicio, fim) = IntervaloTrimestre(anoLetivo, trimestre);
+            (inicio, fim) = IntervaloPeriodoLetivo(anoLetivo, tipoPeriodoLetivo, periodoLetivo.Value);
         }
         else
         {
-            // Período omitido: simula "período letivo atual" usando o trimestre de hoje.
             var hoje = DateTime.Today;
-            var trimestreAtual = hoje.Year == anoLetivo
-                ? TrimestreDeData(hoje)
+            var periodoAtual = hoje.Year == anoLetivo
+                ? PeriodoDeData(hoje, tipoPeriodoLetivo)
                 : 1;
-            (inicio, fim) = IntervaloTrimestre(anoLetivo, trimestreAtual);
+            (inicio, fim) = IntervaloPeriodoLetivo(anoLetivo, tipoPeriodoLetivo, periodoAtual);
         }
 
         return new RelatorioTurmaQuery(turmaId, inicio, fim);
     }
 
-    private static int TrimestreDeData(DateTime data)
+    private static int PeriodoDeData(DateTime data, TipoPeriodoLetivo tipo)
     {
-        return data.Month switch
+        return tipo switch
         {
-            >= 1 and <= 3 => 1,
-            >= 4 and <= 6 => 2,
-            >= 7 and <= 9 => 3,
-            _ => 4
+            TipoPeriodoLetivo.Bimestre => data.Month switch
+            {
+                >= 1 and <= 2 => 1,
+                >= 3 and <= 4 => 2,
+                >= 5 and <= 6 => 3,
+                >= 7 and <= 8 => 4,
+                >= 9 and <= 10 => 5,
+                _ => 6
+            },
+            TipoPeriodoLetivo.Trimestre => data.Month switch
+            {
+                >= 1 and <= 3 => 1,
+                >= 4 and <= 6 => 2,
+                >= 7 and <= 9 => 3,
+                _ => 4
+            },
+            TipoPeriodoLetivo.Semestre => data.Month <= 6 ? 1 : 2,
+            _ => PeriodoDeData(data, TipoPeriodoLetivo.Trimestre)
         };
     }
 
-    private static (DateTime Inicio, DateTime Fim) IntervaloTrimestre(int ano, int trimestre)
+    private static (DateTime Inicio, DateTime Fim) IntervaloPeriodoLetivo(
+        int ano,
+        TipoPeriodoLetivo tipo,
+        int periodo)
     {
-        return trimestre switch
+        return tipo switch
         {
-            1 => (new DateTime(ano, 1, 1), new DateTime(ano, 3, 31)),
-            2 => (new DateTime(ano, 4, 1), new DateTime(ano, 6, 30)),
-            3 => (new DateTime(ano, 7, 1), new DateTime(ano, 9, 30)),
-            4 => (new DateTime(ano, 10, 1), new DateTime(ano, 12, 31)),
-            _ => (new DateTime(ano, 1, 1), new DateTime(ano, 3, 31))
+            TipoPeriodoLetivo.Bimestre => periodo switch
+            {
+                <= 1 => (new DateTime(ano, 1, 1), new DateTime(ano, 2, 28)),
+                2 => (new DateTime(ano, 3, 1), new DateTime(ano, 4, 30)),
+                3 => (new DateTime(ano, 5, 1), new DateTime(ano, 6, 30)),
+                4 => (new DateTime(ano, 7, 1), new DateTime(ano, 8, 31)),
+                5 => (new DateTime(ano, 9, 1), new DateTime(ano, 10, 31)),
+                >= 6 => (new DateTime(ano, 11, 1), new DateTime(ano, 12, 31))
+            },
+            TipoPeriodoLetivo.Trimestre => periodo switch
+            {
+                <= 1 => (new DateTime(ano, 1, 1), new DateTime(ano, 3, 31)),
+                2 => (new DateTime(ano, 4, 1), new DateTime(ano, 6, 30)),
+                3 => (new DateTime(ano, 7, 1), new DateTime(ano, 9, 30)),
+                >= 4 => (new DateTime(ano, 10, 1), new DateTime(ano, 12, 31))
+            },
+            TipoPeriodoLetivo.Semestre => periodo switch
+            {
+                <= 1 => (new DateTime(ano, 1, 1), new DateTime(ano, 6, 30)),
+                >= 2 => (new DateTime(ano, 7, 1), new DateTime(ano, 12, 31))
+            },
+            _ => IntervaloPeriodoLetivo(ano, TipoPeriodoLetivo.Trimestre, periodo)
         };
     }
 }

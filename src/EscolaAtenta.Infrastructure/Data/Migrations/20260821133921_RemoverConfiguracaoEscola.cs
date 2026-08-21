@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -6,51 +6,20 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace EscolaAtenta.Infrastructure.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class RemoverConfiguracaoEscolaECamposTrimestre : Migration
+    public partial class RemoverConfiguracaoEscola : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "ConfiguracoesEscola");
-
-            migrationBuilder.DropColumn(
-                name: "AtrasosNoTrimestre",
-                table: "Alunos");
-
-            migrationBuilder.DropColumn(
-                name: "DataInicioTrimestre",
-                table: "Alunos");
-
-            migrationBuilder.DropColumn(
-                name: "FaltasNoTrimestre",
-                table: "Alunos");
+            // A tabela pode não existir em bancos que nunca receberam a migration
+            // intermediária; DROP TABLE incondicional falharia na atualização do
+            // servidor em produção.
+            migrationBuilder.Sql("DROP TABLE IF EXISTS \"ConfiguracoesEscola\";");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "AtrasosNoTrimestre",
-                table: "Alunos",
-                type: "INTEGER",
-                nullable: false,
-                defaultValue: 0);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "DataInicioTrimestre",
-                table: "Alunos",
-                type: "TEXT",
-                nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
-
-            migrationBuilder.AddColumn<int>(
-                name: "FaltasNoTrimestre",
-                table: "Alunos",
-                type: "INTEGER",
-                nullable: false,
-                defaultValue: 0);
-
             migrationBuilder.CreateTable(
                 name: "ConfiguracoesEscola",
                 columns: table => new

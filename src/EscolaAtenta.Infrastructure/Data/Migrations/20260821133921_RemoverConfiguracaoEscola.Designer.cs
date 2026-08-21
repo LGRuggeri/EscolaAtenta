@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EscolaAtenta.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260820164111_RemoverConfiguracaoEscolaECamposTrimestre")]
-    partial class RemoverConfiguracaoEscolaECamposTrimestre
+    [Migration("20260821133921_RemoverConfiguracaoEscola")]
+    partial class RemoverConfiguracaoEscola
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -119,6 +119,9 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(true);
 
+                    b.Property<int>("AtrasosNoTrimestre")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime?>("CloudSyncedAt")
                         .HasColumnType("TEXT");
 
@@ -131,6 +134,9 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                     b.Property<DateTimeOffset?>("DataExclusao")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime>("DataInicioTrimestre")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("EscolaId")
                         .HasColumnType("TEXT");
 
@@ -138,6 +144,9 @@ namespace EscolaAtenta.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(0);
+
+                    b.Property<int>("FaltasNoTrimestre")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Matricula")
                         .HasMaxLength(50)

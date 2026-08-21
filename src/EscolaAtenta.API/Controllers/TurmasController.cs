@@ -1,6 +1,7 @@
 using EscolaAtenta.Application.Turmas.Commands;
 using EscolaAtenta.Application.Turmas.DTOs;
 using EscolaAtenta.Application.Turmas.Queries;
+using EscolaAtenta.Domain.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,10 +16,12 @@ namespace EscolaAtenta.API.Controllers;
 public class TurmasController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IPeriodoLetivoProvider _periodoLetivoProvider;
 
-    public TurmasController(IMediator mediator)
+    public TurmasController(IMediator mediator, IPeriodoLetivoProvider periodoLetivoProvider)
     {
         _mediator = mediator;
+        _periodoLetivoProvider = periodoLetivoProvider;
     }
 
     /// <summary>
@@ -107,7 +110,8 @@ public class TurmasController : ControllerBase
         }
         else if (anoLetivo.HasValue)
         {
-            query = RelatorioTurmaQuery.DePeriodoLetivo(id, anoLetivo.Value, periodoLetivo);
+            var tipoPeriodo = _periodoLetivoProvider.ObterTipoPeriodoLetivo();
+            query = RelatorioTurmaQuery.DePeriodoLetivo(id, anoLetivo.Value, tipoPeriodo, periodoLetivo);
         }
         else
         {

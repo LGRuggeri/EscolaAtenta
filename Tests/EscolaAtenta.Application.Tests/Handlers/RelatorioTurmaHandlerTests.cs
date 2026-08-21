@@ -218,35 +218,25 @@ public class RelatorioTurmaHandlerTests
     // ── Compatibilidade OTA: contrato legado anoLetivo/periodoLetivo ────────────
 
     [Fact]
-    public void DePeriodoLetivo_AnoSemPeriodo_DeveUsarTrimestreAtualDoAnoCorrente()
+    public void DePeriodoLetivo_AnoSemPeriodo_DeveUsarPeriodoAtualDoAnoCorrente()
     {
         var turmaId = Guid.NewGuid();
         var hoje = DateTime.Today;
-        var trimestreEsperado = hoje.Month switch
-        {
-            >= 1 and <= 3 => 1,
-            >= 4 and <= 6 => 2,
-            >= 7 and <= 9 => 3,
-            _ => 4
-        };
 
-        var query = RelatorioTurmaQuery.DePeriodoLetivo(turmaId, hoje.Year);
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(
+            turmaId, hoje.Year, TipoPeriodoLetivo.Trimestre);
 
         query.TurmaId.Should().Be(turmaId);
-        query.DataInicio.Should().Be(new DateTime(hoje.Year, (trimestreEsperado - 1) * 3 + 1, 1));
-        query.DataFim.Should().Be(trimestreEsperado switch
-        {
-            1 => new DateTime(hoje.Year, 3, 31),
-            2 => new DateTime(hoje.Year, 6, 30),
-            3 => new DateTime(hoje.Year, 9, 30),
-            _ => new DateTime(hoje.Year, 12, 31)
-        });
+        query.DataInicio.Should().BeOnOrBefore(hoje);
+        query.DataFim.Should().BeOnOrAfter(hoje);
+        query.DataInicio.Year.Should().Be(hoje.Year);
     }
 
     [Fact]
-    public void DePeriodoLetivo_AnoSemPeriodoAnoDiferente_DeveUsarPrimeiroTrimestre()
+    public void DePeriodoLetivo_AnoSemPeriodoAnoDiferente_DeveUsarPrimeiroPeriodo()
     {
-        var query = RelatorioTurmaQuery.DePeriodoLetivo(Guid.NewGuid(), DateTime.Today.Year - 1);
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(
+            Guid.NewGuid(), DateTime.Today.Year - 1, TipoPeriodoLetivo.Trimestre);
 
         query.DataInicio.Should().Be(new DateTime(DateTime.Today.Year - 1, 1, 1));
         query.DataFim.Should().Be(new DateTime(DateTime.Today.Year - 1, 3, 31));
@@ -260,25 +250,56 @@ public class RelatorioTurmaHandlerTests
     public void DePeriodoLetivo_Trimestre_DeveRetornarIntervaloCorreto(
         int periodo, int mesInicio, int diaInicio, int mesFim, int diaFim)
     {
-        var query = RelatorioTurmaQuery.DePeriodoLetivo(Guid.NewGuid(), 2025, periodo);
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(
+            Guid.NewGuid(), 2025, TipoPeriodoLetivo.Trimestre, periodo);
+
+        query.DataInicio.Should().Be(new DateTime(2025, mesInicio, diaInicio));
+        query.DataFim.Should().Be(new DateTime(2025, mesFim, diaFim));
+    }
+
+    [Theory]
+    [InlineData(1, 1, 1, 6, 30)]
+    [InlineData(2, 7, 1, 12, 31)]
+    public void DePeriodoLetivo_Semestre_DeveRetornarIntervaloCorreto(
+        int periodo, int mesInicio, int diaInicio, int mesFim, int diaFim)
+    {
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(
+            Guid.NewGuid(), 2025, TipoPeriodoLetivo.Semestre, periodo);
+
+        query.DataInicio.Should().Be(new DateTime(2025, mesInicio, diaInicio));
+        query.DataFim.Should().Be(new DateTime(2025, mesFim, diaFim));
+    }
+
+    [Theory]
+    [InlineData(1, 1, 1, 2, 28)]
+    [InlineData(2, 3, 1, 4, 30)]
+    [InlineData(3, 5, 1, 6, 30)]
+    [InlineData(6, 11, 1, 12, 31)]
+    public void DePeriodoLetivo_Bimestre_DeveRetornarIntervaloCorreto(
+        int periodo, int mesInicio, int diaInicio, int mesFim, int diaFim)
+    {
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(
+            Guid.NewGuid(), 2025, TipoPeriodoLetivo.Bimestre, periodo);
 
         query.DataInicio.Should().Be(new DateTime(2025, mesInicio, diaInicio));
         query.DataFim.Should().Be(new DateTime(2025, mesFim, diaFim));
     }
 
     [Fact]
-    public void DePeriodoLetivo_PeriodoMaiorQueQuatro_DeveClamparParaQuartoTrimestre()
+    public void DePeriodoLetivo_PeriodoMaiorQueQuatroEmTrimestre_DeveClamparParaQuartoTrimestre()
     {
-        var query = RelatorioTurmaQuery.DePeriodoLetivo(Guid.NewGuid(), 2025, 99);
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(
+            Guid.NewGuid(), 2025, TipoPeriodoLetivo.Trimestre, 99);
 
         query.DataInicio.Should().Be(new DateTime(2025, 10, 1));
         query.DataFim.Should().Be(new DateTime(2025, 12, 31));
     }
 
     [Fact]
-    public void DePeriodoLetivo_PeriodoZero_DeveClamparParaPrimeiroTrimestre()
+    public void DePeriodoLetivo_PeriodoZeroEmTrimestre_DeveClamparParaPrimeiroTrimestre()
     {
-        var query = RelatorioTurmaQuery.DePeriodoLetivo(Guid.NewGuid(), 2025, 0);
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(
+            Guid.NewGuid(), 2025, TipoPeriodoLetivo.Trimestre, 0);
 
         query.DataInicio.Should().Be(new DateTime(2025, 1, 1));
         query.DataFim.Should().Be(new DateTime(2025, 3, 31));

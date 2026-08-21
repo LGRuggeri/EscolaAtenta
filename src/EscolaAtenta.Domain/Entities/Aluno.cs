@@ -67,6 +67,27 @@ public class Aluno : EntityBase, ISoftDeletable
     /// </summary>
     public int TotalFaltas { get; private set; }
 
+    // ── Campos legados (compatibilidade OTA com app v3) ───────────────────────
+    /// <summary>
+    /// Mantido físico no banco para reconstruir contadores trimestrais legados
+    /// durante o sync pull. Não é mais usado pela lógica de alertas.
+    /// </summary>
+    [Obsolete("Campo legado usado apenas para compatibilidade com clientes v3.")]
+    public int FaltasNoTrimestre { get; private set; }
+
+    /// <summary>
+    /// Mantido físico no banco para compatibilidade com clientes v3.
+    /// </summary>
+    [Obsolete("Campo legado usado apenas para compatibilidade com clientes v3.")]
+    public int AtrasosNoTrimestre { get; private set; }
+
+    /// <summary>
+    /// Data de início do ciclo trimestral legado. Usada para reconstruir o
+    /// período rolante de 90 dias exibido pelo app v3.
+    /// </summary>
+    [Obsolete("Campo legado usado apenas para compatibilidade com clientes v3.")]
+    public DateTime DataInicioTrimestre { get; private set; }
+
     // ── ISoftDeletable ─────────────────────────────────────────────────────────
     public bool Ativo { get; private set; }
     public DateTimeOffset? DataExclusao { get; private set; }
