@@ -245,7 +245,9 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             .GroupBy(r => new
             {
                 TurmaGuid = ResolveGuid(r.TurmaId),
-                Dia = ConvertTimestamp(r.Data).Date
+                // DataChamada é DateTime (parte da data UTC). Normaliza para o mesmo tipo
+                // para garantir comparação correta com chamadas existentes.
+                Dia = ConvertTimestamp(r.Data).UtcDateTime.Date
             })
             .ToList();
 

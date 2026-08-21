@@ -69,6 +69,13 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Usuario>()
                     .HasQueryFilter(u => u.Ativo);
 
+        // NOTA: O EF Core emite warnings sobre "required end of a relationship with a filtered entity"
+        // para relacionamentos como Turma->Chamada, Aluno->RegistroPresenca, Usuario->RefreshToken/UsuarioTurma.
+        // Adicionar query filters correspondentes nas entidades filhas eliminaria os warnings, mas
+        // mudaria o comportamento das queries de forma sutil (ex.: esconder chamadas de turmas inativas,
+        // exigir que todo UsuarioTurma tenha usuario/turma no banco, etc.).
+        // Optamos por manter o comportamento atual e monitorar; os warnings não causam erros de runtime.
+
         // A inicialização do Administrador e a senha forte são gerenciadas agora pelo DatabaseSeeder
         // durante o pipeline de startup em Program.cs para garantir senhas aleatórias e seguras.
     }

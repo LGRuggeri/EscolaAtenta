@@ -22,30 +22,42 @@ public class GetTurmasFrequenciaPerfeitaQueryHandler : IRequestHandler<GetTurmas
 
     public async Task<IEnumerable<TurmaFrequenciaPerfeitaDto>> Handle(GetTurmasFrequenciaPerfeitaQuery request, CancellationToken cancellationToken)
     {
-        // SQLite suporta comparação de long (UtcTicks) em LINQ — evita carregar tudo em memória
-        var inicioTicks = request.DataInicio.ToUniversalTime().Ticks;
-        var fimTicks = request.DataFim.ToUniversalTime().Ticks;
+        // O provider SQLite do EF Core não traduz UtcTicks em projeção sobre coleção de navegação.
+        // Como o volume de dados de uma escola é pequeno, carregamos as chamadas do período em memória
+        // e fazemos a projeção final em LINQ-to-Objects, garantindo compatibilidade com SQLite.
+        var inicioUtc = request.DataInicio.ToUniversalTime();
+        var fimUtc = request.DataFim.ToUniversalTime();
 
-        // Projeção direta no banco: conta chamadas por turma no período e verifica se há falta/atraso
-        var resultado = await _context.Turmas
+        var turmas = await _context.Turmas
             .AsNoTracking()
-            .Select(t => new
+            .ToDictionaryAsync(t => t.Id, cancellationToken);
+
+        // Carrega todas as chamadas (volume reduzido) e filtra o período em memória,
+        // evitando tradução de DateTimeOffset no provider SQLite.
+        var chamadasDoPeriodo = (await _context.Chamadas
+            .AsNoTracking()
+            .Include(c => c.RegistrosPresenca)
+            .ToListAsync(cancellationToken))
+            .Where(c => c.DataHora >= inicioUtc && c.DataHora <= fimUtc)
+            .ToList();
+
+        var resultado = chamadasDoPeriodo
+            .Where(c => turmas.ContainsKey(c.TurmaId))
+            .GroupBy(c => c.TurmaId)
+            .Select(g => new
             {
-                t.Id,
-                t.Nome,
-                QuantidadeChamadas = t.Chamadas
-                    .Count(c => c.DataHora.UtcTicks >= inicioTicks && c.DataHora.UtcTicks <= fimTicks),
-                TemFaltaOuAtraso = t.Chamadas
-                    .Any(c => c.DataHora.UtcTicks >= inicioTicks && c.DataHora.UtcTicks <= fimTicks
-                           && c.RegistrosPresenca.Any(rp =>
-                               rp.Status == StatusPresenca.Falta ||
-                               rp.Status == StatusPresenca.Atraso))
+                TurmaId = g.Key,
+                QuantidadeChamadas = g.Count(),
+                TemFaltaOuAtraso = g.Any(c => c.RegistrosPresenca.Any(rp =>
+                    rp.Status == StatusPresenca.Falta ||
+                    rp.Status == StatusPresenca.Atraso))
             })
             .Where(t => t.QuantidadeChamadas > 0 && !t.TemFaltaOuAtraso)
             .OrderByDescending(t => t.QuantidadeChamadas)
-            .ThenBy(t => t.Nome)
-            .ToListAsync(cancellationToken);
+            .ThenBy(t => turmas[t.TurmaId].Nome)
+            .Select(t => new TurmaFrequenciaPerfeitaDto(t.TurmaId, turmas[t.TurmaId].Nome, t.QuantidadeChamadas))
+            .ToList();
 
-        return resultado.Select(t => new TurmaFrequenciaPerfeitaDto(t.Id, t.Nome, t.QuantidadeChamadas));
+        return resultado;
     }
 }

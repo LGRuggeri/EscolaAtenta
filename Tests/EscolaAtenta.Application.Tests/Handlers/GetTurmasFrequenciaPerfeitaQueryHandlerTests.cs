@@ -4,22 +4,30 @@ using EscolaAtenta.Application.Tests.Fakes;
 using EscolaAtenta.Domain.Entities;
 using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Infrastructure.Data;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace EscolaAtenta.Application.Tests.Handlers;
 
 /// <summary>
-/// Usa InMemoryDatabase pois o handler faz subquery com UtcTicks em collection navigation
-/// que o provider SQLite não traduz.
-///
-/// Para evitar DbUpdateConcurrencyException no InMemory, criamos Chamada + RegistroPresenca
-/// em um único SaveChangesAsync (via Chamada.RegistrarPresenca ANTES de Add ao contexto).
+/// Usa SQLite in-memory para garantir que a query do handler seja traduzível
+/// pelo provider real usado em produção.
 /// </summary>
-public class GetTurmasFrequenciaPerfeitaQueryHandlerTests
+public class GetTurmasFrequenciaPerfeitaQueryHandlerTests : IDisposable
 {
-    private static AppDbContext CriarContexto() =>
+    private readonly SqliteConnection _connection;
+
+    public GetTurmasFrequenciaPerfeitaQueryHandlerTests()
+    {
+        _connection = new SqliteConnection("DataSource=:memory:");
+        _connection.Open();
+    }
+
+    public void Dispose() => _connection.Dispose();
+
+    private AppDbContext CriarContexto() =>
         new(new DbContextOptionsBuilder<AppDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options,
+                .UseSqlite(_connection).Options,
             new FakeCurrentUserService(),
             new FakeMediator(),
             new FakeTenantProvider());
@@ -30,10 +38,6 @@ public class GetTurmasFrequenciaPerfeitaQueryHandlerTests
         new(new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 3, 31, 23, 59, 59, DateTimeKind.Utc));
 
-    /// <summary>
-    /// Cria chamada + presença atomicamente antes de adicionar ao contexto.
-    /// Evita o ConcurrencyException do InMemory ao não salvar Chamada antes de adicionar RegistroPresenca.
-    /// </summary>
     private static async Task SeedChamadaComPresenca(
         AppDbContext ctx, Guid turmaId, Guid alunoId,
         DateTimeOffset dataHora, StatusPresenca status)
@@ -49,6 +53,7 @@ public class GetTurmasFrequenciaPerfeitaQueryHandlerTests
     public async Task Handle_SemChamadas_DeveRetornarVazio()
     {
         await using var ctx = CriarContexto();
+        ctx.Database.EnsureCreated();
         ctx.Turmas.Add(new Turma(Guid.NewGuid(), "Turma Sem Chamadas", "Manhã", 2026));
         await ctx.SaveChangesAsync();
         ctx.ChangeTracker.Clear();
@@ -62,6 +67,7 @@ public class GetTurmasFrequenciaPerfeitaQueryHandlerTests
     public async Task Handle_TurmaComApenasPresentesNoPeriodo_DeveRetornar()
     {
         await using var ctx = CriarContexto();
+        ctx.Database.EnsureCreated();
         var turmaId = Guid.NewGuid();
         var alunoId = Guid.NewGuid();
         ctx.Turmas.Add(new Turma(turmaId, "Turma Perfeita", "Manhã", 2026));
@@ -84,6 +90,7 @@ public class GetTurmasFrequenciaPerfeitaQueryHandlerTests
     public async Task Handle_TurmaComFaltaNoPeriodo_NaoDeveRetornar()
     {
         await using var ctx = CriarContexto();
+        ctx.Database.EnsureCreated();
         var turmaId = Guid.NewGuid();
         var alunoId = Guid.NewGuid();
         ctx.Turmas.Add(new Turma(turmaId, "Turma Com Falta", "Manhã", 2026));
@@ -103,6 +110,7 @@ public class GetTurmasFrequenciaPerfeitaQueryHandlerTests
     public async Task Handle_TurmaComAtrasoNoPeriodo_NaoDeveRetornar()
     {
         await using var ctx = CriarContexto();
+        ctx.Database.EnsureCreated();
         var turmaId = Guid.NewGuid();
         var alunoId = Guid.NewGuid();
         ctx.Turmas.Add(new Turma(turmaId, "Turma Com Atraso", "Manhã", 2026));
@@ -122,6 +130,7 @@ public class GetTurmasFrequenciaPerfeitaQueryHandlerTests
     public async Task Handle_ChamadaForaDoPeriodo_NaoDeveContar()
     {
         await using var ctx = CriarContexto();
+        ctx.Database.EnsureCreated();
         var turmaId = Guid.NewGuid();
         var alunoId = Guid.NewGuid();
         ctx.Turmas.Add(new Turma(turmaId, "Turma Fora Periodo", "Manhã", 2026));
