@@ -29,9 +29,7 @@ export interface AlunoDto {
     matricula: string;
     turmaId: string;
     faltasConsecutivasAtuais: number;
-    faltasNoTrimestre: number;
     totalFaltas: number;
-    atrasosNoTrimestre: number;
 }
 
 export interface RegistroPresencaPayload {
@@ -97,29 +95,19 @@ export interface TurmaFrequenciaPerfeitaDto {
  * DTO do endpoint GET /api/v1/alertas/auditoria.
  * Representa um alerta já resolvido, com informações de responsabilidade e motivo.
  *
- * - tipoAlerta: "Evasao" | "Atraso" (string — não enum numérico)
+ * - tipoAlerta: "Evasao" (string — não enum numérico)
  * - nivelAlerta: "Aviso" | "Intermediario" | "Vermelho" | "Preto" (string)
  * - resolvidoPor: e-mail do usuário que resolveu, ou "Sistema"
  */
 export interface AuditoriaAlertaDto {
     id: string;
     nomeAluno: string;
-    tipoAlerta: string;        // "Evasao" | "Atraso"
+    tipoAlerta: string;        // "Evasao"
     dataResolucao: string;     // ISO 8601 UTC
     resolvidoPor: string;      // e-mail ou "Sistema"
     motivoResolucao: string;
     nivelAlerta: string;       // "Aviso" | "Intermediario" | "Vermelho" | "Preto"
     dataAlerta: string;        // ISO 8601 UTC
-}
-
-export interface PeriodoLetivoDisponivelDto {
-    numero: number;
-    descricao: string;
-}
-
-export interface PeriodosLetivosDisponiveisDto {
-    tipoPeriodoLetivo: string;
-    periodos: PeriodoLetivoDisponivelDto[];
 }
 
 export interface RelatorioTurmaAlunoDto {

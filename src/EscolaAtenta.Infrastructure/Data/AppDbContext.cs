@@ -47,7 +47,6 @@ public class AppDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<UsuarioTurma> UsuarioTurmas => Set<UsuarioTurma>();
     public DbSet<AlunoTurmaHistorico> AlunosTurmasHistorico => Set<AlunoTurmaHistorico>();
-    public DbSet<ConfiguracaoEscola> ConfiguracoesEscola => Set<ConfiguracaoEscola>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -69,6 +68,13 @@ public class AppDbContext : DbContext
         // Global Query Filter para Usuario - so retorna usuarios ativos
         modelBuilder.Entity<Usuario>()
                     .HasQueryFilter(u => u.Ativo);
+
+        // NOTA: O EF Core emite warnings sobre "required end of a relationship with a filtered entity"
+        // para relacionamentos como Turma->Chamada, Aluno->RegistroPresenca, Usuario->RefreshToken/UsuarioTurma.
+        // Adicionar query filters correspondentes nas entidades filhas eliminaria os warnings, mas
+        // mudaria o comportamento das queries de forma sutil (ex.: esconder chamadas de turmas inativas,
+        // exigir que todo UsuarioTurma tenha usuario/turma no banco, etc.).
+        // Optamos por manter o comportamento atual e monitorar; os warnings não causam erros de runtime.
 
         // A inicialização do Administrador e a senha forte são gerenciadas agora pelo DatabaseSeeder
         // durante o pipeline de startup em Program.cs para garantir senhas aleatórias e seguras.
@@ -175,7 +181,6 @@ public class AppDbContext : DbContext
                 var chave = evt switch
                 {
                     LimiteFaltasAtingidoEvent e => $"{e.AlunoId}:{nameof(LimiteFaltasAtingidoEvent)}",
-                    LimiteAtrasosAtingidoEvent e => $"{e.AlunoId}:{nameof(LimiteAtrasosAtingidoEvent)}",
                     _ => string.Empty
                 };
 

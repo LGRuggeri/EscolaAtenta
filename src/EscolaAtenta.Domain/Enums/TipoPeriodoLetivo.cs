@@ -1,14 +1,13 @@
 namespace EscolaAtenta.Domain.Enums;
 
 /// <summary>
-/// Representa a divisão do ano letivo adotada pela escola.
-/// 
-/// Decisão: valores inteiros explícitos para garantir estabilidade do schema.
-/// Nunca reordenar ou remover valores — apenas adicionar novos.
+/// Tipo de divisão do ano letivo usado pela escola.
+/// Mantido como enum legado para compatibilidade com clientes antigos
+/// que ainda enviam periodoLetivo no relatório por período.
 /// </summary>
 public enum TipoPeriodoLetivo
 {
-    Bimestre = 0,
-    Trimestre = 1,
-    Semestre = 2
+    Bimestre = 1,
+    Trimestre = 2,
+    Semestre = 3
 }

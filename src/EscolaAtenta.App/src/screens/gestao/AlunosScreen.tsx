@@ -39,9 +39,7 @@ export function AlunosScreen() {
             .query(Q.where('turma_id', turmaId))
             .observeWithColumns([
                 'faltas_consecutivas_atuais',
-                'faltas_no_trimestre',
                 'total_faltas',
-                'atrasos_no_trimestre',
                 'nome',
             ])
             .subscribe(rows => {
@@ -51,9 +49,7 @@ export function AlunosScreen() {
                     turmaId: a.turmaId,
                     matricula: '',
                     faltasConsecutivasAtuais: a.faltasConsecutivasAtuais ?? 0,
-                    faltasNoTrimestre: a.faltasNoTrimestre ?? 0,
                     totalFaltas: a.totalFaltas ?? 0,
-                    atrasosNoTrimestre: a.atrasosNoTrimestre ?? 0,
                 })));
                 setLoading(false);
             });
@@ -82,8 +78,7 @@ export function AlunosScreen() {
                 </View>
                 <View style={styles.statsRow}>
                     <StatBadge icon="alert-circle" label="Seq." value={item.faltasConsecutivasAtuais} color={theme.colors.error} />
-                    <StatBadge icon="calendar-remove" label="Trim." value={item.faltasNoTrimestre} color={theme.colors.warning} />
-                    <StatBadge icon="clock-alert" label="Atrasos" value={item.atrasosNoTrimestre} color={theme.colors.info} />
+                    <StatBadge icon="calendar-remove" label="Total" value={item.totalFaltas} color={theme.colors.warning} />
                 </View>
             </Card.Content>
         </Card>

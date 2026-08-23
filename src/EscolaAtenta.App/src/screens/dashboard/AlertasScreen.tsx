@@ -31,12 +31,15 @@ import { theme, palette } from '../../theme/colors';
 
 const PAGE_SIZE = 20;
 
-type FiltroAtivo = 'TODOS' | 'FALTAS' | 'ATRASOS';
+type FiltroAtivo = 'TODOS' | 'FALTAS';
+
+function isAlertaAtraso(item: AlertaDto): boolean {
+    return item.tipo === TipoAlerta.Atraso;
+}
 
 function getBorderColor(item: AlertaDto): string {
-    if (item.tipo === TipoAlerta.Atraso) {
-        const nivel = parseNivelAlertaFalta(item.nivel);
-        return nivel >= 2 ? theme.colors.warning : theme.colors.border;
+    if (isAlertaAtraso(item)) {
+        return theme.colors.warning;
     }
     const nivel = parseNivelAlertaFalta(item.nivel);
     if (nivel >= 5) return theme.colors.primaryDark;
@@ -51,9 +54,8 @@ function getBorderColor(item: AlertaDto): string {
 
 function getTituloExibicao(item: AlertaDto): string {
     if (item.tituloAmigavel) return item.tituloAmigavel;
-    if (item.tipo === TipoAlerta.Atraso) {
-        const nivel = parseNivelAlertaFalta(item.nivel);
-        return nivel >= 2 ? 'Atrasos Reincidentes' : 'Aviso de Atrasos';
+    if (isAlertaAtraso(item)) {
+        return 'Alerta de Atraso (legado)';
     }
     const nivel = parseNivelAlertaFalta(item.nivel);
     if (nivel >= 5) return 'Risco Crítico - Ação Legal';
@@ -80,7 +82,7 @@ function formatData(isoDate: string): string {
 }
 
 function getAlertIcon(item: AlertaDto): keyof typeof MaterialCommunityIcons.glyphMap {
-    if (item.tipo === TipoAlerta.Atraso) return 'clock-alert-outline';
+    if (isAlertaAtraso(item)) return 'clock-alert-outline';
     const nivel = parseNivelAlertaFalta(item.nivel);
     if (nivel >= 5) return 'alert-octagon';
     if (nivel >= NivelAlertaFalta.Vermelho) return 'alert-circle';
@@ -113,14 +115,12 @@ export function AlertasScreen() {
 
     const alertasFiltrados = useMemo(() => {
         if (filtroAtivo === 'FALTAS') return alertas.filter(a => a.tipo === TipoAlerta.Evasao);
-        if (filtroAtivo === 'ATRASOS') return alertas.filter(a => a.tipo === TipoAlerta.Atraso);
         return alertas;
     }, [alertas, filtroAtivo]);
 
     const contadores = useMemo(() => ({
         todos: alertas.length,
         faltas: alertas.filter(a => a.tipo === TipoAlerta.Evasao).length,
-        atrasos: alertas.filter(a => a.tipo === TipoAlerta.Atraso).length,
     }), [alertas]);
 
     const carregarAlertas = useCallback(async () => {
@@ -231,8 +231,8 @@ export function AlertasScreen() {
     const renderItem = ({ item }: { item: AlertaDto }) => {
         const borderColor = getBorderColor(item);
         const tituloExibicao = getTituloExibicao(item);
-        const isAtraso = item.tipo === TipoAlerta.Atraso;
         const alertIcon = getAlertIcon(item);
+        const isAtraso = isAlertaAtraso(item);
 
         return (
             <Pressable onPress={() => openModal(item)}>
@@ -292,7 +292,6 @@ export function AlertasScreen() {
         const configs: Record<FiltroAtivo, { icon: keyof typeof MaterialCommunityIcons.glyphMap; text: string }> = {
             TODOS: { icon: 'check-circle-outline', text: 'Nenhuma situação de risco detectada.' },
             FALTAS: { icon: 'book-check-outline', text: 'Nenhum alerta de falta pendente.' },
-            ATRASOS: { icon: 'clock-check-outline', text: 'Nenhum alerta de atraso pendente.' },
         };
         const { icon, text } = configs[filtroAtivo];
         return (
@@ -324,7 +323,6 @@ export function AlertasScreen() {
                         buttons={[
                             { value: 'TODOS', label: `Todos (${contadores.todos})`, icon: 'format-list-bulleted' },
                             { value: 'FALTAS', label: `Faltas (${contadores.faltas})`, icon: 'close-circle-outline' },
-                            { value: 'ATRASOS', label: `Atrasos (${contadores.atrasos})`, icon: 'clock-alert-outline' },
                         ]}
                         style={styles.segmented}
                     />
@@ -389,8 +387,8 @@ export function AlertasScreen() {
                         <Text variant="titleLarge" style={styles.modalTitle}>Resolver Alerta</Text>
                         {alertaSelecionado && (
                             <StatusChip
-                                label={alertaSelecionado.tipo === TipoAlerta.Atraso ? 'Atraso' : 'Falta'}
-                                variant={alertaSelecionado.tipo === TipoAlerta.Atraso ? 'warning' : 'error'}
+                                label={isAlertaAtraso(alertaSelecionado) ? 'Atraso' : 'Falta'}
+                                variant={isAlertaAtraso(alertaSelecionado) ? 'warning' : 'error'}
                             />
                         )}
                     </View>

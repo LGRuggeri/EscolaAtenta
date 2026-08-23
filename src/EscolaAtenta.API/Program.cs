@@ -248,6 +248,7 @@ try
     builder.Services.AddScoped<DatabaseSeeder>();
     builder.Services.AddSingleton<ISqliteWriteLockProvider, SqliteWriteLockProvider>();
     builder.Services.AddSingleton<IEscolaTenantProvider, EscolaTenantProvider>();
+    builder.Services.AddSingleton<IPeriodoLetivoProvider, PeriodoLetivoProvider>();
 
     // ── Heartbeat e Cloud Sync (Observabilidade e Multi-Tenant Egress) ────────
     // Worker que envia sinais de "estou vivo" para a API na Nuvem a cada 15 min.

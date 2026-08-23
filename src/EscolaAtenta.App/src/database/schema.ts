@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 3,
+  version: 4,
   tables: [
     tableSchema({
       name: 'turmas',
@@ -18,9 +18,7 @@ export default appSchema({
         { name: 'nome', type: 'string' },
         { name: 'turma_id', type: 'string', isIndexed: true },
         { name: 'faltas_consecutivas_atuais', type: 'number' },
-        { name: 'faltas_no_trimestre', type: 'number' },
         { name: 'total_faltas', type: 'number' },
-        { name: 'atrasos_no_trimestre', type: 'number' },
       ],
     }),
     tableSchema({

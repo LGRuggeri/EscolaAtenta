@@ -9,11 +9,11 @@ O Escola Atenta permite que monitores realizem chamadas diarias pelo celular (An
 ### Funcionalidades Principais
 
 - **Chamada digital** — registro de presenca via app mobile com feedback haptico
-- **Alertas automaticos de evasao** — regras configuraveis (faltas consecutivas, percentual de ausencia)
+- **Alertas automaticos de evasao** — regras baseadas em faltas consecutivas
 - **Niveis de alerta** — Aviso, Intermediario, Vermelho, Preto (risco critico)
 - **Auditoria de alertas** — historico completo de tratativas com responsavel e justificativa
 - **Gestao de turmas, alunos e usuarios** — CRUD com controle de papeis (Monitor, Supervisao, Administrador)
-- **Relatorios de presenca** — consulta por aluno, turma e periodo
+- **Relatorios de presenca** — consulta por aluno, turma e intervalo de datas (data inicio / data fim)
 - **Quadro de Honra** — destaque para turmas com 100% de frequencia
 - **Sincronizacao offline-first** — WatermelonDB no mobile + sync bidirecional com servidor
 
@@ -155,11 +155,12 @@ dotnet test Tests/EscolaAtenta.Application.Tests
 ```json
 {
   "RegrasNegocio": {
-    "LimiteFaltasParaAlerta": 5,
-    "PercentualFaltasParaEvasao": 25
+    "LimiteFaltasParaAlerta": 5
   }
 }
 ```
+
+> Nota: o sistema nao utiliza mais periodo letivo fixo (bimestre/trimestre/semestre). Os relatorios de turma sao gerados a partir de um intervalo de datas informado pelo usuario.
 
 ### Servidor no App Mobile
 

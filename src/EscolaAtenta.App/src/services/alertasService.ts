@@ -29,7 +29,6 @@ export interface GetAuditoriaParams {
     pageNumber?: number;
     pageSize?: number;
     nomeAluno?: string;
-    tipo?: import('../types/enums').TipoAlerta;
     dataInicio?: string; // ISO 8601 — ex: "2026-01-01"
     dataFim?: string;    // ISO 8601 — ex: "2026-03-04"
     signal?: AbortSignal;
@@ -45,7 +44,7 @@ export const alertasService = {
      * @param params.pageNumber - Página a buscar, 1-indexed (default=1)
      * @param params.pageSize - Itens por página (default=20, máx=100 limitado pelo backend)
      * @param params.tipo - Filtra pelo TipoAlerta
-     * @param params.nivel - Subfiltro opcional. Efetivo apenas quando o tipo no BD for 'Evasao/Falta'
+     * @param params.nivel - Subfiltro opcional por nível de alerta
      *
      * Retorna PagedResult<AlertaDto> com hasNextPage para suporte a Infinite Scroll.
      */
@@ -93,7 +92,7 @@ export const alertasService = {
     getAuditoriaAlertas: async (
         params: GetAuditoriaParams = {}
     ): Promise<PagedResult<AuditoriaAlertaDto>> => {
-        const { pageNumber = 1, pageSize = 20, nomeAluno, tipo, dataInicio, dataFim, signal } = params;
+        const { pageNumber = 1, pageSize = 20, nomeAluno, dataInicio, dataFim, signal } = params;
 
         const response = await api.get<PagedResult<AuditoriaAlertaDto>>('/alertas/auditoria', {
             signal,
@@ -102,7 +101,6 @@ export const alertasService = {
                 pageSize,
                 // Envia apenas filtros com valor — parâmetros undefined são ignorados pelo axios
                 ...(nomeAluno ? { nomeAluno } : {}),
-                ...(tipo ? { tipo } : {}),
                 ...(dataInicio ? { dataInicio } : {}),
                 ...(dataFim ? { dataFim } : {}),
             },

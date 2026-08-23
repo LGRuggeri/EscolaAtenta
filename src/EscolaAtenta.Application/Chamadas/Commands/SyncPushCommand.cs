@@ -76,7 +76,7 @@ public class AlunoOfflineSyncDto
 /// - Id é alfanumérico (gerado pelo WatermelonDB, ex: "abc123xyz").
 /// - AlunoId e TurmaId são Guids reais do PostgreSQL, sincronizados previamente.
 /// - Data é um Unix timestamp em milissegundos (epoch ms do SQLite).
-/// - Status é string: "Presente", "Falta" ou "Atraso".
+/// - Status é string: "Presente", "Falta", "Atraso" ou "FaltaJustificada".
 /// </summary>
 public class RegistroPresencaSyncDto
 {

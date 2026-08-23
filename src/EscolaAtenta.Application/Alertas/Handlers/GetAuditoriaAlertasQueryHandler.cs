@@ -1,6 +1,7 @@
 using EscolaAtenta.Application.Alertas.Dtos;
 using EscolaAtenta.Application.Alertas.Queries;
 using EscolaAtenta.Application.Common;
+using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -8,12 +9,12 @@ using Microsoft.EntityFrameworkCore;
 namespace EscolaAtenta.Application.Alertas.Handlers;
 
 /// <summary>
-/// Handler de Read Model para auditoria de alertas resolvidos.
+/// Handler de Read Model para auditoria de alertas de evasão resolvidos.
 ///
 /// Decisões de design:
 /// 1. AsNoTracking() — somente leitura, nunca precisa rastrear mudanças.
 /// 2. Where(Resolvido == true) aplicado IMEDIATAMENTE na query base —
-///    aproveita o índice IX_AlertasEvasao_Auditoria (Resolvido, DataResolucao, Tipo).
+///    aproveita o índice IX_AlertasEvasao_Auditoria (Resolvido, DataResolucao).
 /// 3. EF.Functions.Like para NomeAluno — traduzido para LIKE no PostgreSQL,
 ///    evitando trazer todos os registros para filtrar em memória.
 /// 4. COUNT separado antes do Skip/Take — EF emite SELECT COUNT(*) + SELECT ...
@@ -43,6 +44,9 @@ public class GetAuditoriaAlertasQueryHandler
         // ── Base query — AsNoTracking + filtro imediato por Resolvido == true ──────────
         // O filtro Resolvido=true na query base maximiza o aproveitamento do
         // índice composto IX_AlertasEvasao_Auditoria(Resolvido, DataResolucao, Tipo).
+        // Auditoria mantém todos os tipos de alerta resolvidos, inclusive atraso
+        // legado, pois o front-end já os renderiza distintamente ("Atraso (legado)").
+        // Ocultar esses registros deixaria o histórico de resolução incompleto.
         var query = _context.AlertasEvasao
             .AsNoTracking()
             .Where(a => a.Resolvido);
@@ -55,11 +59,6 @@ public class GetAuditoriaAlertasQueryHandler
             // Não use .Contains() — pode gerar ILIKE ou comportamento inesperado.
             query = query.Where(a => a.Aluno != null &&
                 EF.Functions.Like(a.Aluno.Nome, $"%{request.NomeAluno}%"));
-        }
-
-        if (request.Tipo.HasValue)
-        {
-            query = query.Where(a => a.Tipo == request.Tipo.Value);
         }
 
         if (request.DataInicio.HasValue)

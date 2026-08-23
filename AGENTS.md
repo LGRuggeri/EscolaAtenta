@@ -9,17 +9,16 @@ O **Escola Atenta** é um sistema de monitoramento de frequência escolar e prev
 **Funcionalidades principais:**
 
 - Chamada digital via app mobile (Android) com feedback háptico.
-- Detecção automática de padrões de faltas/atrasos e alertas de evasão.
+- Detecção automática de padrões de faltas e alertas de evasão.
 - Níveis de alerta: Aviso, Intermediário, Vermelho e Preto (crítico).
 - Auditoria de alertas com responsável e justificativa.
 - Gestão de turmas, alunos e usuários com papéis (Monitor, Supervisão, Administrador).
-- Relatórios de presença por aluno, turma e período.
+- Relatórios de presença por aluno, turma e intervalo de datas.
 - Quadro de Honra para turmas com 100% de frequência.
 - Sincronização offline-first: WatermelonDB no mobile + sync bidirecional com servidor.
 - Histórico de turmas do aluno: registra mudanças de série, turno ou período preservando vínculos anteriores.
 - Migração individual e em lote de alunos entre turmas.
-- Configuração global do tipo de período letivo (bimestral, trimestral ou semestral).
-- Relatório de frequência por turma, ano letivo e período.
+- Relatório de frequência por turma e período de datas informado pelo usuário.
 
 **Idioma do projeto:** português. Código, comentários, documentação e mensagens de commit usam português como idioma principal, com termos técnicos em inglês quando apropriado (nomes de classes, métodos, pacotes NuGet/NPM, etc.).
 
@@ -356,8 +355,6 @@ Consulte `INSTALACAO.txt` para o passo a passo completo, incluindo:
 | `INSTALACAO.txt` | Guia de instalação e operação para escolas |
 | `README.md` | Documentação geral do projeto |
 | `src/EscolaAtenta.Domain/Entities/AlunoTurmaHistorico.cs` | Histórico de vínculos aluno-turma |
-| `src/EscolaAtenta.Domain/Entities/ConfiguracaoEscola.cs` | Configuração global do período letivo |
-| `src/EscolaAtenta.Domain/Common/CalendarioEscolar.cs` | Cálculo de períodos letivos |
-| `src/EscolaAtenta.Application/Turmas/Handlers/RelatorioTurmaHandler.cs` | Relatório de frequência por turma/ano/período |
+| `src/EscolaAtenta.Application/Turmas/Handlers/RelatorioTurmaHandler.cs` | Relatório de frequência por turma e intervalo de datas |
 | `src/EscolaAtenta.Application/Alunos/Handlers/TransferirAlunoHandler.cs` | Transferência individual de aluno entre turmas |
 | `src/EscolaAtenta.Application/Turmas/Handlers/MigrarTurmaHandler.cs` | Migração em lote entre turmas |

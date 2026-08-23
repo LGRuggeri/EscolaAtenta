@@ -21,11 +21,10 @@ namespace EscolaAtenta.Application.Chamadas.Handlers;
 ///    - Se Falta: Incrementa FaltasConsecutivasAtuais E TotalFaltas.
 ///      O Domínio chama VerificarLimiteFaltas() automaticamente.
 ///    - Se FaltaJustificada: Zera FaltasConsecutivasAtuais mas conta no TotalFaltas
-///    - Se Atraso: Incrementa AtrasosNoTrimestre.
-///      O Domínio chama VerificarLimiteAtrasos() automaticamente.
+///    - Se Atraso: Não impacta contadores de falta.
 /// 5. Persiste via SaveChangesAsync — que automaticamente:
 ///    a. Preenche campos de auditoria.
-///    b. Despacha Domain Events (LimiteFaltasAtingidoEvent ou LimiteAtrasosAtingidoEvent).
+///    b. Despacha Domain Events (LimiteFaltasAtingidoEvent).
 /// </summary>
 public class RegistrarPresencaHandler : IRequestHandler<RegistrarPresencaCommand, RegistrarPresencaResult>
 {
@@ -69,9 +68,9 @@ public class RegistrarPresencaHandler : IRequestHandler<RegistrarPresencaCommand
             ?? throw new DomainException($"Aluno '{request.AlunoId}' não encontrado.");
 
         // ── Atualiza contadores de falta na entidade Aluno ────────────────────
-        // RegistrarPresenca() delega internamente para RegistrarFalta(), RegistrarAtraso() etc.
-        // Cada um desses métodos chama VerificarLimiteFaltas() ou VerificarLimiteAtrasos()
-        // automaticamente. O Domínio é auto-suficiente — nenhuma checagem extra é necessária aqui.
+        // RegistrarPresenca() delega internamente para RegistrarFalta() quando necessário,
+        // que chama VerificarLimiteFaltas() automaticamente. O Domínio é auto-suficiente
+        // — nenhuma checagem extra é necessária aqui.
         aluno.RegistrarPresenca(request.Status, chamada.DataHora.UtcDateTime);
 
         // Verifica se um evento de alerta foi adicionado (indica que alerta será gerado)

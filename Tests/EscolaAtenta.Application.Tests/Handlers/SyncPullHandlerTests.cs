@@ -2,6 +2,7 @@ using EscolaAtenta.Application.Chamadas.Handlers;
 using EscolaAtenta.Application.Chamadas.Queries;
 using EscolaAtenta.Application.Tests.Fakes;
 using EscolaAtenta.Domain.Entities;
+using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Infrastructure.Data;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -198,5 +199,64 @@ public class SyncPullHandlerTests : IDisposable
         resultado.Changes.RegistrosPresenca.Created.Should().BeEmpty();
         resultado.Changes.RegistrosPresenca.Updated.Should().BeEmpty();
         resultado.Changes.RegistrosPresenca.Deleted.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_PrimeiroSync_DeveIncluirContadoresTrimestraisLegadosDerivadosDoHistorico()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        var usuarioId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+
+        ctx.Turmas.Add(new Turma(turmaId, "7º Ano", "Manhã", 2026));
+        ctx.Usuarios.Add(new Usuario("Monitor", "monitor@teste.com", "hash", PapelUsuario.Monitor));
+        ctx.Alunos.Add(new Aluno(alunoId, "Bruno", "MAT-002", turmaId));
+
+        // Chamada no trimestre atual (agosto = 3º trimestre de 2026)
+        var chamada = new Chamada(
+            Guid.NewGuid(),
+            new DateTimeOffset(2026, 8, 15, 8, 0, 0, TimeSpan.Zero),
+            turmaId,
+            usuarioId);
+        chamada.RegistrarPresenca(alunoId, StatusPresenca.Falta);
+        chamada.RegistrarPresenca(Guid.NewGuid(), StatusPresenca.Atraso);
+
+        // Chamada em outro trimestre (1º trimestre) — não deve contar
+        var chamadaFora = new Chamada(
+            Guid.NewGuid(),
+            new DateTimeOffset(2026, 2, 10, 8, 0, 0, TimeSpan.Zero),
+            turmaId,
+            usuarioId);
+        chamadaFora.RegistrarPresenca(alunoId, StatusPresenca.Falta);
+
+        ctx.Chamadas.AddRange(chamada, chamadaFora);
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var resultado = await CriarHandler(ctx).Handle(
+            new SyncPullQuery(LastPulledAt: 0), CancellationToken.None);
+
+        var alunoDto = resultado.Changes.Alunos.Created.Single();
+        alunoDto.FaltasNoTrimestre.Should().Be(1, "deve contar apenas falta do trimestre atual");
+        alunoDto.AtrasosNoTrimestre.Should().Be(0, "atraso foi de outro aluno");
+    }
+
+    [Fact]
+    public async Task Handle_PrimeiroSync_SemRegistrosNoTrimestre_DeveZerarContadoresLegados()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "8º Ano", "Tarde", 2026));
+        ctx.Alunos.Add(new Aluno(Guid.NewGuid(), "Carla", null, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var resultado = await CriarHandler(ctx).Handle(
+            new SyncPullQuery(LastPulledAt: 0), CancellationToken.None);
+
+        var alunoDto = resultado.Changes.Alunos.Created.Single();
+        alunoDto.FaltasNoTrimestre.Should().Be(0);
+        alunoDto.AtrasosNoTrimestre.Should().Be(0);
     }
 }

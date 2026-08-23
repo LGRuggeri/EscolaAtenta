@@ -5,11 +5,7 @@ using EscolaAtenta.Domain.Enums;
 namespace EscolaAtenta.Domain.Entities;
 
 /// <summary>
-/// Representa um alerta de risco escolar gerado para um aluno (evasão ou atraso).
-///
-/// Decisão de design: O nome da classe permanece AlertaEvasao para evitar uma
-/// refatoração massiva do banco. O campo Tipo (TipoAlerta enum) discrimina
-/// a origem do alerta na UI sem criar nova tabela.
+/// Representa um alerta de risco escolar gerado para um aluno (evasão).
 ///
 /// Invariantes protegidas:
 /// 1. AlunoId é obrigatório e imutável.
@@ -27,8 +23,7 @@ public class AlertaEvasao : EntityBase
     public NivelAlertaFalta Nivel { get; private set; }
 
     /// <summary>
-    /// Classifica a origem do alerta: Evasao (faltas) ou Atraso.
-    /// Default = Evasao (1) para compatibilidade com registros pré-existentes.
+    /// Classifica a origem do alerta: Evasao (faltas consecutivas).
     /// </summary>
     public TipoAlerta Tipo { get; private set; } = TipoAlerta.Evasao;
     public DateTimeOffset DataAlerta { get; private set; }
@@ -60,24 +55,6 @@ public class AlertaEvasao : EntityBase
             Descricao = motivo, 
             DataAlerta = DateTimeOffset.UtcNow, 
             Resolvido = false 
-        };
-    }
-
-    /// <summary>
-    /// Cria um alerta originado por atrasos consecutivos excessivos no trimestre.
-    /// </summary>
-    public static AlertaEvasao CriarAlertaAtraso(Guid alunoId, Guid turmaId, NivelAlertaFalta nivel, string motivo)
-    {
-        var nivelValidado = NivelAlertaFaltaExtensions.GarantirLimiteMaximo(nivel);
-        return new AlertaEvasao
-        {
-            AlunoId = alunoId,
-            TurmaId = turmaId,
-            Nivel = nivelValidado,
-            Descricao = motivo,
-            DataAlerta = DateTimeOffset.UtcNow,
-            Resolvido = false,
-            Tipo = TipoAlerta.Atraso
         };
     }
 

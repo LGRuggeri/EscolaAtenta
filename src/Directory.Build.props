@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      Mascara caminhos absolutos da máquina de build nos PDBs.
+      Impede que stack traces de produção exponham paths locais como
+      C:\Users\RUGGERI FAMILY\EscolaAtenta\src\...
+    -->
+    <PathMap>$(MSBuildProjectDirectory)=/_/$(MSBuildProjectName)</PathMap>
+
+    <!--
+      Desabilita Source Link automático (injetado pelo SDK quando há repo git),
+      que incluiria o caminho local original no PDB.
+    -->
+    <EnableSourceLink>false</EnableSourceLink>
+    <EmbedUntrackedSources>false</EmbedUntrackedSources>
+    <PublishRepositoryUrl>false</PublishRepositoryUrl>
+  </PropertyGroup>
+</Project>

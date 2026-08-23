@@ -14,7 +14,7 @@ public record AuditoriaAlertaDto
 {
     public Guid Id { get; init; }
     public string NomeAluno { get; init; } = string.Empty;
-    public string TipoAlerta { get; init; } = string.Empty; // "Evasao" | "Atraso"
+    public string TipoAlerta { get; init; } = string.Empty; // "Evasao"
     public DateTimeOffset DataResolucao { get; init; }
     public string ResolvidoPor { get; init; } = string.Empty; // E-mail/nome do usuário resolvedor
     public string MotivoResolucao { get; init; } = string.Empty;

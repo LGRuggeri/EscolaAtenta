@@ -6,12 +6,13 @@ using MediatR;
 namespace EscolaAtenta.Application.Alertas.Queries;
 
 /// <summary>
-/// Query para listar alertas com suporte a paginação server-side.
+/// Query para listar alertas de evasão com suporte a paginação server-side.
 ///
 /// Parâmetros:
 /// - ApenasNaoResolvidos: filtra somente alertas pendentes (default=true)
 /// - PageNumber: página solicitada, 1-indexed (default=1)
 /// - PageSize: itens por página (default=20, max=100)
+/// - Nivel: filtra pelo nível de severidade do alerta
 ///
 /// O TotalCount retornado pelo PagedResult é calculado por um COUNT separado
 /// antes do Skip/Take, garantindo que o front-end saiba o volume real sem
@@ -23,6 +24,5 @@ public record GetAlertasQuery(
     int PageSize = 20
 ) : IRequest<PagedResult<AlertaEvasaoDto>>
 {
-    public TipoAlerta? Tipo { get; set; }
     public NivelAlertaFalta? Nivel { get; set; }
 }

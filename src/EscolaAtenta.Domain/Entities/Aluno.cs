@@ -17,7 +17,7 @@ namespace EscolaAtenta.Domain.Entities;
 /// Novas Regras de Negócio (Pivot):
 /// - O sistema é operado por um Monitor que passa de sala em sala.
 /// - O foco é alertar a Supervisão sobre faltas consecutivas.
-/// - Alerta de evasão é gerado APENAS quando FaltasConsecutivasAtuais == 3.
+/// - Alerta de evasão é gerado APENAS quando FaltasConsecutivasAtuais atinge thresholds.
 /// 
 /// Decisão sobre Soft Delete: Alunos são dados históricos críticos.
 /// Mesmo após desligamento, seus registros de presença devem ser preservados
@@ -55,7 +55,7 @@ public class Aluno : EntityBase, ISoftDeletable
     public string Matricula { get; private set; } = string.Empty;
     public Guid TurmaId { get; private set; }
 
-    // ── Controle de Faltas (Novas propriedades) ───────────────────────────────
+    // ── Controle de Faltas ────────────────────────────────────────────────────
     /// <summary>
     /// Número de faltas consecutivas atuais.
     /// Zera quando o aluno comparece (Presente).
@@ -67,10 +67,26 @@ public class Aluno : EntityBase, ISoftDeletable
     /// </summary>
     public int TotalFaltas { get; private set; }
 
-    // ── Resumo do Trimestre (Novas regras) ─────────────────────────────────────
-    public int AtrasosNoTrimestre { get; private set; }
+    // ── Campos legados (compatibilidade OTA com app v3) ───────────────────────
+    /// <summary>
+    /// Mantido físico no banco para reconstruir contadores trimestrais legados
+    /// durante o sync pull. Não é mais usado pela lógica de alertas.
+    /// </summary>
+    [Obsolete("Campo legado usado apenas para compatibilidade com clientes v3.")]
     public int FaltasNoTrimestre { get; private set; }
-    public DateTime DataInicioTrimestre { get; private set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Mantido físico no banco para compatibilidade com clientes v3.
+    /// </summary>
+    [Obsolete("Campo legado usado apenas para compatibilidade com clientes v3.")]
+    public int AtrasosNoTrimestre { get; private set; }
+
+    /// <summary>
+    /// Data de início do ciclo trimestral legado. Usada para reconstruir o
+    /// período rolante de 90 dias exibido pelo app v3.
+    /// </summary>
+    [Obsolete("Campo legado usado apenas para compatibilidade com clientes v3.")]
+    public DateTime DataInicioTrimestre { get; private set; }
 
     // ── ISoftDeletable ─────────────────────────────────────────────────────────
     public bool Ativo { get; private set; }
@@ -89,7 +105,7 @@ public class Aluno : EntityBase, ISoftDeletable
     public IReadOnlyCollection<AlunoTurmaHistorico> HistoricoTurmas =>
         _historicoTurmas.AsReadOnly();
 
-    // ── Métodos de Negócio ─────────────────────────────────────────────────────
+    // ── Métodos de Negócio ───────────────────────────────────────────────────
 
     /// <summary>
     /// Atualiza os dados cadastrais do aluno.
@@ -180,38 +196,6 @@ public class Aluno : EntityBase, ISoftDeletable
         return _historicoTurmas.FirstOrDefault(h => h.Ativa);
     }
 
-    public void VerificarEReiniciarCicloTrimestral(DateTime dataAtual)
-    {
-        if ((dataAtual - DataInicioTrimestre).TotalDays >= 90)
-        {
-            AtrasosNoTrimestre = 0;
-            FaltasNoTrimestre = 0;
-            FaltasConsecutivasAtuais = 0; // Limpa o ciclo
-            DataInicioTrimestre = dataAtual;
-        }
-    }
-
-    public void RegistrarAtraso(DateTime dataAtual)
-    {
-        RegistrarAtraso(dataAtual, dispararEventos: true);
-    }
-
-    private void RegistrarAtraso(DateTime dataAtual, bool dispararEventos)
-    {
-        RegistrarAtraso(dataAtual, dispararEventos, verificarCiclo: true);
-    }
-
-    private void RegistrarAtraso(DateTime dataAtual, bool dispararEventos, bool verificarCiclo)
-    {
-        if (verificarCiclo)
-            VerificarEReiniciarCicloTrimestral(dataAtual);
-
-        AtrasosNoTrimestre++;
-
-        if (dispararEventos)
-            VerificarLimiteAtrasos();
-    }
-
     public void RegistrarFalta(DateTime dataAtual)
     {
         RegistrarFalta(dataAtual, dispararEventos: true);
@@ -219,15 +203,6 @@ public class Aluno : EntityBase, ISoftDeletable
 
     private void RegistrarFalta(DateTime dataAtual, bool dispararEventos)
     {
-        RegistrarFalta(dataAtual, dispararEventos, verificarCiclo: true);
-    }
-
-    private void RegistrarFalta(DateTime dataAtual, bool dispararEventos, bool verificarCiclo)
-    {
-        if (verificarCiclo)
-            VerificarEReiniciarCicloTrimestral(dataAtual);
-
-        FaltasNoTrimestre++;
         TotalFaltas++;
         FaltasConsecutivasAtuais++;
 
@@ -242,14 +217,6 @@ public class Aluno : EntityBase, ISoftDeletable
 
     private void RegistrarPresenca(DateTime dataAtual, bool dispararEventos)
     {
-        RegistrarPresenca(dataAtual, dispararEventos, verificarCiclo: true);
-    }
-
-    private void RegistrarPresenca(DateTime dataAtual, bool dispararEventos, bool verificarCiclo)
-    {
-        if (verificarCiclo)
-            VerificarEReiniciarCicloTrimestral(dataAtual);
-
         FaltasConsecutivasAtuais = 0; // Presença quebra a sequência de faltas
     }
 
@@ -264,26 +231,21 @@ public class Aluno : EntityBase, ISoftDeletable
 
     private void RegistrarPresenca(StatusPresenca status, DateTime dataAtual, bool dispararEventos)
     {
-        RegistrarPresenca(status, dataAtual, dispararEventos, verificarCiclo: true);
-    }
-
-    private void RegistrarPresenca(StatusPresenca status, DateTime dataAtual, bool dispararEventos, bool verificarCiclo)
-    {
         switch (status)
         {
             case StatusPresenca.Presente:
-                RegistrarPresenca(dataAtual, dispararEventos, verificarCiclo);
+                RegistrarPresenca(dataAtual, dispararEventos);
                 break;
             case StatusPresenca.Falta:
             case StatusPresenca.Ausente:
-                RegistrarFalta(dataAtual, dispararEventos, verificarCiclo);
+                RegistrarFalta(dataAtual, dispararEventos);
                 break;
             case StatusPresenca.FaltaJustificada:
-                RegistrarPresenca(dataAtual, dispararEventos, verificarCiclo); // Falta justificada zera consecutivas
+                RegistrarPresenca(dataAtual, dispararEventos); // Falta justificada zera consecutivas
                 TotalFaltas++; // Mas conta no total histórico
                 break;
             case StatusPresenca.Atraso:
-                RegistrarAtraso(dataAtual, dispararEventos, verificarCiclo);
+                // Atraso não acumula contadores trimestrais (regra removida).
                 break;
         }
     }
@@ -296,11 +258,6 @@ public class Aluno : EntityBase, ISoftDeletable
     /// Importante: este método NÃO dispara eventos de threshold. A emissão/escalação/
     /// resolução de alertas deve ser feita por <see cref="ReconciliarAlertasPendentes"/>,
     /// garantindo uma única fonte de decisão sobre alertas e evitando eventos duplicados.
-    ///
-    /// Também preserva o início do ciclo trimestral ativo e restringe o replay:
-    /// - TotalFaltas: conta o histórico completo.
-    /// - FaltasNoTrimestre, AtrasosNoTrimestre e FaltasConsecutivasAtuais: contam
-    ///   apenas registros dentro do ciclo trimestral atual (≥ DataInicioTrimestre).
     /// </summary>
     public void RecalcularEstatisticas(IEnumerable<RegistroPresenca> historico)
     {
@@ -315,78 +272,28 @@ public class Aluno : EntityBase, ISoftDeletable
             .OrderBy(r => r.Chamada.DataHora)
             .ToList();
 
-        // Salva o ciclo trimestral atual para não mover a fronteira durante o recálculo
-        var cicloAtual = DataInicioTrimestre;
-        var dataReferencia = ordenado.LastOrDefault()?.Chamada.DataHora.UtcDateTime ?? DateTime.UtcNow;
-
-        // O ciclo está ativo apenas se a data mais recente do histórico pertence
-        // ao ciclo atual (dataReferencia >= cicloAtual) e está dentro da janela de 90 dias.
-        var cicloEstaAtivo = cicloAtual != default
-            && dataReferencia >= cicloAtual
-            && (dataReferencia - cicloAtual).TotalDays < 90;
-
-        // Se o ciclo expirou, reconstrói os limites cronologicamente a partir dos
-        // resets de 90 dias. Isso evita que uma janela deslizante puxe registros de
-        // ciclos anteriores para o trimestre atual ao recalcular.
-        if (!cicloEstaAtivo && ordenado.Count > 0)
-        {
-            var datas = ordenado
-                .Select(r => r.Chamada.DataHora.UtcDateTime)
-                .ToList();
-
-            var inicioReconstruido = datas.First();
-            foreach (var data in datas)
-            {
-                if ((data - inicioReconstruido).TotalDays >= 90)
-                {
-                    inicioReconstruido = data;
-                }
-            }
-
-            DataInicioTrimestre = inicioReconstruido;
-        }
-        else if (!cicloEstaAtivo)
-        {
-            // Sem histórico: usa a data atual
-            DataInicioTrimestre = DateTime.UtcNow;
-        }
-
-        var ciclo = DataInicioTrimestre;
-
         // Reseta os contadores para recomputar do zero
         TotalFaltas = 0;
         FaltasConsecutivasAtuais = 0;
-        FaltasNoTrimestre = 0;
-        AtrasosNoTrimestre = 0;
 
         foreach (var registro in ordenado)
         {
-            var dataRegistro = registro.Chamada.DataHora.UtcDateTime;
-
-            // TotalFaltas: conta o histórico completo, independentemente do ciclo
-            if (registro.Status is StatusPresenca.Falta or StatusPresenca.Ausente or StatusPresenca.FaltaJustificada)
-                TotalFaltas++;
-
-            // Contadores trimestrais e consecutivos: apenas dentro do ciclo ativo
-            if (dataRegistro < ciclo)
-                continue;
-
             switch (registro.Status)
             {
                 case StatusPresenca.Falta:
                 case StatusPresenca.Ausente:
-                    FaltasNoTrimestre++;
+                    TotalFaltas++;
                     FaltasConsecutivasAtuais++;
                     break;
-                case StatusPresenca.Atraso:
-                    AtrasosNoTrimestre++;
-                    break;
                 case StatusPresenca.FaltaJustificada:
-                    // Falta justificada quebra a sequência de faltas, mas não conta como falta no trimestre
+                    TotalFaltas++;
                     FaltasConsecutivasAtuais = 0;
                     break;
                 case StatusPresenca.Presente:
                     FaltasConsecutivasAtuais = 0;
+                    break;
+                case StatusPresenca.Atraso:
+                    // Atraso não impacta contadores de falta.
                     break;
             }
         }
@@ -421,36 +328,11 @@ public class Aluno : EntityBase, ISoftDeletable
                 FaltasConsecutivasAtuais: FaltasConsecutivasAtuais
             ));
         }
-
-        if (AtrasosNoTrimestre >= 3)
-        {
-            var nivel = AtrasosNoTrimestre >= 6
-                ? NivelAlertaFalta.Intermediario
-                : NivelAlertaFalta.Aviso;
-
-            AddDomainEvent(new LimiteAtrasosAtingidoEvent(
-                AlunoId: Id,
-                TurmaId: TurmaId,
-                NomeAluno: Nome,
-                TotalAtrasos: AtrasosNoTrimestre,
-                MotivoExato: $"O aluno acumulou {AtrasosNoTrimestre} atrasos no trimestre.",
-                Nivel: nivel
-            ));
-        }
-        else
-        {
-            AddDomainEvent(new AtrasosTrimestreNormalizadosEvent(
-                AlunoId: Id,
-                TurmaId: TurmaId,
-                NomeAluno: Nome,
-                AtrasosNoTrimestre: AtrasosNoTrimestre
-            ));
-        }
     }
 
     public void VerificarLimiteFaltas()
     {
-        // Conforme a nova regra, gerar alertas com severidades crescentes:
+        // Conforme a regra, gerar alertas com severidades crescentes:
         // 1 - Aviso (Amarelo)
         // 2 - Intermediário (Laranja -> Conversa com o aluno)
         // 3 - Vermelho (Conversa com os pais)
@@ -471,33 +353,6 @@ public class Aluno : EntityBase, ISoftDeletable
                 LimiteConfigurado: 5, // Teto configurado do conselho tutelar
                 MotivoExato: $"O aluno alcançou {FaltasConsecutivasAtuais} falhas consecutivas.",
                 Nivel: nivelAlerta
-            ));
-        }
-    }
-
-    /// <summary>
-    /// Verifica se o aluno atingiu um limiar de atrasos no trimestre e dispara
-    /// o Domain Event correspondente para criação do alerta.
-    /// 
-    /// Thresholds explícitos (evita falhas silenciosas por saltos de contador):
-    /// - 3 atrasos → Aviso (comunicar ao aluno)
-    /// - 6 atrasos → Intermediário (comunicar aos pais)
-    /// </summary>
-    public void VerificarLimiteAtrasos()
-    {
-        if (AtrasosNoTrimestre == 3 || AtrasosNoTrimestre == 6)
-        {
-            var nivel = AtrasosNoTrimestre >= 6
-                ? NivelAlertaFalta.Intermediario
-                : NivelAlertaFalta.Aviso;
-
-            AddDomainEvent(new LimiteAtrasosAtingidoEvent(
-                AlunoId: Id,
-                TurmaId: TurmaId,
-                NomeAluno: Nome,
-                TotalAtrasos: AtrasosNoTrimestre,
-                MotivoExato: $"O aluno acumulou {AtrasosNoTrimestre} atrasos no trimestre.",
-                Nivel: nivel
             ));
         }
     }

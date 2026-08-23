@@ -1100,4 +1100,71 @@ public class SyncPushHandlerTests : IDisposable
 
         vinculo.Should().NotBeNull("a turma criada offline deve ser vinculada ao usuário que a criou");
     }
+
+    [Fact]
+    public async Task Handle_CreatedDuplicadoParaChamadaExistente_DeveAtualizarSemErro()
+    {
+        // Simula cenário de produção: app reenvia registro como Created (novo IdExterno local)
+        // para uma chamada que já existe no servidor. Deve fazer merge/upsert sem disparar 500.
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Turma Merge Duplicado", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Merge", null, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var dataMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var createCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-duplicado-1",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataMs,
+                        Status = "Presente"
+                    }]
+                }
+            },
+            dataMs);
+
+        await CriarHandler(ctx, user).Handle(createCommand, CancellationToken.None);
+        ctx.ChangeTracker.Clear();
+
+        var duplicadoCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-duplicado-2",
+                        AlunoId = alunoId.ToString(),
+                        TurmaId = turmaId.ToString(),
+                        Data = dataMs,
+                        Status = "Falta"
+                    }]
+                }
+            },
+            dataMs);
+
+        var resultado = await CriarHandler(ctx, user).Handle(duplicadoCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(1);
+        resultado.Rejeicoes.Should().BeEmpty();
+
+        var chamadas = await ctx.Chamadas.Where(c => c.TurmaId == turmaId).ToListAsync();
+        chamadas.Should().HaveCount(1, "não deve criar chamada duplicada");
+
+        chamadas[0].RegistrosPresenca.Should().ContainSingle()
+            .Which.Status.Should().Be(StatusPresenca.Falta);
+
+        var syncLogs = await ctx.SyncLogs.Where(s => s.IdExterno.StartsWith("reg-duplicado")).ToListAsync();
+        syncLogs.Should().HaveCount(2);
+    }
 }
