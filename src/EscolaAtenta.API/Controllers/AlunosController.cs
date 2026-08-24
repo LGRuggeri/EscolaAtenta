@@ -66,7 +66,7 @@ public class AlunosController : ControllerBase
     [ProducesResponseType(typeof(IEnumerable<HistoricoPresencaDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetHistoricoPresencas(
         [FromRoute] string id,
-        [FromQuery] int dias = 7,
+        [FromQuery] int dias = 15,
         CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetHistoricoPresencasAlunoQuery(id, dias), ct);
