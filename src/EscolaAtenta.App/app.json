@@ -2,7 +2,7 @@
   "expo": {
     "name": "Escola Atenta",
     "slug": "EscolaAtenta.App",
-    "version": "1.0.0",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/ea-icon.png",
     "userInterfaceStyle": "light",
