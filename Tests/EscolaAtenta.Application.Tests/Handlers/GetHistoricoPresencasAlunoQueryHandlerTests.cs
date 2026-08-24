@@ -157,7 +157,7 @@ public class GetHistoricoPresencasAlunoQueryHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_Padrao365Dias_DeveIncluirRegistrosAntigos()
+    public async Task Handle_Padrao15Dias_DeveIncluirRecentesEExcluirAntigos()
     {
         await using var ctx = CriarContexto();
         var turmaId = Guid.NewGuid();
@@ -168,12 +168,14 @@ public class GetHistoricoPresencasAlunoQueryHandlerTests : IDisposable
         ctx.ChangeTracker.Clear();
 
         await CriarChamadaComPresenca(ctx, turmaId, alunoId, DateTimeOffset.UtcNow.AddDays(-1), StatusPresenca.Presente);
-        await CriarChamadaComPresenca(ctx, turmaId, alunoId, DateTimeOffset.UtcNow.AddDays(-30), StatusPresenca.Falta);
+        await CriarChamadaComPresenca(ctx, turmaId, alunoId, DateTimeOffset.UtcNow.AddDays(-10), StatusPresenca.Falta);
+        await CriarChamadaComPresenca(ctx, turmaId, alunoId, DateTimeOffset.UtcNow.AddDays(-30), StatusPresenca.Atraso);
 
         var resultado = (await CriarHandler(ctx).Handle(
             new GetHistoricoPresencasAlunoQuery(alunoId.ToString()), CancellationToken.None)).ToList();
 
         resultado.Should().HaveCount(2);
+        resultado.Should().NotContain(h => h.Status == "Atraso");
     }
 
     [Fact]
