@@ -157,6 +157,26 @@ public class GetHistoricoPresencasAlunoQueryHandlerTests : IDisposable
     }
 
     [Fact]
+    public async Task Handle_Padrao365Dias_DeveIncluirRegistrosAntigos()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Turma Historico", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Historico", null, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        await CriarChamadaComPresenca(ctx, turmaId, alunoId, DateTimeOffset.UtcNow.AddDays(-1), StatusPresenca.Presente);
+        await CriarChamadaComPresenca(ctx, turmaId, alunoId, DateTimeOffset.UtcNow.AddDays(-30), StatusPresenca.Falta);
+
+        var resultado = (await CriarHandler(ctx).Handle(
+            new GetHistoricoPresencasAlunoQuery(alunoId.ToString()), CancellationToken.None)).ToList();
+
+        resultado.Should().HaveCount(2);
+    }
+
+    [Fact]
     public async Task Handle_IdExternoInexistente_DeveRetornarVazio()
     {
         await using var ctx = CriarContexto();
