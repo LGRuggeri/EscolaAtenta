@@ -13,6 +13,9 @@ V-prod/
 *.zip
 nul
 start
+app-release-*.apk
+installer-output/*.apk
+V-prod/*.apk
 
 # dotenv files
 .env
