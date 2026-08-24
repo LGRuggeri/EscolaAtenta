@@ -322,6 +322,16 @@ public class RelatorioTurmaHandlerTests
     }
 
     [Fact]
+    public void DePeriodoLetivo_PrimeiroBimestreAnoBissexto_DeveTerminarEm29DeFevereiro()
+    {
+        var query = RelatorioTurmaQuery.DePeriodoLetivo(
+            Guid.NewGuid(), 2024, TipoPeriodoLetivo.Bimestre, 1);
+
+        query.DataInicio.Should().Be(new DateTime(2024, 1, 1));
+        query.DataFim.Should().Be(new DateTime(2024, 2, 29));
+    }
+
+    [Fact]
     public void DePeriodoLetivo_PeriodoMaiorQueQuatroEmTrimestre_DeveClamparParaQuartoTrimestre()
     {
         var query = RelatorioTurmaQuery.DePeriodoLetivo(

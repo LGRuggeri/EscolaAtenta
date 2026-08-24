@@ -77,7 +77,7 @@ public record RelatorioTurmaQuery(
         {
             TipoPeriodoLetivo.Bimestre => periodo switch
             {
-                <= 1 => (new DateTime(ano, 1, 1), new DateTime(ano, 2, 28)),
+                <= 1 => (new DateTime(ano, 1, 1), new DateTime(ano, 2, DateTime.DaysInMonth(ano, 2))),
                 2 => (new DateTime(ano, 3, 1), new DateTime(ano, 4, 30)),
                 3 => (new DateTime(ano, 5, 1), new DateTime(ano, 6, 30)),
                 4 => (new DateTime(ano, 7, 1), new DateTime(ano, 8, 31)),
