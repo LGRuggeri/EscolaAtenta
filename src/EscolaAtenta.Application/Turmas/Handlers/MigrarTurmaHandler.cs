@@ -33,6 +33,10 @@ public class MigrarTurmaHandler : IRequestHandler<MigrarTurmaCommand, MigrarTurm
         if (request.TurmaOrigemId == request.TurmaDestinoId)
             throw new DomainException("A turma de origem e destino devem ser diferentes.");
 
+        var alunosIds = request.AlunosIds is { Count: > 0 }
+            ? await ResolverAlunosIdsAsync(request.AlunosIds, cancellationToken)
+            : null;
+
         var turmaOrigem = await _context.Turmas.AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == request.TurmaOrigemId, cancellationToken);
         if (turmaOrigem == null)
@@ -43,10 +47,16 @@ public class MigrarTurmaHandler : IRequestHandler<MigrarTurmaCommand, MigrarTurm
         if (turmaDestino == null)
             throw new DomainException("A turma de destino não existe.");
 
-        var alunos = await _context.Alunos
+        var query = _context.Alunos
             .Include(a => a.HistoricoTurmas)
-            .Where(a => a.TurmaId == request.TurmaOrigemId)
-            .ToListAsync(cancellationToken);
+            .Where(a => a.TurmaId == request.TurmaOrigemId);
+
+        if (alunosIds is { Count: > 0 })
+        {
+            query = query.Where(a => alunosIds.Contains(a.Id));
+        }
+
+        var alunos = await query.ToListAsync(cancellationToken);
 
         var erros = new List<string>();
         int transferidos = 0;
@@ -104,5 +114,42 @@ public class MigrarTurmaHandler : IRequestHandler<MigrarTurmaCommand, MigrarTurm
             ignorados);
 
         return new MigrarTurmaResultadoDto(transferidos, ignorados, erros.AsReadOnly());
+    }
+
+    /// <summary>
+    /// Resolve os identificadores dos alunos. Cada item pode ser um GUID do servidor
+    /// ou o ID externo do WatermelonDB. Retorna apenas os GUIDs encontrados.
+    /// </summary>
+    private async Task<List<Guid>> ResolverAlunosIdsAsync(
+        IReadOnlyCollection<string> alunosIds,
+        CancellationToken cancellationToken)
+    {
+        var guids = new List<Guid>();
+        var externos = new List<string>();
+
+        foreach (var id in alunosIds)
+        {
+            if (Guid.TryParse(id, out var guid))
+                guids.Add(guid);
+            else
+                externos.Add(id);
+        }
+
+        if (externos.Count > 0)
+        {
+            var mapeamento = await _context.SyncLogs
+                .AsNoTracking()
+                .Where(s => s.TabelaOrigem == "alunos" && externos.Contains(s.IdExterno))
+                .Select(s => new { s.IdExterno, s.EntidadeId })
+                .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, cancellationToken);
+
+            foreach (var externo in externos)
+            {
+                if (mapeamento.TryGetValue(externo, out var guid))
+                    guids.Add(guid);
+            }
+        }
+
+        return guids;
     }
 }

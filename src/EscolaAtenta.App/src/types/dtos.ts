@@ -18,6 +18,7 @@ export interface LoginResult {
 
 export interface TurmaDto {
     id: string;
+    serverId?: string;
     nome: string;
     anoLetivo: number;
     turno: string;
@@ -25,6 +26,7 @@ export interface TurmaDto {
 
 export interface AlunoDto {
     id: string;
+    serverId?: string;
     nome: string;
     matricula: string;
     turmaId: string;

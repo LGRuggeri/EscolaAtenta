@@ -153,11 +153,17 @@ export function RelatorioTurmaScreen() {
             return;
         }
 
+        const turmaIdApi = turmaSel.serverId || turmaSel.id;
+        if (!turmaIdApi) {
+            Alert.alert('Erro', 'Turma sem identificador para consulta.');
+            return;
+        }
+
         setBuscando(true);
         setRelatorio(null);
         try {
             const resp = await api.get<RelatorioTurmaDto>(
-                `/turmas/${turmaSel.id}/relatorio`,
+                `/turmas/${turmaIdApi}/relatorio`,
                 {
                     params: {
                         dataInicio: paraIsoLocal(inicio),
@@ -166,8 +172,11 @@ export function RelatorioTurmaScreen() {
                 }
             );
             setRelatorio(resp.data);
-        } catch {
-            Alert.alert('Erro', 'Não foi possível carregar o relatório. Verifique a conexão.');
+        } catch (err: any) {
+            const msg = err.response?.data?.erro
+                || err.response?.data?.message
+                || 'Não foi possível carregar o relatório. Verifique a conexão.';
+            Alert.alert('Erro', msg);
         } finally {
             setBuscando(false);
         }

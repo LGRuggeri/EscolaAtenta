@@ -7,6 +7,7 @@ import { TurmaDto } from '../types/dtos';
 function turmaParaDto(t: Turma): TurmaDto {
     return {
         id: t.id,
+        serverId: t.serverId,
         nome: t.nome,
         turno: t.turno,
         anoLetivo: t.anoLetivo,

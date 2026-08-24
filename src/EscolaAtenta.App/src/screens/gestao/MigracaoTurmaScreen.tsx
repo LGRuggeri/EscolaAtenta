@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, Alert, ScrollView } from 'react-native';
-import { Text, Button, Surface, ActivityIndicator, TextInput } from 'react-native-paper';
+import { View, StyleSheet, Alert, ScrollView, Pressable } from 'react-native';
+import { Text, Button, Surface, ActivityIndicator, TextInput, Checkbox } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -12,6 +12,9 @@ import { turmasService } from '../../services/turmasService';
 import { useAuth } from '../../hooks/useAuth';
 import { TurmaDto, MigrarTurmaResultadoDto } from '../../types/dtos';
 import { PapelUsuario } from '../../types/enums';
+import database from '../../database';
+import Aluno from '../../database/models/Aluno';
+import { Q } from '@nozbe/watermelondb';
 
 function formatarDataInput(d: Date): string {
     const dd = String(d.getDate()).padStart(2, '0');
@@ -39,14 +42,17 @@ export function MigracaoTurmaScreen() {
     const [turmas, setTurmas] = useState<TurmaDto[]>([]);
     const [origem, setOrigem] = useState<TurmaDto | null>(null);
     const [destino, setDestino] = useState<TurmaDto | null>(null);
+    const [alunos, setAlunos] = useState<Aluno[]>([]);
+    const [alunosSelecionados, setAlunosSelecionados] = useState<Set<string>>(new Set());
     const [dataTransferencia, setDataTransferencia] = useState(formatarDataInput(new Date()));
     const [motivo, setMotivo] = useState('');
 
     const [carregandoTurmas, setCarregandoTurmas] = useState(false);
+    const [carregandoAlunos, setCarregandoAlunos] = useState(false);
     const [executando, setExecutando] = useState(false);
     const [resultado, setResultado] = useState<MigrarTurmaResultadoDto | null>(null);
 
-    const [etapa, setEtapa] = useState<'origem' | 'destino' | 'confirmacao'>('origem');
+    const [etapa, setEtapa] = useState<'origem' | 'destino' | 'alunos' | 'confirmacao'>('origem');
 
     async function carregarTurmas() {
         setCarregandoTurmas(true);
@@ -57,6 +63,23 @@ export function MigracaoTurmaScreen() {
             Alert.alert('Erro', 'Não foi possível carregar as turmas.');
         } finally {
             setCarregandoTurmas(false);
+        }
+    }
+
+    async function carregarAlunos(turmaId: string) {
+        setCarregandoAlunos(true);
+        try {
+            const rows = await database
+                .get<Aluno>('alunos')
+                .query(Q.where('turma_id', turmaId))
+                .fetch();
+            const ordenados = rows.sort((a, b) => a.nome.localeCompare(b.nome));
+            setAlunos(ordenados);
+            setAlunosSelecionados(new Set(ordenados.map(a => a.id)));
+        } catch {
+            Alert.alert('Erro', 'Não foi possível carregar os alunos da turma de origem.');
+        } finally {
+            setCarregandoAlunos(false);
         }
     }
 
@@ -74,6 +97,8 @@ export function MigracaoTurmaScreen() {
     function selecionarOrigem(turma: TurmaDto) {
         setOrigem(turma);
         setDestino(null);
+        setAlunos([]);
+        setAlunosSelecionados(new Set());
         setResultado(null);
         setEtapa('destino');
     }
@@ -85,6 +110,35 @@ export function MigracaoTurmaScreen() {
         }
         setDestino(turma);
         setResultado(null);
+        setEtapa('alunos');
+        if (origem) {
+            carregarAlunos(origem.id);
+        }
+    }
+
+    function toggleSelecaoTodos() {
+        if (alunosSelecionados.size === alunos.length) {
+            setAlunosSelecionados(new Set());
+        } else {
+            setAlunosSelecionados(new Set(alunos.map(a => a.id)));
+        }
+    }
+
+    function toggleSelecaoAluno(id: string) {
+        const novo = new Set(alunosSelecionados);
+        if (novo.has(id)) {
+            novo.delete(id);
+        } else {
+            novo.add(id);
+        }
+        setAlunosSelecionados(novo);
+    }
+
+    function avancarParaConfirmacao() {
+        if (alunosSelecionados.size === 0) {
+            Alert.alert('Atenção', 'Selecione pelo menos um aluno para migrar.');
+            return;
+        }
         setEtapa('confirmacao');
     }
 
@@ -97,9 +151,19 @@ export function MigracaoTurmaScreen() {
             return;
         }
 
+        const selecionados = alunos
+            .filter(a => alunosSelecionados.has(a.id))
+            .map(a => a.serverId || a.id)
+            .filter(Boolean);
+
+        if (selecionados.length === 0) {
+            Alert.alert('Atenção', 'Nenhum aluno válido selecionado para migrar.');
+            return;
+        }
+
         Alert.alert(
             'Confirmar migração',
-            `Deseja migrar todos os alunos de ${origem.nome} para ${destino.nome}?`,
+            `Deseja migrar ${selecionados.length} aluno(s) de ${origem.nome} para ${destino.nome}?`,
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
@@ -108,13 +172,16 @@ export function MigracaoTurmaScreen() {
                         setExecutando(true);
                         setResultado(null);
                         try {
+                            const origemIdApi = origem.serverId || origem.id;
+                            const destinoIdApi = destino.serverId || destino.id;
                             const resp = await api.post<MigrarTurmaResultadoDto>(
-                                `/turmas/${origem.id}/migrar`,
+                                `/turmas/${origemIdApi}/migrar`,
                                 {
-                                    turmaOrigemId: origem.id,
-                                    turmaDestinoId: destino.id,
+                                    turmaOrigemId: origemIdApi,
+                                    turmaDestinoId: destinoIdApi,
                                     dataTransferencia: toIsoUtc(data),
                                     motivo: motivo.trim() || undefined,
+                                    alunosIds: selecionados,
                                 }
                             );
                             setResultado(resp.data);
@@ -166,6 +233,8 @@ export function MigracaoTurmaScreen() {
                                 onPress={() => {
                                     setOrigem(null);
                                     setDestino(null);
+                                    setAlunos([]);
+                                    setAlunosSelecionados(new Set());
                                     setResultado(null);
                                     setEtapa('origem');
                                 }}
@@ -220,6 +289,8 @@ export function MigracaoTurmaScreen() {
                                     compact
                                     onPress={() => {
                                         setDestino(null);
+                                        setAlunos([]);
+                                        setAlunosSelecionados(new Set());
                                         setResultado(null);
                                         setEtapa('destino');
                                     }}
@@ -245,12 +316,81 @@ export function MigracaoTurmaScreen() {
                     </Surface>
                 )}
 
-                {/* Passo 3: Dados da transferência */}
+                {/* Passo 3: Seleção de alunos */}
                 {origem && destino && (
                     <Surface style={styles.section} elevation={1}>
                         <View style={styles.sectionHeader}>
+                            <View style={[styles.stepBadge, etapa === 'alunos' && alunosSelecionados.size > 0 && styles.stepBadgeDone]}>
+                                <Text variant="labelSmall" style={styles.stepBadgeText}>
+                                    {alunosSelecionados.size > 0 ? '✓' : '3'}
+                                </Text>
+                            </View>
+                            <Text variant="labelLarge" style={styles.sectionTitle}>Alunos</Text>
+                        </View>
+
+                        {carregandoAlunos ? (
+                            <View style={styles.loadingRow}>
+                                <ActivityIndicator size="small" />
+                                <Text variant="bodySmall" style={styles.loadingText}>Carregando alunos...</Text>
+                            </View>
+                        ) : alunos.length === 0 ? (
+                            <EmptyState
+                                icon="account-group-outline"
+                                title="Nenhum aluno encontrado"
+                                subtitle="A turma de origem não possui alunos ativos."
+                            />
+                        ) : (
+                            <>
+                                <Pressable
+                                    style={styles.selecionarTodosRow}
+                                    onPress={toggleSelecaoTodos}
+                                >
+                                    <Checkbox
+                                        status={alunosSelecionados.size === alunos.length ? 'checked' : 'unchecked'}
+                                    />
+                                    <Text variant="bodyMedium" style={styles.selecionarTodosText}>
+                                        {alunosSelecionados.size === alunos.length ? 'Desmarcar todos' : 'Selecionar todos'}
+                                    </Text>
+                                </Pressable>
+
+                                {alunos.map(aluno => (
+                                    <Pressable
+                                        key={aluno.id}
+                                        style={styles.alunoRow}
+                                        onPress={() => toggleSelecaoAluno(aluno.id)}
+                                    >
+                                        <Checkbox
+                                            status={alunosSelecionados.has(aluno.id) ? 'checked' : 'unchecked'}
+                                        />
+                                        <View style={styles.alunoInfo}>
+                                            <Text variant="bodyMedium" style={styles.alunoNome}>{aluno.nome}</Text>
+                                            {aluno.matricula ? (
+                                                <Text variant="bodySmall" style={styles.alunoMatricula}>Matrícula: {aluno.matricula}</Text>
+                                            ) : null}
+                                        </View>
+                                    </Pressable>
+                                ))}
+
+                                <Button
+                                    mode="contained"
+                                    onPress={avancarParaConfirmacao}
+                                    icon="chevron-right"
+                                    style={styles.actionButton}
+                                    contentStyle={styles.actionButtonContent}
+                                >
+                                    Avançar
+                                </Button>
+                            </>
+                        )}
+                    </Surface>
+                )}
+
+                {/* Passo 4: Dados da transferência */}
+                {origem && destino && etapa === 'confirmacao' && (
+                    <Surface style={styles.section} elevation={1}>
+                        <View style={styles.sectionHeader}>
                             <View style={styles.stepBadge}>
-                                <Text variant="labelSmall" style={styles.stepBadgeText}>3</Text>
+                                <Text variant="labelSmall" style={styles.stepBadgeText}>4</Text>
                             </View>
                             <Text variant="labelLarge" style={styles.sectionTitle}>Dados da Transferência</Text>
                         </View>
@@ -333,7 +473,7 @@ export function MigracaoTurmaScreen() {
                             <EmptyState
                                 icon="check-circle"
                                 title="Migração concluída"
-                                subtitle="Todos os alunos foram migrados com sucesso."
+                                subtitle="Todos os alunos selecionados foram migrados com sucesso."
                             />
                         )}
                     </Surface>
@@ -419,6 +559,36 @@ const styles = StyleSheet.create({
     },
     listItemContent: {
         justifyContent: 'flex-start',
+    },
+    selecionarTodosRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: theme.spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.divider,
+        marginBottom: theme.spacing.sm,
+    },
+    selecionarTodosText: {
+        color: theme.colors.textPrimary,
+        fontWeight: '600',
+        marginLeft: theme.spacing.sm,
+    },
+    alunoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: theme.spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.divider,
+    },
+    alunoInfo: {
+        marginLeft: theme.spacing.sm,
+        flex: 1,
+    },
+    alunoNome: {
+        color: theme.colors.textPrimary,
+    },
+    alunoMatricula: {
+        color: theme.colors.textSecondary,
     },
     input: {
         backgroundColor: theme.colors.surface,

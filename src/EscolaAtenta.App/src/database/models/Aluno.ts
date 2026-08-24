@@ -10,6 +10,8 @@ export default class Aluno extends Model {
 
   @text('nome') nome!: string;
   @text('turma_id') turmaId!: string;
+  @text('server_id') serverId!: string | null;
+  @text('matricula') matricula!: string | null;
   @field('faltas_consecutivas_atuais') faltasConsecutivasAtuais!: number;
   @field('total_faltas') totalFaltas!: number;
 

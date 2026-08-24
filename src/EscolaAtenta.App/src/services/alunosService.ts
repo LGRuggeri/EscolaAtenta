@@ -8,9 +8,10 @@ import { AlunoDto } from '../types/dtos';
 function alunoParaDto(a: Aluno): AlunoDto {
     return {
         id: a.id,
+        serverId: a.serverId ?? undefined,
         nome: a.nome,
         turmaId: a.turmaId,
-        matricula: '',
+        matricula: a.matricula ?? '',
         faltasConsecutivasAtuais: a.faltasConsecutivasAtuais ?? 0,
         totalFaltas: a.totalFaltas ?? 0,
     };

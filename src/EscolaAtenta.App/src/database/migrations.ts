@@ -42,5 +42,17 @@ export default schemaMigrations({
         ),
       ],
     },
+    {
+      toVersion: 5,
+      steps: [
+        addColumns({
+          table: 'alunos',
+          columns: [
+            { name: 'server_id', type: 'string', isOptional: true },
+            { name: 'matricula', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

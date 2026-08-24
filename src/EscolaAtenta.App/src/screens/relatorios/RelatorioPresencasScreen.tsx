@@ -137,11 +137,13 @@ export function RelatorioPresencasScreen() {
             return;
         }
 
+        const alunoIdApi = alunoSel.serverId || alunoSel.id;
+
         setLoading(true);
         setBuscou(false);
         try {
             const resp = await api.get<RegistroHistorico[]>(
-                `/alunos/${alunoSel.id}/historico-presencas`,
+                `/alunos/${alunoIdApi}/historico-presencas`,
                 { params: { dias } }
             );
             const dInicio = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());

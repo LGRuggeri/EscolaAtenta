@@ -10,6 +10,7 @@ export const palette = {
     // Cores de Marca
     navy: '#283349',
     navyLight: '#3a4a66',
+    navyLighter: '#e8ecf2',
     charcoal: '#313f3f',
 
     // Verdes Institucionais
@@ -41,7 +42,7 @@ export const theme = {
     colors: {
         // Cores de Marca e Ações Principais
         primary: palette.navy,
-        primaryLight: palette.navyLight,
+        primaryLight: palette.navyLighter,
         primaryDark: palette.charcoal,
 
         // Cores Secundárias e Sucesso/Frequência

@@ -30,8 +30,10 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
         var inicio = new DateTimeOffset(request.DataInicio.Date, TimeSpan.Zero);
         var fim = new DateTimeOffset(request.DataFim.Date.AddDays(1), TimeSpan.Zero);
 
+        var turmaId = await ResolverTurmaIdAsync(request.TurmaId.ToString(), cancellationToken);
+
         var turma = await _context.Turmas.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == request.TurmaId, cancellationToken);
+            .FirstOrDefaultAsync(t => t.Id == turmaId, cancellationToken);
 
         if (turma == null)
             throw new KeyNotFoundException($"Turma com ID '{request.TurmaId}' não encontrada.");
@@ -40,12 +42,25 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
         var alunosMatriculados = await _context.AlunosTurmasHistorico
             .AsNoTracking()
             .Where(h =>
-                h.TurmaId == request.TurmaId &&
+                h.TurmaId == turmaId &&
                 h.DataInicio < fim &&
                 (!h.DataFim.HasValue || h.DataFim.Value >= inicio))
             .Select(h => h.AlunoId)
             .Distinct()
             .ToListAsync(cancellationToken);
+
+        // Fallback: se o histórico estiver vazio (turmas/alunos criados antes da
+        // introdução do histórico ou migração incompleta), considera os alunos
+        // atuais da turma para não zerar o relatório.
+        if (alunosMatriculados.Count == 0)
+        {
+            alunosMatriculados = await _context.Alunos
+                .AsNoTracking()
+                .Where(a => a.TurmaId == turmaId)
+                .Select(a => a.Id)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+        }
 
         // Inclui alunos inativos (soft-deleted) para manter consistência histórica:
         // se o aluno estava ativo durante o período do relatório, seus registros
@@ -60,7 +75,7 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
         // Registros de presença da turma no período
         var registros = await _context.RegistrosPresenca
             .AsNoTracking()
-            .Where(r => r.Chamada.TurmaId == request.TurmaId &&
+            .Where(r => r.Chamada.TurmaId == turmaId &&
                         r.Chamada.DataHora >= inicio &&
                         r.Chamada.DataHora < fim)
             .Select(r => new { r.AlunoId, r.Status })
@@ -132,5 +147,21 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
             dataFimRelatorio,
             alunosDto.AsReadOnly(),
             resumo);
+    }
+
+    /// <summary>
+    /// Resolve o identificador da turma. Pode ser o GUID do servidor ou o ID externo
+    /// do WatermelonDB para turmas criadas offline e sincronizadas.
+    /// </summary>
+    private async Task<Guid> ResolverTurmaIdAsync(string turmaId, CancellationToken cancellationToken)
+    {
+        if (Guid.TryParse(turmaId, out var guid))
+            return guid;
+
+        var syncLog = await _context.SyncLogs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.TabelaOrigem == "turmas" && s.IdExterno == turmaId, cancellationToken);
+
+        return syncLog?.EntidadeId ?? Guid.Empty;
     }
 }

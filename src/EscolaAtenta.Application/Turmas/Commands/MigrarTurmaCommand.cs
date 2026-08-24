@@ -7,4 +7,5 @@ public record MigrarTurmaCommand(
     Guid TurmaOrigemId,
     Guid TurmaDestinoId,
     DateTime DataTransferencia,
-    string? Motivo) : IRequest<MigrarTurmaResultadoDto>;
+    string? Motivo,
+    IReadOnlyCollection<string>? AlunosIds = null) : IRequest<MigrarTurmaResultadoDto>;
