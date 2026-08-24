@@ -10,7 +10,7 @@
 
 [Setup]
 AppName=EscolaAtenta
-AppVersion=1.4.0
+AppVersion=1.4.1
 AppPublisher=EscolaAtenta
 DefaultDirName=C:\EscolaAtenta
 DefaultGroupName=EscolaAtenta
