@@ -154,6 +154,12 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
                 // ── Criação de nova chamada ─────────────────────────────────────────
                 // 4. Busca todos os alunos da lista para atualizar.
                 // Filtra por TurmaId para evitar registrar presença de aluno de outra turma.
+                if (request.Alunos.Count == 0)
+                {
+                    throw new DomainException(
+                        "Não é possível realizar uma chamada sem registros de presença.");
+                }
+
                 var alunosIds = request.Alunos.Select(a => a.AlunoId).ToList();
                 var alunosDb = await _context.Alunos
                     .Where(a => alunosIds.Contains(a.Id) && a.TurmaId == request.TurmaId)
@@ -186,16 +192,19 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
 
                 // Recalcula estatísticas dos alunos afetados, garantindo que chamadas
                 // retroativas sejam processadas cronologicamente e incluam os novos registros.
-                if (alunosAfetados.Count > 0)
+                if (alunosAfetados.Count == 0)
                 {
-                    await RecalcularEstatisticasDosAlunos(alunosAfetados, cancellationToken);
+                    throw new DomainException(
+                        "Nenhum aluno válido informado para a chamada. Verifique se os alunos ainda pertencem à turma.");
+                }
 
-                    foreach (var alunoId in alunosAfetados)
+                await RecalcularEstatisticasDosAlunos(alunosAfetados, cancellationToken);
+
+                foreach (var alunoId in alunosAfetados)
+                {
+                    if (alunosDb.TryGetValue(alunoId, out var aluno) && aluno.DomainEvents.Count > 0)
                     {
-                        if (alunosDb.TryGetValue(alunoId, out var aluno) && aluno.DomainEvents.Count > 0)
-                        {
-                            alertasGerados++;
-                        }
+                        alertasGerados++;
                     }
                 }
 

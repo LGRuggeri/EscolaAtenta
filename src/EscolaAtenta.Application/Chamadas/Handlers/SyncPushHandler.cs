@@ -338,12 +338,37 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 var registrosPorAluno = chamadaExistente.RegistrosPresenca
                     .ToDictionary(r => r.AlunoId, r => r);
 
+                // P1: se a chamada existente está vazia (por exemplo, criada por um bug
+                // anterior ou por sync interrompido), permitimos preenchê-la com os
+                // registros enviados pelo app, desde que os alunos pertençam à turma.
+                var chamadaEstaVazia = registrosPorAluno.Count == 0;
+
                 foreach (var dto in grupo)
                 {
                     var alunoGuid = ResolveGuid(dto.AlunoId);
                     if (alunoGuid == Guid.Empty || !alunosDb.TryGetValue(alunoGuid, out var aluno))
                     {
                         _logger.LogWarning("[SYNC] Aluno '{AlunoId}' não encontrado. Registro ignorado.", dto.AlunoId);
+                        continue;
+                    }
+
+                    var status = ParseStatus(dto.Status);
+
+                    if (chamadaEstaVazia)
+                    {
+                        var registro = chamadaExistente.RegistrarPresenca(aluno.Id, status);
+                        afetados.Add(alunoGuid);
+
+                        _context.SyncLogs.Add(new SyncLog
+                        {
+                            Id = Guid.NewGuid(),
+                            IdExterno = dto.Id,
+                            EntidadeId = registro.Id,
+                            TabelaOrigem = "registros_presenca",
+                            SincronizadoEm = DateTimeOffset.UtcNow
+                        });
+
+                        criados++;
                         continue;
                     }
 
@@ -354,8 +379,6 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                             alunoGuid, grupo.Key.Dia);
                         continue;
                     }
-
-                    var status = ParseStatus(dto.Status);
 
                     // Sempre mapeia o IdExterno local para o RegistroPresenca existente,
                     // mesmo quando o status já coincide. Isso permite futuros updates.

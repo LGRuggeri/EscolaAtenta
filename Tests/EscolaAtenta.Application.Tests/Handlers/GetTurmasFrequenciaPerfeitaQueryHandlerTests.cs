@@ -127,6 +127,46 @@ public class GetTurmasFrequenciaPerfeitaQueryHandlerTests : IDisposable
     }
 
     [Fact]
+    public async Task Handle_TurmaComFaltaJustificadaNoPeriodo_NaoDeveRetornar()
+    {
+        await using var ctx = CriarContexto();
+        ctx.Database.EnsureCreated();
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Turma Com Falta Justificada", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Justificado", null, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        await SeedChamadaComPresenca(ctx, turmaId, alunoId,
+            new DateTimeOffset(2026, 3, 10, 8, 0, 0, TimeSpan.Zero), StatusPresenca.FaltaJustificada);
+
+        var resultado = await CriarHandler(ctx).Handle(QueryMesAtual(), CancellationToken.None);
+
+        resultado.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_TurmaComAusenciaNoPeriodo_NaoDeveRetornar()
+    {
+        await using var ctx = CriarContexto();
+        ctx.Database.EnsureCreated();
+        var turmaId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "Turma Com Ausencia", "Manhã", 2026));
+        ctx.Alunos.Add(new Aluno(alunoId, "Aluno Ausente", null, turmaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        await SeedChamadaComPresenca(ctx, turmaId, alunoId,
+            new DateTimeOffset(2026, 3, 10, 8, 0, 0, TimeSpan.Zero), StatusPresenca.Ausente);
+
+        var resultado = await CriarHandler(ctx).Handle(QueryMesAtual(), CancellationToken.None);
+
+        resultado.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Handle_ChamadaForaDoPeriodo_NaoDeveContar()
     {
         await using var ctx = CriarContexto();

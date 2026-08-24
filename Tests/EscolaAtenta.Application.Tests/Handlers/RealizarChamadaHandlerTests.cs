@@ -68,6 +68,46 @@ public class RealizarChamadaHandlerTests : IDisposable
     }
 
     [Fact]
+    public async Task Handle_QuandoListaDeAlunosVazia_DeveDispararDomainException()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "3º Ano A", "Manhã", 2026));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var command = new RealizarChamadaCommand(
+            turmaId,
+            Guid.NewGuid(),
+            []);
+
+        Func<Task> act = () => CriarHandler(ctx).Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<DomainException>()
+            .WithMessage("*Não é possível realizar uma chamada sem registros de presença*");
+    }
+
+    [Fact]
+    public async Task Handle_QuandoNenhumAlunoValido_DeveDispararDomainException()
+    {
+        await using var ctx = CriarContexto();
+        var turmaId = Guid.NewGuid();
+        ctx.Turmas.Add(new Turma(turmaId, "3º Ano A", "Manhã", 2026));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var command = new RealizarChamadaCommand(
+            turmaId,
+            Guid.NewGuid(),
+            [new RegistroAlunoDto(Guid.NewGuid(), StatusPresenca.Presente)]);
+
+        Func<Task> act = () => CriarHandler(ctx).Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<DomainException>()
+            .WithMessage("*Nenhum aluno válido informado*");
+    }
+
+    [Fact]
     public async Task Handle_QuandoComandoValido_DeveCriarChamadaComRegistros()
     {
         // FakeCurrentUserService padrão usa Papel = "Administrador" (bypassa IDOR)

@@ -90,18 +90,21 @@ public class TurmasController : ControllerBase
     /// Contrato legado (compatibilidade OTA com apps não atualizados):
     /// informe anoLetivo e, opcionalmente, periodoLetivo (interpretado como trimestre).
     /// </summary>
-    [HttpGet("{id:guid}/relatorio")]
+    [HttpGet("{id}/relatorio")]
     [Authorize(Roles = "Supervisao,Administrador")]
     [ProducesResponseType(typeof(RelatorioTurmaDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetRelatorioTurma(
-        [FromRoute] Guid id,
+        [FromRoute] string id,
         [FromQuery] DateTime? dataInicio = null,
         [FromQuery] DateTime? dataFim = null,
         [FromQuery] int? anoLetivo = null,
         [FromQuery] int? periodoLetivo = null,
         CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(id))
+            return BadRequest(new { erro = "Informe o identificador da turma." });
+
         RelatorioTurmaQuery query;
 
         if (dataInicio.HasValue && dataFim.HasValue)

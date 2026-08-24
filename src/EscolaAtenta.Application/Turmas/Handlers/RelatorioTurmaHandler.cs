@@ -30,7 +30,7 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
         var inicio = new DateTimeOffset(request.DataInicio.Date, TimeSpan.Zero);
         var fim = new DateTimeOffset(request.DataFim.Date.AddDays(1), TimeSpan.Zero);
 
-        var turmaId = await ResolverTurmaIdAsync(request.TurmaId.ToString(), cancellationToken);
+        var turmaId = await ResolverTurmaIdAsync(request.TurmaId, cancellationToken);
 
         var turma = await _context.Turmas.AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == turmaId, cancellationToken);

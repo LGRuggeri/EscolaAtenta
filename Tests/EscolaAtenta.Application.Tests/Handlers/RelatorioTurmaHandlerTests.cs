@@ -47,10 +47,10 @@ public class RelatorioTurmaHandlerTests
 
         var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
         var resultado = await handler.Handle(
-            new RelatorioTurmaQuery(turma.Id, new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
+            new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
             CancellationToken.None);
 
-        resultado.TurmaId.Should().Be(turma.Id);
+        resultado.TurmaId.Should().Be(turma.Id.ToString());
         resultado.Alunos.Should().ContainSingle(a => a.AlunoId == aluno.Id);
         resultado.Resumo.TotalAlunos.Should().Be(1);
         resultado.Resumo.TotalPresentes.Should().Be(1);
@@ -69,7 +69,7 @@ public class RelatorioTurmaHandlerTests
 
         var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
         var resultado = await handler.Handle(
-            new RelatorioTurmaQuery(turma.Id, new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
+            new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
             CancellationToken.None);
 
         resultado.Resumo.TotalAlunos.Should().Be(0);
@@ -103,7 +103,7 @@ public class RelatorioTurmaHandlerTests
 
         var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
         var resultado = await handler.Handle(
-            new RelatorioTurmaQuery(turma.Id, new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
+            new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
             CancellationToken.None);
 
         resultado.Alunos.Should().ContainSingle(a => a.AlunoId == aluno.Id);
@@ -138,7 +138,7 @@ public class RelatorioTurmaHandlerTests
 
         var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
         var resultado = await handler.Handle(
-            new RelatorioTurmaQuery(turma.Id, new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
+            new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
             CancellationToken.None);
 
         resultado.Resumo.TotalPresentes.Should().Be(1);
@@ -158,7 +158,7 @@ public class RelatorioTurmaHandlerTests
 
         var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
         var acao = async () => await handler.Handle(
-            new RelatorioTurmaQuery(turma.Id, new DateTime(2025, 4, 30), new DateTime(2025, 4, 1)),
+            new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 30), new DateTime(2025, 4, 1)),
             CancellationToken.None);
 
         await acao.Should().ThrowAsync<DomainException>();
@@ -194,10 +194,10 @@ public class RelatorioTurmaHandlerTests
 
         var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
         var resultado = await handler.Handle(
-            new RelatorioTurmaQuery(turma.Id, new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
+            new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
             CancellationToken.None);
 
-        resultado.TurmaId.Should().Be(turma.Id);
+        resultado.TurmaId.Should().Be(turma.Id.ToString());
         resultado.Alunos.Should().ContainSingle(a => a.AlunoId == aluno.Id);
 
         var alunoDto = resultado.Alunos.Single(a => a.AlunoId == aluno.Id);
@@ -240,7 +240,7 @@ public class RelatorioTurmaHandlerTests
 
         var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
         var resultado = await handler.Handle(
-            new RelatorioTurmaQuery(turma.Id, new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
+            new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
             CancellationToken.None);
 
         var alunoDto = resultado.Alunos.Single(a => a.AlunoId == aluno.Id);
@@ -258,9 +258,9 @@ public class RelatorioTurmaHandlerTests
         var hoje = DateTime.Today;
 
         var query = RelatorioTurmaQuery.DePeriodoLetivo(
-            turmaId, hoje.Year, TipoPeriodoLetivo.Trimestre);
+            turmaId.ToString(), hoje.Year, TipoPeriodoLetivo.Trimestre);
 
-        query.TurmaId.Should().Be(turmaId);
+        query.TurmaId.Should().Be(turmaId.ToString());
         query.DataInicio.Should().BeOnOrBefore(hoje);
         query.DataFim.Should().BeOnOrAfter(hoje);
         query.DataInicio.Year.Should().Be(hoje.Year);
@@ -270,7 +270,7 @@ public class RelatorioTurmaHandlerTests
     public void DePeriodoLetivo_AnoSemPeriodoAnoDiferente_DeveUsarPrimeiroPeriodo()
     {
         var query = RelatorioTurmaQuery.DePeriodoLetivo(
-            Guid.NewGuid(), DateTime.Today.Year - 1, TipoPeriodoLetivo.Trimestre);
+            Guid.NewGuid().ToString(), DateTime.Today.Year - 1, TipoPeriodoLetivo.Trimestre);
 
         query.DataInicio.Should().Be(new DateTime(DateTime.Today.Year - 1, 1, 1));
         query.DataFim.Should().Be(new DateTime(DateTime.Today.Year - 1, 3, 31));
@@ -285,7 +285,7 @@ public class RelatorioTurmaHandlerTests
         int periodo, int mesInicio, int diaInicio, int mesFim, int diaFim)
     {
         var query = RelatorioTurmaQuery.DePeriodoLetivo(
-            Guid.NewGuid(), 2025, TipoPeriodoLetivo.Trimestre, periodo);
+            Guid.NewGuid().ToString(), 2025, TipoPeriodoLetivo.Trimestre, periodo);
 
         query.DataInicio.Should().Be(new DateTime(2025, mesInicio, diaInicio));
         query.DataFim.Should().Be(new DateTime(2025, mesFim, diaFim));
@@ -298,7 +298,7 @@ public class RelatorioTurmaHandlerTests
         int periodo, int mesInicio, int diaInicio, int mesFim, int diaFim)
     {
         var query = RelatorioTurmaQuery.DePeriodoLetivo(
-            Guid.NewGuid(), 2025, TipoPeriodoLetivo.Semestre, periodo);
+            Guid.NewGuid().ToString(), 2025, TipoPeriodoLetivo.Semestre, periodo);
 
         query.DataInicio.Should().Be(new DateTime(2025, mesInicio, diaInicio));
         query.DataFim.Should().Be(new DateTime(2025, mesFim, diaFim));
@@ -315,7 +315,7 @@ public class RelatorioTurmaHandlerTests
         int periodo, int mesInicio, int diaInicio, int mesFim, int diaFim)
     {
         var query = RelatorioTurmaQuery.DePeriodoLetivo(
-            Guid.NewGuid(), 2025, TipoPeriodoLetivo.Bimestre, periodo);
+            Guid.NewGuid().ToString(), 2025, TipoPeriodoLetivo.Bimestre, periodo);
 
         query.DataInicio.Should().Be(new DateTime(2025, mesInicio, diaInicio));
         query.DataFim.Should().Be(new DateTime(2025, mesFim, diaFim));
@@ -325,7 +325,7 @@ public class RelatorioTurmaHandlerTests
     public void DePeriodoLetivo_PrimeiroBimestreAnoBissexto_DeveTerminarEm29DeFevereiro()
     {
         var query = RelatorioTurmaQuery.DePeriodoLetivo(
-            Guid.NewGuid(), 2024, TipoPeriodoLetivo.Bimestre, 1);
+            Guid.NewGuid().ToString(), 2024, TipoPeriodoLetivo.Bimestre, 1);
 
         query.DataInicio.Should().Be(new DateTime(2024, 1, 1));
         query.DataFim.Should().Be(new DateTime(2024, 2, 29));
@@ -335,7 +335,7 @@ public class RelatorioTurmaHandlerTests
     public void DePeriodoLetivo_PeriodoMaiorQueQuatroEmTrimestre_DeveClamparParaQuartoTrimestre()
     {
         var query = RelatorioTurmaQuery.DePeriodoLetivo(
-            Guid.NewGuid(), 2025, TipoPeriodoLetivo.Trimestre, 99);
+            Guid.NewGuid().ToString(), 2025, TipoPeriodoLetivo.Trimestre, 99);
 
         query.DataInicio.Should().Be(new DateTime(2025, 10, 1));
         query.DataFim.Should().Be(new DateTime(2025, 12, 31));
@@ -345,7 +345,7 @@ public class RelatorioTurmaHandlerTests
     public void DePeriodoLetivo_PeriodoZeroEmTrimestre_DeveClamparParaPrimeiroTrimestre()
     {
         var query = RelatorioTurmaQuery.DePeriodoLetivo(
-            Guid.NewGuid(), 2025, TipoPeriodoLetivo.Trimestre, 0);
+            Guid.NewGuid().ToString(), 2025, TipoPeriodoLetivo.Trimestre, 0);
 
         query.DataInicio.Should().Be(new DateTime(2025, 1, 1));
         query.DataFim.Should().Be(new DateTime(2025, 3, 31));

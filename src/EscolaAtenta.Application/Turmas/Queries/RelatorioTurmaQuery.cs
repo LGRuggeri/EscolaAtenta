@@ -5,7 +5,7 @@ using MediatR;
 namespace EscolaAtenta.Application.Turmas.Queries;
 
 public record RelatorioTurmaQuery(
-    Guid TurmaId,
+    string TurmaId,
     DateTime DataInicio,
     DateTime DataFim) : IRequest<RelatorioTurmaDto>
 {
@@ -20,7 +20,7 @@ public record RelatorioTurmaQuery(
     /// dentro da divisão configurada.
     /// </summary>
     public static RelatorioTurmaQuery DePeriodoLetivo(
-        Guid turmaId,
+        string turmaId,
         int anoLetivo,
         TipoPeriodoLetivo tipoPeriodoLetivo,
         int? periodoLetivo = null)

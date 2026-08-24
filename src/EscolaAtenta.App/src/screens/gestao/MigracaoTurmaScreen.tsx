@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: theme.colors.primaryLight,
+        backgroundColor: theme.colors.surface,
         padding: theme.spacing.sm,
         borderRadius: theme.borderRadius.sm,
         borderWidth: 1,

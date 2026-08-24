@@ -22,40 +22,46 @@ public class GetTurmasFrequenciaPerfeitaQueryHandler : IRequestHandler<GetTurmas
 
     public async Task<IEnumerable<TurmaFrequenciaPerfeitaDto>> Handle(GetTurmasFrequenciaPerfeitaQuery request, CancellationToken cancellationToken)
     {
-        // Pré-filtra no banco usando DataChamada (DateTime), que é traduzível pelo provider SQLite.
-        // Apenas os IDs das chamadas do período são carregados; depois as chamadas efetivas
-        // e seus registros de presença são materializados em memória para a projeção final.
+        // O provider SQLite do EF Core não traduz projeções sobre coleções de navegação
+        // que envolvam DateTimeOffset (ex: DataHora.UtcTicks). Para evitar a exceção,
+        // filtramos as chamadas no banco pela data (DateTime) e materializamos os registros
+        // de presença em memória, fazendo a agregação com LINQ-to-Objects.
         var inicio = request.DataInicio.Date;
         var fim = request.DataFim.Date;
 
-        var turmas = await _context.Turmas
-            .AsNoTracking()
-            .ToDictionaryAsync(t => t.Id, cancellationToken);
-
-        var chamadaIdsDoPeriodo = await _context.Chamadas
-            .AsNoTracking()
-            .Where(c => c.DataChamada >= inicio && c.DataChamada <= fim)
-            .Select(c => c.Id)
-            .ToListAsync(cancellationToken);
-
         var chamadasDoPeriodo = await _context.Chamadas
             .AsNoTracking()
-            .Where(c => chamadaIdsDoPeriodo.Contains(c.Id))
+            .Where(c => c.DataChamada >= inicio && c.DataChamada <= fim)
             .Include(c => c.RegistrosPresenca)
             .ToListAsync(cancellationToken);
 
+        var turmasIdsComChamadas = chamadasDoPeriodo
+            .Select(c => c.TurmaId)
+            .Distinct()
+            .ToList();
+
+        var turmas = await _context.Turmas
+            .AsNoTracking()
+            .Where(t => turmasIdsComChamadas.Contains(t.Id))
+            .ToDictionaryAsync(t => t.Id, cancellationToken);
+
+        var statusInadmissiveis = new HashSet<StatusPresenca>
+        {
+            StatusPresenca.Falta,
+            StatusPresenca.FaltaJustificada,
+            StatusPresenca.Ausente,
+            StatusPresenca.Atraso
+        };
+
         var resultado = chamadasDoPeriodo
-            .Where(c => turmas.ContainsKey(c.TurmaId))
             .GroupBy(c => c.TurmaId)
             .Select(g => new
             {
                 TurmaId = g.Key,
                 QuantidadeChamadas = g.Count(),
-                TemFaltaOuAtraso = g.Any(c => c.RegistrosPresenca.Any(rp =>
-                    rp.Status == StatusPresenca.Falta ||
-                    rp.Status == StatusPresenca.Atraso))
+                TemInadmissivel = g.Any(c => c.RegistrosPresenca.Any(rp => statusInadmissiveis.Contains(rp.Status)))
             })
-            .Where(t => t.QuantidadeChamadas > 0 && !t.TemFaltaOuAtraso)
+            .Where(t => !t.TemInadmissivel)
             .OrderByDescending(t => t.QuantidadeChamadas)
             .ThenBy(t => turmas[t.TurmaId].Nome)
             .Select(t => new TurmaFrequenciaPerfeitaDto(t.TurmaId, turmas[t.TurmaId].Nome, t.QuantidadeChamadas))
