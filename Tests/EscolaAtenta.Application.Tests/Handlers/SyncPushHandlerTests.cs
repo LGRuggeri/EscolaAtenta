@@ -1167,4 +1167,128 @@ public class SyncPushHandlerTests : IDisposable
         var syncLogs = await ctx.SyncLogs.Where(s => s.IdExterno.StartsWith("reg-duplicado")).ToListAsync();
         syncLogs.Should().HaveCount(2);
     }
+
+    [Fact]
+    public async Task Handle_TurmaAtualizadaOfflineSemOutrosDeltas_DevePersistir()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+
+        // Cria turma offline e simula que já foi sincronizada anteriormente
+        var turmaLocalId = "turma-local-update";
+        var turma = new Turma(Guid.NewGuid(), "Turma Original", "Manhã", 2026);
+        ctx.Turmas.Add(turma);
+        ctx.SyncLogs.Add(new SyncLog
+        {
+            Id = Guid.NewGuid(),
+            IdExterno = turmaLocalId,
+            EntidadeId = turma.Id,
+            TabelaOrigem = "turmas",
+            SincronizadoEm = DateTimeOffset.UtcNow
+        });
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var pushCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                Turmas = new SyncTableData<TurmaOfflineSyncDto>
+                {
+                    Updated = [new TurmaOfflineSyncDto
+                    {
+                        Id = turmaLocalId,
+                        Nome = "Turma Atualizada",
+                        Turno = "Tarde",
+                        AnoLetivo = 2027
+                    }]
+                }
+            },
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+        var resultado = await CriarHandler(ctx, user).Handle(pushCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(1, "update-only de turma deve ser processado");
+        resultado.Rejeicoes.Should().BeEmpty();
+
+        var turmaAtualizada = await ctx.Turmas.FindAsync(turma.Id);
+        turmaAtualizada!.Nome.Should().Be("Turma Atualizada");
+        turmaAtualizada.Turno.Should().Be("Tarde");
+        turmaAtualizada.AnoLetivo.Should().Be(2027);
+    }
+
+    [Fact]
+    public async Task Handle_TurmaDoServidorAtualizadaOffline_DeveAtualizarPorGuid()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+
+        // Turma criada no servidor: seu ID no WatermelonDB é o próprio GUID
+        var turma = new Turma(Guid.NewGuid(), "Turma Servidor", "Manhã", 2026);
+        ctx.Turmas.Add(turma);
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var pushCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                Turmas = new SyncTableData<TurmaOfflineSyncDto>
+                {
+                    Updated = [new TurmaOfflineSyncDto
+                    {
+                        Id = turma.Id.ToString(), // GUID do servidor usado como id local no app
+                        Nome = "Turma Servidor Atualizada",
+                        Turno = "Tarde",
+                        AnoLetivo = 2027
+                    }]
+                }
+            },
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+        var resultado = await CriarHandler(ctx, user).Handle(pushCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(1);
+        resultado.Rejeicoes.Should().BeEmpty();
+
+        var turmaAtualizada = await ctx.Turmas.FindAsync(turma.Id);
+        turmaAtualizada!.Nome.Should().Be("Turma Servidor Atualizada");
+    }
+
+    [Fact]
+    public async Task Handle_AlunoDoServidorAtualizadoOffline_DeveAtualizarPorGuid()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+
+        var turma = new Turma(Guid.NewGuid(), "Turma Base", "Manhã", 2026);
+        ctx.Turmas.Add(turma);
+
+        // Aluno criado no servidor: seu ID no WatermelonDB é o próprio GUID
+        var aluno = new Aluno(Guid.NewGuid(), "Aluno Servidor", null, turma.Id);
+        ctx.Alunos.Add(aluno);
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var pushCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                Alunos = new SyncTableData<AlunoOfflineSyncDto>
+                {
+                    Updated = [new AlunoOfflineSyncDto
+                    {
+                        Id = aluno.Id.ToString(), // GUID do servidor usado como id local no app
+                        Nome = "Aluno Servidor Atualizado",
+                        TurmaId = turma.Id.ToString()
+                    }]
+                }
+            },
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+        var resultado = await CriarHandler(ctx, user).Handle(pushCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(1);
+        resultado.Rejeicoes.Should().BeEmpty();
+
+        var alunoAtualizado = await ctx.Alunos.FindAsync(aluno.Id);
+        alunoAtualizado!.Nome.Should().Be("Aluno Servidor Atualizado");
+    }
 }

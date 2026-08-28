@@ -51,11 +51,15 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
     public async Task<SyncPushResult> Handle(SyncPushCommand request, CancellationToken cancellationToken)
     {
         var turmasCriadas = request.Changes.Turmas.Created;
+        var turmasAtualizadas = request.Changes.Turmas.Updated;
         var alunosCriados = request.Changes.Alunos.Created;
+        var alunosAtualizados = request.Changes.Alunos.Updated;
         var created = request.Changes.RegistrosPresenca.Created;
         var updated = request.Changes.RegistrosPresenca.Updated;
 
-        if (turmasCriadas.Count == 0 && alunosCriados.Count == 0 && created.Count == 0 && updated.Count == 0)
+        if (turmasCriadas.Count == 0 && turmasAtualizadas.Count == 0 &&
+            alunosCriados.Count == 0 && alunosAtualizados.Count == 0 &&
+            created.Count == 0 && updated.Count == 0)
             return new SyncPushResult(0, 0, []);
 
         // ── Segurança: Responsável extraído do JWT, nunca do cliente ─────────
@@ -242,15 +246,30 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         }
 
         var idsExternos = turmas.Select(t => t.Id).Distinct().ToList();
+
+        // Resolve IDs externos: SyncLog para turmas criadas offline; GUID direto
+        // para turmas que vieram do servidor (o WatermelonDB usa o próprio server_id).
         var mapeamentos = await _context.SyncLogs
             .Where(s => idsExternos.Contains(s.IdExterno) && s.TabelaOrigem == "turmas")
             .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, ct);
+
+        Guid ResolverTurmaId(string idExterno)
+        {
+            if (mapeamentos.TryGetValue(idExterno, out var entidadeId))
+                return entidadeId;
+
+            if (Guid.TryParse(idExterno, out var guid))
+                return guid;
+
+            return Guid.Empty;
+        }
 
         int atualizadas = 0;
 
         foreach (var dto in turmas.GroupBy(t => t.Id).Select(g => g.First()))
         {
-            if (!mapeamentos.TryGetValue(dto.Id, out var entidadeId))
+            var entidadeId = ResolverTurmaId(dto.Id);
+            if (entidadeId == Guid.Empty)
             {
                 rejeicoes.Add(new SyncRejeicao(
                     dto.Id,
@@ -773,15 +792,30 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         }
 
         var idsExternos = alunos.Select(a => a.Id).Distinct().ToList();
+
+        // Resolve IDs externos: SyncLog para alunos criados offline; GUID direto
+        // para alunos que vieram do servidor (o WatermelonDB usa o próprio server_id).
         var mapeamentos = await _context.SyncLogs
             .Where(s => idsExternos.Contains(s.IdExterno) && s.TabelaOrigem == "alunos")
             .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, ct);
+
+        Guid ResolverAlunoId(string idExterno)
+        {
+            if (mapeamentos.TryGetValue(idExterno, out var entidadeId))
+                return entidadeId;
+
+            if (Guid.TryParse(idExterno, out var guid))
+                return guid;
+
+            return Guid.Empty;
+        }
 
         int atualizados = 0;
 
         foreach (var dto in alunos.GroupBy(a => a.Id).Select(g => g.First()))
         {
-            if (!mapeamentos.TryGetValue(dto.Id, out var entidadeId))
+            var entidadeId = ResolverAlunoId(dto.Id);
+            if (entidadeId == Guid.Empty)
             {
                 rejeicoes.Add(new SyncRejeicao(
                     dto.Id,
