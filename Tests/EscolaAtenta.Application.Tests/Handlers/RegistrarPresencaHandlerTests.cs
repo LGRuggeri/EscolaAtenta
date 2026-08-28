@@ -40,8 +40,11 @@ public class RegistrarPresencaHandlerTests : IDisposable
         return ctx;
     }
 
-    private RegistrarPresencaHandler CriarHandler(AppDbContext ctx) =>
-        new(ctx, null!, NullLogger<RegistrarPresencaHandler>.Instance);
+    private RegistrarPresencaHandler CriarHandler(AppDbContext ctx, FakeCurrentUserService? currentUser = null) =>
+        new(
+            ctx,
+            NullLogger<RegistrarPresencaHandler>.Instance,
+            currentUser ?? new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString(), EstaAutenticado = true, Papel = "Administrador" });
 
     [Fact]
     public async Task Handle_QuandoChamadaNaoEncontrada_DeveDispararDomainException()

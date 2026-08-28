@@ -45,7 +45,7 @@ public class RelatorioTurmaHandlerTests
         await ctx.SaveChangesAsync();
         ctx.ChangeTracker.Clear();
 
-        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
+        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString(), EstaAutenticado = true, Papel = "Administrador" });
         var resultado = await handler.Handle(
             new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
             CancellationToken.None);
@@ -67,7 +67,7 @@ public class RelatorioTurmaHandlerTests
         await ctx.SaveChangesAsync();
         ctx.ChangeTracker.Clear();
 
-        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
+        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString(), EstaAutenticado = true, Papel = "Administrador" });
         var resultado = await handler.Handle(
             new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
             CancellationToken.None);
@@ -101,7 +101,7 @@ public class RelatorioTurmaHandlerTests
         await ctx.SaveChangesAsync();
         ctx.ChangeTracker.Clear();
 
-        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
+        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString(), EstaAutenticado = true, Papel = "Administrador" });
         var resultado = await handler.Handle(
             new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
             CancellationToken.None);
@@ -136,7 +136,7 @@ public class RelatorioTurmaHandlerTests
         await ctx.SaveChangesAsync();
         ctx.ChangeTracker.Clear();
 
-        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
+        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString(), EstaAutenticado = true, Papel = "Administrador" });
         var resultado = await handler.Handle(
             new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
             CancellationToken.None);
@@ -156,7 +156,7 @@ public class RelatorioTurmaHandlerTests
         await ctx.SaveChangesAsync();
         ctx.ChangeTracker.Clear();
 
-        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
+        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString(), EstaAutenticado = true, Papel = "Administrador" });
         var acao = async () => await handler.Handle(
             new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 30), new DateTime(2025, 4, 1)),
             CancellationToken.None);
@@ -192,7 +192,7 @@ public class RelatorioTurmaHandlerTests
         await ctx.SaveChangesAsync();
         ctx.ChangeTracker.Clear();
 
-        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
+        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString(), EstaAutenticado = true, Papel = "Administrador" });
         var resultado = await handler.Handle(
             new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
             CancellationToken.None);
@@ -238,7 +238,7 @@ public class RelatorioTurmaHandlerTests
         await ctx.SaveChangesAsync();
         ctx.ChangeTracker.Clear();
 
-        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance);
+        var handler = new RelatorioTurmaHandler(ctx, NullLogger<RelatorioTurmaHandler>.Instance, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString(), EstaAutenticado = true, Papel = "Administrador" });
         var resultado = await handler.Handle(
             new RelatorioTurmaQuery(turma.Id.ToString(), new DateTime(2025, 4, 1), new DateTime(2025, 4, 30)),
             CancellationToken.None);

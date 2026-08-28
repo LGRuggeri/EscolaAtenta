@@ -309,15 +309,7 @@ public class Aluno : EntityBase, ISoftDeletable
     {
         if (FaltasConsecutivasAtuais > 0)
         {
-            AddDomainEvent(new LimiteFaltasAtingidoEvent(
-                AlunoId: Id,
-                TurmaId: TurmaId,
-                NomeAluno: Nome,
-                TotalFaltas: FaltasConsecutivasAtuais,
-                LimiteConfigurado: 5,
-                MotivoExato: $"O aluno alcançou {FaltasConsecutivasAtuais} falhas consecutivas.",
-                Nivel: GetNivelAlerta()
-            ));
+            VerificarLimiteFaltas();
         }
         else
         {
@@ -335,13 +327,14 @@ public class Aluno : EntityBase, ISoftDeletable
         // Conforme a regra, gerar alertas com severidades crescentes:
         // 1 - Aviso (Amarelo)
         // 2 - Intermediário (Laranja -> Conversa com o aluno)
-        // 3 - Vermelho (Conversa com os pais)
-        // 5 - Preto (Conselho Tutelar)
+        // 3/4 - Vermelho (Conversa com os pais)
+        // 5+ - Preto (Conselho Tutelar)
         //
-        // Thresholds explícitos: evita falhas silenciosas por saltos no contador
-        // (ex: edições em lote que pulam de 2 para 4 diretamente).
-        if (FaltasConsecutivasAtuais == 1 || FaltasConsecutivasAtuais == 2 || 
-            FaltasConsecutivasAtuais == 3 || FaltasConsecutivasAtuais == 5)
+        // Emite o evento sempre que houver faltas consecutivas. O handler de alerta
+        // é idempotente: cria um novo alerta se não existir, atualiza o nível se
+        // mudou, ou ignora se o nível já está correto. Isso também cobre rebaixamento
+        // quando o contador cai (ex: Preto -> Vermelho) e saltos no contador.
+        if (FaltasConsecutivasAtuais > 0)
         {
             var nivelAlerta = GetNivelAlerta();
             

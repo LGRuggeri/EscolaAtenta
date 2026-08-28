@@ -40,7 +40,6 @@ public class ObterChamadaPorTurmaEDiaHandler : IRequestHandler<ObterChamadaPorTu
         var chamada = (await _context.Chamadas
             .AsNoTracking()
             .Include(c => c.RegistrosPresenca)
-            .ThenInclude(r => r.Aluno)
             .Where(c => c.TurmaId == turmaId)
             .ToListAsync(cancellationToken))
             .Where(c => c.DataChamada == request.Data.Date)
@@ -61,6 +60,15 @@ public class ObterChamadaPorTurmaEDiaHandler : IRequestHandler<ObterChamadaPorTu
             .Where(s => s.TabelaOrigem == "alunos" && alunoIds.Contains(s.EntidadeId))
             .ToDictionaryAsync(s => s.EntidadeId, s => s.IdExterno, cancellationToken);
 
+        // Carrega nomes de alunos ativos e inativos (soft-deleted) para manter o histórico legível.
+        // IgnoreQueryFilters() garante que alunos excluídos logicamente apareçam no histórico.
+        var nomesAlunos = await _context.Alunos
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(a => alunoIds.Contains(a.Id))
+            .Select(a => new { a.Id, a.Nome })
+            .ToDictionaryAsync(a => a.Id, a => a.Nome, cancellationToken);
+
         return new ChamadaPorDiaDto
         {
             ChamadaId = chamada.Id,
@@ -73,7 +81,7 @@ public class ObterChamadaPorTurmaEDiaHandler : IRequestHandler<ObterChamadaPorTu
                     AlunoId = syncLogsAlunos.TryGetValue(r.AlunoId, out var idLocal) && !string.IsNullOrEmpty(idLocal)
                         ? idLocal
                         : r.AlunoId.ToString(),
-                    NomeAluno = r.Aluno?.Nome ?? string.Empty,
+                    NomeAluno = nomesAlunos.TryGetValue(r.AlunoId, out var nome) ? nome : "Aluno não encontrado",
                     Status = r.Status.ToString()
                 })
                 .ToList()

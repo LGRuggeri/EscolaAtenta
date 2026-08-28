@@ -3,6 +3,7 @@ using EscolaAtenta.Application.Alunos.Handlers;
 using EscolaAtenta.Application.Tests.Fakes;
 using EscolaAtenta.Domain.Entities;
 using EscolaAtenta.Domain.Enums;
+using EscolaAtenta.Domain.Exceptions;
 using EscolaAtenta.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -110,7 +111,7 @@ public class TransferirAlunoHandlerTests
             new DateTime(2025, 12, 15, 0, 0, 0, DateTimeKind.Utc),
             "Promoção"), CancellationToken.None);
 
-        await act.Should().ThrowAsync<KeyNotFoundException>();
+        await act.Should().ThrowAsync<DomainException>().Where(e => e.Message.Contains("permissão"));
     }
 
     [Fact]

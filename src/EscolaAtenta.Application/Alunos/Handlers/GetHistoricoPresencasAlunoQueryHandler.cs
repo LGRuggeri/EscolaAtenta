@@ -1,5 +1,7 @@
 using EscolaAtenta.Application.Alunos.DTOs;
 using EscolaAtenta.Application.Alunos.Queries;
+using EscolaAtenta.Domain.Enums;
+using EscolaAtenta.Domain.Exceptions;
 using EscolaAtenta.Domain.Interfaces;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
@@ -42,9 +44,21 @@ public class GetHistoricoPresencasAlunoQueryHandler : IRequestHandler<GetHistori
             alunoGuid = syncLog;
         }
 
-        var alunoExiste = await _context.Alunos.AnyAsync(a => a.Id == alunoGuid, cancellationToken);
-        if (!alunoExiste)
+        var aluno = await _context.Alunos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == alunoGuid, cancellationToken);
+
+        if (aluno is null)
             return Enumerable.Empty<HistoricoPresencaDto>();
+
+        // IDOR: Administrador pode consultar qualquer aluno; demais papéis precisam de vínculo
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
+            && Guid.TryParse(_currentUser.UsuarioId, out var usuarioId)
+            && !await _context.UsuarioTurmas.AnyAsync(
+                ut => ut.TurmaId == aluno.TurmaId && ut.UsuarioId == usuarioId, cancellationToken))
+        {
+            throw new DomainException("Você não tem permissão para consultar o histórico deste aluno.");
+        }
 
         _logger.LogInformation(
             "[AUDITORIA] Consulta histórico de presenças — AlunoId={AlunoId}",
