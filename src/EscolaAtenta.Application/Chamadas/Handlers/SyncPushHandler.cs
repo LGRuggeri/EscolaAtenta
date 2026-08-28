@@ -562,6 +562,13 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
                     criados++;
                 }
+
+                // P1: se nenhum registro da nova chamada foi aceito, descarta a chamada
+                // para nao persistir uma chamada vazia que poluiria relatorios e dashboards.
+                if (chamada.RegistrosPresenca.Count == 0)
+                {
+                    _context.Chamadas.Remove(chamada);
+                }
             }
         }
 
@@ -1119,13 +1126,25 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             .GroupBy(r => r.AlunoId)
             .ToDictionary(g => g.Key, g => g.AsEnumerable());
 
-        var alunos = await _context.Alunos
+        var alunosDb = await _context.Alunos
             .Where(a => alunosIds.Contains(a.Id))
             .ToDictionaryAsync(a => a.Id, cancellationToken);
 
+        // Alunos criados no mesmo batch ainda nao estao persistidos no banco;
+        // mescla entidades Added do ChangeTracker para garantir recalculo correto.
+        var alunosAdicionados = _context.ChangeTracker.Entries<Aluno>()
+            .Where(e => e.State == EntityState.Added && alunosIds.Contains(e.Entity.Id))
+            .Select(e => e.Entity)
+            .ToDictionary(a => a.Id);
+
+        foreach (var item in alunosAdicionados)
+        {
+            alunosDb[item.Key] = item.Value;
+        }
+
         foreach (var alunoId in alunosIds)
         {
-            if (!alunos.TryGetValue(alunoId, out var aluno))
+            if (!alunosDb.TryGetValue(alunoId, out var aluno))
                 continue;
 
             var historico = registrosPorAluno.TryGetValue(alunoId, out var regs)

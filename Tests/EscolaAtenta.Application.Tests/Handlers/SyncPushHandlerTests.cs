@@ -3,6 +3,7 @@ using EscolaAtenta.Application.Chamadas.Handlers;
 using EscolaAtenta.Application.Tests.Fakes;
 using EscolaAtenta.Domain.Entities;
 using EscolaAtenta.Domain.Enums;
+using EscolaAtenta.Domain.Events;
 using EscolaAtenta.Domain.Exceptions;
 using EscolaAtenta.Infrastructure.Data;
 using Microsoft.Data.Sqlite;
@@ -1290,5 +1291,106 @@ public class SyncPushHandlerTests : IDisposable
 
         var alunoAtualizado = await ctx.Alunos.FindAsync(aluno.Id);
         alunoAtualizado!.Nome.Should().Be("Aluno Servidor Atualizado");
+    }
+
+    [Fact]
+    public async Task Handle_AlunoCriadoOfflineComPresencaNoMesmoBatch_DeveRecalcularEstatisticas()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+
+        var dataMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var turmaLocalId = "turma-local-recalc";
+        var alunoLocalId = "aluno-local-recalc";
+
+        var pushCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                Turmas = new SyncTableData<TurmaOfflineSyncDto>
+                {
+                    Created = [new TurmaOfflineSyncDto
+                    {
+                        Id = turmaLocalId,
+                        Nome = "Turma Recalc",
+                        Turno = "Manhã",
+                        AnoLetivo = 2026
+                    }]
+                },
+                Alunos = new SyncTableData<AlunoOfflineSyncDto>
+                {
+                    Created = [new AlunoOfflineSyncDto
+                    {
+                        Id = alunoLocalId,
+                        Nome = "Aluno Recalc",
+                        TurmaId = turmaLocalId
+                    }]
+                },
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-recalc-local",
+                        AlunoId = alunoLocalId,
+                        TurmaId = turmaLocalId,
+                        Data = dataMs,
+                        Status = "Falta"
+                    }]
+                }
+            },
+            dataMs);
+
+        var resultado = await CriarHandler(ctx, user).Handle(pushCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().BeGreaterThanOrEqualTo(3);
+        resultado.Rejeicoes.Should().BeEmpty();
+
+        var alunoSincronizado = await ctx.Alunos.FirstOrDefaultAsync(a => a.Nome == "Aluno Recalc");
+        alunoSincronizado.Should().NotBeNull();
+        alunoSincronizado!.FaltasConsecutivasAtuais.Should().Be(1, "aluno criado no mesmo batch deve ter contadores recalculados");
+        alunoSincronizado.TotalFaltas.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Handle_NovaChamadaComTodosRegistrosRejeitados_DeveDescartarChamadaVazia()
+    {
+        var user = CriarUsuarioAutenticado();
+        await using var ctx = CriarContexto(user);
+
+        var turma = new Turma(Guid.NewGuid(), "Turma Vazia", "Manhã", 2026);
+        ctx.Turmas.Add(turma);
+
+        // Aluno pertence a outra turma; seu registro será rejeitado
+        var outraTurma = new Turma(Guid.NewGuid(), "Outra Turma", "Manhã", 2026);
+        ctx.Turmas.Add(outraTurma);
+        var aluno = new Aluno(Guid.NewGuid(), "Aluno Outra Turma", null, outraTurma.Id);
+        ctx.Alunos.Add(aluno);
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var dataMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var pushCommand = new SyncPushCommand(
+            new SyncChanges
+            {
+                RegistrosPresenca = new SyncTableData<RegistroPresencaSyncDto>
+                {
+                    Created = [new RegistroPresencaSyncDto
+                    {
+                        Id = "reg-vazio-local",
+                        AlunoId = aluno.Id.ToString(),
+                        TurmaId = turma.Id.ToString(),
+                        Data = dataMs,
+                        Status = "Presente"
+                    }]
+                }
+            },
+            dataMs);
+
+        var resultado = await CriarHandler(ctx, user).Handle(pushCommand, CancellationToken.None);
+
+        resultado.RegistrosSincronizados.Should().Be(0);
+        resultado.Rejeicoes.Should().ContainSingle();
+
+        var chamadas = await ctx.Chamadas.Where(c => c.TurmaId == turma.Id).ToListAsync();
+        chamadas.Should().BeEmpty("chamada vazia deve ser descartada");
     }
 }
