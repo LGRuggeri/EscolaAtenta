@@ -188,4 +188,85 @@ public class GetHistoricoPresencasAlunoQueryHandlerTests : IDisposable
 
         resultado.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Handle_AlunoTransferido_MonitorApenasTurmaAtual_DeveRetornarApenasTurmaPermitida()
+    {
+        await using var ctx = CriarContexto();
+
+        var turmaAntigaId = Guid.NewGuid();
+        var turmaNovaId = Guid.NewGuid();
+        var monitorId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+
+        ctx.Turmas.AddRange(
+            new Turma(turmaAntigaId, "Turma Antiga", "Manhã", 2026),
+            new Turma(turmaNovaId, "Turma Nova", "Manhã", 2026));
+
+        var aluno = new Aluno(alunoId, "Aluno Transferido", null, turmaNovaId);
+        aluno.Matricular(turmaAntigaId, 2026, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), "Matrícula inicial");
+        ctx.Alunos.Add(aluno);
+
+        ctx.UsuarioTurmas.Add(new UsuarioTurma(Guid.NewGuid(), monitorId, turmaNovaId));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        await CriarChamadaComPresenca(ctx, turmaAntigaId, alunoId, DateTimeOffset.UtcNow.AddDays(-2), StatusPresenca.Falta);
+        await CriarChamadaComPresenca(ctx, turmaNovaId, alunoId, DateTimeOffset.UtcNow.AddDays(-1), StatusPresenca.Presente);
+
+        var handler = new GetHistoricoPresencasAlunoQueryHandler(
+            ctx,
+            new FakeCurrentUserService
+            {
+                UsuarioId = monitorId.ToString(),
+                EstaAutenticado = true,
+                Papel = "Monitor"
+            },
+            NullLogger<GetHistoricoPresencasAlunoQueryHandler>.Instance);
+
+        var resultado = (await handler.Handle(
+            new GetHistoricoPresencasAlunoQuery(alunoId.ToString(), Dias: 30), CancellationToken.None)).ToList();
+
+        resultado.Should().HaveCount(1, "monitor vinculado apenas a turma nova não deve ver presenças da turma antiga");
+        resultado[0].Status.Should().Be("Presente");
+    }
+
+    [Fact]
+    public async Task Handle_AlunoTransferido_Administrador_DeveRetornarTodasAsTurmas()
+    {
+        await using var ctx = CriarContexto();
+
+        var turmaAntigaId = Guid.NewGuid();
+        var turmaNovaId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var alunoId = Guid.NewGuid();
+
+        ctx.Turmas.AddRange(
+            new Turma(turmaAntigaId, "Turma Antiga", "Manhã", 2026),
+            new Turma(turmaNovaId, "Turma Nova", "Manhã", 2026));
+
+        var aluno = new Aluno(alunoId, "Aluno Transferido", null, turmaNovaId);
+        aluno.Matricular(turmaAntigaId, 2026, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), "Matrícula inicial");
+        ctx.Alunos.Add(aluno);
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        await CriarChamadaComPresenca(ctx, turmaAntigaId, alunoId, DateTimeOffset.UtcNow.AddDays(-2), StatusPresenca.Falta);
+        await CriarChamadaComPresenca(ctx, turmaNovaId, alunoId, DateTimeOffset.UtcNow.AddDays(-1), StatusPresenca.Presente);
+
+        var handler = new GetHistoricoPresencasAlunoQueryHandler(
+            ctx,
+            new FakeCurrentUserService
+            {
+                UsuarioId = adminId.ToString(),
+                EstaAutenticado = true,
+                Papel = "Administrador"
+            },
+            NullLogger<GetHistoricoPresencasAlunoQueryHandler>.Instance);
+
+        var resultado = (await handler.Handle(
+            new GetHistoricoPresencasAlunoQuery(alunoId.ToString(), Dias: 30), CancellationToken.None)).ToList();
+
+        resultado.Should().HaveCount(2, "administrador deve ver histórico completo");
+    }
 }

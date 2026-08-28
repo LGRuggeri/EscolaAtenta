@@ -8,7 +8,10 @@ export const chamadasService = {
 
     obterChamadaPorDia: async (turmaId: string, data: Date): Promise<ChamadaPorDiaDto | null> => {
         try {
-            const response = await api.get<ChamadaPorDiaDto>(`/chamadas/turma/${turmaId}/dia/${data.toISOString()}`);
+            // Normaliza para meia-noite UTC do mesmo dia calendário,
+            // evitando divergência de fuso entre celular e servidor.
+            const dataUtc = new Date(Date.UTC(data.getFullYear(), data.getMonth(), data.getDate()));
+            const response = await api.get<ChamadaPorDiaDto>(`/chamadas/turma/${turmaId}/dia/${dataUtc.toISOString()}`);
             return response.data;
         } catch (error: any) {
             if (error.response?.status === 404) {

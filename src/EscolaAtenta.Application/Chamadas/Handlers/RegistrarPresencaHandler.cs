@@ -1,10 +1,10 @@
 using EscolaAtenta.Application.Chamadas.Commands;
 using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Domain.Exceptions;
+using EscolaAtenta.Domain.Interfaces;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace EscolaAtenta.Application.Chamadas.Handlers;
@@ -29,17 +29,17 @@ namespace EscolaAtenta.Application.Chamadas.Handlers;
 public class RegistrarPresencaHandler : IRequestHandler<RegistrarPresencaCommand, RegistrarPresencaResult>
 {
     private readonly AppDbContext _context;
-    private readonly IConfiguration _configuration;
     private readonly ILogger<RegistrarPresencaHandler> _logger;
+    private readonly ICurrentUserService _currentUser;
 
     public RegistrarPresencaHandler(
         AppDbContext context,
-        IConfiguration configuration,
-        ILogger<RegistrarPresencaHandler> logger)
+        ILogger<RegistrarPresencaHandler> logger,
+        ICurrentUserService currentUser)
     {
         _context = context;
-        _configuration = configuration;
         _logger = logger;
+        _currentUser = currentUser;
     }
 
     public async Task<RegistrarPresencaResult> Handle(
@@ -53,6 +53,15 @@ public class RegistrarPresencaHandler : IRequestHandler<RegistrarPresencaCommand
             .Include(c => c.RegistrosPresenca)
             .FirstOrDefaultAsync(c => c.Id == request.ChamadaId, cancellationToken)
             ?? throw new DomainException($"Chamada '{request.ChamadaId}' não encontrada.");
+
+        // IDOR: Administrador pode registrar presença em qualquer chamada; demais papéis precisam de vínculo
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
+            && Guid.TryParse(_currentUser.UsuarioId, out var usuarioId)
+            && !await _context.UsuarioTurmas.AnyAsync(
+                ut => ut.TurmaId == chamada.TurmaId && ut.UsuarioId == usuarioId, cancellationToken))
+        {
+            throw new DomainException("Você não tem permissão para registrar presença nesta turma.");
+        }
 
         // ── Delega ao domínio — invariantes são verificadas aqui ───────────────
         var registro = chamada.RegistrarPresenca(request.AlunoId, request.Status);

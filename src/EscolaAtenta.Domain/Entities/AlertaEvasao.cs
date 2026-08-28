@@ -96,7 +96,7 @@ public class AlertaEvasao : EntityBase
 
         Nivel = NivelAlertaFaltaExtensions.GarantirLimiteMaximo(novoNivel);
         Descricao = novoMotivo;
-        DataAlerta = DateTimeOffset.UtcNow; // Atualiza timestamp para ordenação correta
+        // DataAlerta permanece inalterado para preservar o momento original do alerta.
     }
 
     /// <summary>

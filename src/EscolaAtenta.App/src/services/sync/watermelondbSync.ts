@@ -165,7 +165,6 @@ function normalizarTurma(raw: Record<string, any>): Record<string, any> {
  */
 export async function syncWithServer(): Promise<SyncResult> {
   let houvePresencaEnviada = false;
-  let rejeicoesCapturadas: SyncRejeicao[] = [];
   // Registra o timestamp ANTES do sync para garantir que o pull pós-push
   // capture as atualizações feitas durante o push (independente da duração do ciclo)
   const timestampAntesDoCiclo = Date.now() - 5_000;
@@ -327,14 +326,6 @@ export async function syncWithServer(): Promise<SyncResult> {
       });
     }
 
-    if (rejeicoesCapturadas.length > 0) {
-      return {
-        sucesso: false,
-        rejeicoes: rejeicoesCapturadas,
-        erro: `${rejeicoesCapturadas.length} registro(s) foram rejeitados pelo servidor e revertidos localmente.`,
-      };
-    }
-
     return { sucesso: true, rejeicoes: [] };
   } catch (erro: any) {
     if (erro instanceof SyncRejeitadoError) {
@@ -374,9 +365,10 @@ interface ReverterPayload {
  *   pull trará o estado atual do servidor e sobrescreverá o status local.
  */
 async function reverterAlteracoesRejeitadas(payload: ReverterPayload): Promise<void> {
-  const { turmasCreated, alunosCreated, presencasCreated, presencasUpdated, rejeicoes } = payload;
+  const { turmasCreated, turmasUpdated, alunosCreated, presencasCreated, presencasUpdated, rejeicoes } = payload;
 
   const idsTurmasCreated = new Set(turmasCreated.map((t) => String(t.id)));
+  const idsTurmasUpdated = new Set(turmasUpdated.map((t) => String(t.id)));
   const idsAlunosCreated = new Set(alunosCreated.map((a) => String(a.id)));
   const idsPresencasCreated = new Set(presencasCreated.map((r) => String(r.id)));
   const idsPresencasUpdated = new Set(presencasUpdated.map((r) => String(r.id)));
@@ -409,6 +401,17 @@ async function reverterAlteracoesRejeitadas(payload: ReverterPayload): Promise<v
           await turma.destroyPermanently();
         });
         console.log('[SYNC-RECOVERY] Turma created destruída:', id);
+        continue;
+      }
+
+      if (idsTurmasUpdated.has(id)) {
+        const turma = await database.get<Turma>('turmas').find(id);
+        await database.write(async () => {
+          // Não alteramos os dados localmente; apenas marcamos como sincronizado
+          // para que o próximo pull do servidor restaure o estado autoritativo.
+          marcarComoSincronizado(turma);
+        });
+        console.log('[SYNC-RECOVERY] Turma updated marcada como sincronizada:', id);
         continue;
       }
 
@@ -483,6 +486,18 @@ async function restaurarPresencaDoServidor(idExterno: string): Promise<void> {
     console.log('[SYNC-RECOVERY] Presença updated restaurada do servidor:', idExterno, statusServidor);
   } catch (erro) {
     console.warn('[SYNC-RECOVERY] Falha ao restaurar presença do servidor:', idExterno, erro);
+    // Se não foi possível obter o estado autoritativo do servidor (por exemplo,
+    // por falta de permissão na turma), destrói o registro local para evitar
+    // reenvio infinito de uma alteração rejeitada.
+    try {
+      const registro = await database.get<RegistroPresenca>('registros_presenca').find(idExterno);
+      await database.write(async () => {
+        await registro.destroyPermanently();
+      });
+      console.log('[SYNC-RECOVERY] Presença updated destruída após falha de recuperação:', idExterno);
+    } catch (erroDestruicao) {
+      console.warn('[SYNC-RECOVERY] Falha ao destruir presença após erro de recuperação:', idExterno, erroDestruicao);
+    }
   }
 }
 

@@ -133,79 +133,115 @@ public class AppDbContext : DbContext
                 case EntityState.Modified:
                     entry.CurrentValues[nameof(EntityBase.DataAtualizacao)] = agora;
                     entry.CurrentValues[nameof(EntityBase.UsuarioAtualizacao)] = usuarioAtual;
-                    
+
                     // Modificou localmente, precisa enviar o delta para a Nuvem
                     entry.CurrentValues[nameof(EntityBase.CloudSyncedAt)] = null;
-                    
+
                     // Protege campos de criação contra sobrescrita acidental
                     entry.Property(e => e.DataCriacao).IsModified = false;
                     entry.Property(e => e.UsuarioCriacao).IsModified = false;
-                    
+
                     // Protege EscolaId (o dono nunca muda)
                     entry.Property(e => e.EscolaId).IsModified = false;
+
+                    // Nota: não protegemos Ativo/DataExclusao/UsuarioExclusao aqui
+                    // porque a reativação e o soft delete são operações de domínio
+                    // legítimas realizadas pelos métodos Reativar/Desativar.
+                    // A segurança dessas mudanças fica nos handlers autorizados.
                     break;
             }
         }
 
-        // ── Coleta de Domain Events e Despacho Atômico ────────────────────────────
-        // Despachamos os eventos ANTES do commit, dentro do fluxo da mesma requisição.
-        // Se os handlers alterarem entidades ou adicionarem novas, elas são
-        // processadas na mesma transação banco assegurada pelo SaveChangesAsync.
-        while (true)
-        {
-            var entidadesComEventos = ChangeTracker
-                .Entries<EntityBase>()
-                .Where(e => e.Entity.DomainEvents.Count != 0)
-                .Select(e => e.Entity)
-                .ToList();
-
-            if (!entidadesComEventos.Any())
-                break;
-
-            var domainEvents = entidadesComEventos
-                .SelectMany(e => e.DomainEvents)
-                .ToList();
-
-            entidadesComEventos.ForEach(e => e.ClearDomainEvents());
-
-            // ── Deduplicação defensiva de eventos de threshold ─────────────────────
-            // Os handlers de alerta consultam o banco para evitar duplicatas. Como
-            // eles são executados antes do commit, um segundo evento equivalente
-            // não veria a entidade adicionada pelo primeiro. Mantemos apenas o
-            // último evento de threshold por (AlunoId, Tipo) para cada batch.
-            var eventosVistos = new HashSet<string>();
-            var eventosFiltrados = new List<INotification>();
-            for (int i = domainEvents.Count - 1; i >= 0; i--)
-            {
-                var evt = domainEvents[i];
-                var chave = evt switch
-                {
-                    LimiteFaltasAtingidoEvent e => $"{e.AlunoId}:{nameof(LimiteFaltasAtingidoEvent)}",
-                    _ => string.Empty
-                };
-
-                if (string.IsNullOrEmpty(chave))
-                {
-                    eventosFiltrados.Insert(0, evt);
-                    continue;
-                }
-
-                if (!eventosVistos.Contains(chave))
-                {
-                    eventosVistos.Add(chave);
-                    eventosFiltrados.Insert(0, evt);
-                }
-            }
-
-            foreach (var domainEvent in eventosFiltrados)
-            {
-                await _mediator.Publish(domainEvent, cancellationToken);
-            }
-        }
+        // ── Coleta de Domain Events ────────────────────────────────────────────────
+        // Coletamos e limpamos os eventos ANTES do commit, mas publicamos APÓS o
+        // SaveChanges. Isso garante que os handlers leiam o estado persistido,
+        // evitando duplicatas e decisões em cima de dados ainda não commitados.
+        var domainEvents = ColetarEDedupDomainEvents();
 
         // ── Persistência Atômica ───────────────────────────────────────────────────────
         var resultado = await base.SaveChangesAsync(cancellationToken);
 
+        // ── Despacho de Domain Events após commit ────────────────────────────────
+        // Se handlers criarem novas entidades, salvamos em iterações subsequentes
+        // com um limite máximo para evitar loops infinitos.
+        if (domainEvents.Count > 0)
+        {
+            const int maxIteracoes = 5;
+            for (int i = 0; i < maxIteracoes; i++)
+            {
+                foreach (var domainEvent in domainEvents)
+                {
+                    await _mediator.Publish(domainEvent, cancellationToken);
+                }
+
+                // Os handlers podem ter criado/modificado entidades (ex: AlertaEvasao)
+                // sem gerar novos Domain Events. Persistimos qualquer mudança pendente.
+                if (!ChangeTracker.HasChanges())
+                {
+                    var eventosCascata = ColetarEDedupDomainEvents();
+                    if (eventosCascata.Count == 0)
+                        break;
+
+                    domainEvents = eventosCascata;
+                    continue;
+                }
+
+                await base.SaveChangesAsync(cancellationToken);
+
+                // Coleta novos eventos gerados durante o SaveChanges cascata.
+                domainEvents = ColetarEDedupDomainEvents();
+                if (domainEvents.Count == 0)
+                    break;
+            }
+        }
+
         return resultado;
+    }
+
+    private List<INotification> ColetarEDedupDomainEvents()
+    {
+        var entidadesComEventos = ChangeTracker
+            .Entries<EntityBase>()
+            .Where(e => e.Entity.DomainEvents.Count != 0)
+            .Select(e => e.Entity)
+            .ToList();
+
+        if (!entidadesComEventos.Any())
+            return [];
+
+        var domainEvents = entidadesComEventos
+            .SelectMany(e => e.DomainEvents)
+            .ToList();
+
+        entidadesComEventos.ForEach(e => e.ClearDomainEvents());
+
+        // ── Deduplicação defensiva de eventos de threshold ─────────────────────
+        // Mantemos apenas o último evento de threshold por (AlunoId, Tipo)
+        // para cada batch, evitando alertas duplicados.
+        var eventosVistos = new HashSet<string>();
+        var eventosFiltrados = new List<INotification>();
+        for (int i = domainEvents.Count - 1; i >= 0; i--)
+        {
+            var evt = domainEvents[i];
+            var chave = evt switch
+            {
+                LimiteFaltasAtingidoEvent e => $"{e.AlunoId}:{nameof(LimiteFaltasAtingidoEvent)}",
+                _ => string.Empty
+            };
+
+            if (string.IsNullOrEmpty(chave))
+            {
+                eventosFiltrados.Insert(0, evt);
+                continue;
+            }
+
+            if (!eventosVistos.Contains(chave))
+            {
+                eventosVistos.Add(chave);
+                eventosFiltrados.Insert(0, evt);
+            }
+        }
+
+        return eventosFiltrados;
     }
 }

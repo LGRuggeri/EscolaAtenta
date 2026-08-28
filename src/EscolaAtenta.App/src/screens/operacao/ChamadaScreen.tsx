@@ -73,8 +73,16 @@ function inicioDoDia(data: Date): Date {
     return new Date(data.getFullYear(), data.getMonth(), data.getDate());
 }
 
+function inicioDoDiaUtc(data: Date): Date {
+    return new Date(Date.UTC(data.getFullYear(), data.getMonth(), data.getDate()));
+}
+
 function fimDoDia(data: Date): Date {
     return new Date(data.getFullYear(), data.getMonth(), data.getDate() + 1);
+}
+
+function fimDoDiaUtc(data: Date): Date {
+    return new Date(Date.UTC(data.getFullYear(), data.getMonth(), data.getDate() + 1));
 }
 
 function mesmoDia(a: Date, b: Date): boolean {
@@ -142,7 +150,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
 
                     if (chamadaServidor) {
                         // Sincroniza o status com o servidor (pode ter sido alterado por outro dispositivo)
-                        aplicarStatusDoServidor(chamadaServidor);
+                        await aplicarStatusDoServidor(chamadaServidor);
                         setChamadaServidorAtual(chamadaServidor);
                         setPodeEditarServidor(chamadaServidor.podeEditar);
                         setSomenteLeitura(true);
@@ -261,8 +269,8 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
             .query(Q.where('turma_id', turmaId))
             .fetch();
 
-        const inicio = inicioDoDia(data).getTime();
-        const fim = fimDoDia(data).getTime();
+        const inicio = inicioDoDiaUtc(data).getTime();
+        const fim = fimDoDiaUtc(data).getTime();
 
         return registros.filter((r) => {
             const t = r.data.getTime();
@@ -290,10 +298,25 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
         return 'Presente';
     };
 
-    const aplicarStatusDoServidor = (chamada: ChamadaPorDiaDto) => {
+    const aplicarStatusDoServidor = async (chamada: ChamadaPorDiaDto) => {
+        const idsServidor = chamada.registros
+            .map((r) => r.alunoId)
+            .filter((id) => id && id.length === 36); // GUIDs do servidor têm 36 caracteres
+
+        const mapaServidorParaLocal: Record<string, string> = {};
+        if (idsServidor.length > 0) {
+            const alunosBanco = await database.get<Aluno>('alunos').query().fetch();
+            alunosBanco.forEach((a) => {
+                if (a.serverId && idsServidor.includes(a.serverId)) {
+                    mapaServidorParaLocal[a.serverId] = a.id;
+                }
+            });
+        }
+
         const novoMap: Record<string, StatusPresencaLocal> = {};
         chamada.registros.forEach((r) => {
-            novoMap[r.alunoId] = mapearStatusServidorParaLocal(r.status);
+            const idLocal = mapaServidorParaLocal[r.alunoId] ?? r.alunoId;
+            novoMap[idLocal] = mapearStatusServidorParaLocal(r.status);
         });
         setStatusMap(novoMap);
     };
@@ -318,7 +341,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                 registrosCollection.prepareCreate((record) => {
                     record.alunoId = r.alunoId;
                     record.turmaId = turmaId;
-                    record.data = dataSelecionada;
+                    record.data = inicioDoDiaUtc(dataSelecionada);
                     record.status = statusPorAluno[r.alunoId] ?? 'Presente';
                     record.sincronizado = true;
                 })
@@ -332,7 +355,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
 
         // P2: se a data/turma mudou enquanto o banco local era escrito/lido,
         // não sobrescreve o estado da tela com dados de um dia/turma antigo.
-        if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+        if (dataSelecionadaRef.current.getTime() !== dataSelecionadaAntes.getTime() || turmaIdRef.current !== turmaIdAntes) {
             return;
         }
 
@@ -374,7 +397,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                 registrosCollection.prepareCreate((record) => {
                     record.alunoId = aluno.id;
                     record.turmaId = turmaId;
-                    record.data = dataSelecionada;
+                    record.data = inicioDoDiaUtc(dataSelecionada);
                     record.status = statusMap[aluno.id] ?? 'Presente';
                     record.sincronizado = false;
                 })
@@ -489,7 +512,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
 
                     await criarRegistrosLocaisDoServidor(chamada);
 
-                    if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                    if (dataSelecionadaRef.current.getTime() !== dataSelecionadaAntes.getTime() || turmaIdRef.current !== turmaIdAntes) {
                         return;
                     }
 
@@ -595,7 +618,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
 
                         // P2: se o usuário trocou de data/turma enquanto a requisição estava em voo,
                         // descarta a resposta stale e não altera o estado da tela.
-                        if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                        if (dataSelecionadaRef.current.getTime() !== dataSelecionadaAntes.getTime() || turmaIdRef.current !== turmaIdAntes) {
                             return;
                         }
                     }
@@ -609,7 +632,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                         }
 
                         // P2: verifica novamente após a materialização dos registros locais
-                        if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                        if (dataSelecionadaRef.current.getTime() !== dataSelecionadaAntes.getTime() || turmaIdRef.current !== turmaIdAntes) {
                             return;
                         }
                     }
@@ -635,12 +658,12 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
 
                     // P2: se o usuário trocou de data/turma enquanto a requisição estava em voo,
                     // descarta a resposta stale e não altera o estado da tela.
-                    if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                    if (dataSelecionadaRef.current.getTime() !== dataSelecionadaAntes.getTime() || turmaIdRef.current !== turmaIdAntes) {
                         return;
                     }
 
                     if (chamadaServidor) {
-                        aplicarStatusDoServidor(chamadaServidor);
+                        await aplicarStatusDoServidor(chamadaServidor);
                         mostrarAlertaConflitoLocal(registrosExistentes, chamadaServidor.podeEditar);
                     } else {
                         // Registros locais sem correspondente no servidor: usa o próprio prazo local (presumivelmente dentro de 7 dias).
@@ -650,7 +673,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                     console.error('[CHAMADA] Erro ao consultar prazo no servidor:', erroServidor);
 
                     // P2: verifica se a data/turma mudou durante o erro também
-                    if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                    if (dataSelecionadaRef.current.getTime() !== dataSelecionadaAntes.getTime() || turmaIdRef.current !== turmaIdAntes) {
                         return;
                     }
 
@@ -687,12 +710,12 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
 
                 // P2: se o usuário trocou de data/turma enquanto a requisição estava em voo,
                 // descarta a resposta stale e não altera o estado da tela.
-                if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                if (dataSelecionadaRef.current.getTime() !== dataSelecionadaAntes.getTime() || turmaIdRef.current !== turmaIdAntes) {
                     return;
                 }
 
                 if (chamadaServidor) {
-                    aplicarStatusDoServidor(chamadaServidor);
+                    await aplicarStatusDoServidor(chamadaServidor);
                     mostrarAlertaConflitoServidor(chamadaServidor);
                     return;
                 }
@@ -703,7 +726,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
                 console.error('[CHAMADA] Erro ao consultar servidor:', erroServidor);
 
                 // P2: verifica se a data/turma mudou durante o erro também
-                if (dataSelecionadaRef.current !== dataSelecionadaAntes || turmaIdRef.current !== turmaIdAntes) {
+                if (dataSelecionadaRef.current.getTime() !== dataSelecionadaAntes.getTime() || turmaIdRef.current !== turmaIdAntes) {
                     return;
                 }
 
