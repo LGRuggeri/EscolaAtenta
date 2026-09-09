@@ -1,4 +1,4 @@
-import database from '../database';
+import { getDatabase } from '../database';
 import Turma from '../database/models/Turma';
 import { TurmaDto } from '../types/dtos';
 
@@ -22,15 +22,18 @@ function turmaParaDto(t: Turma): TurmaDto {
 
 export const turmasService = {
     obterTodas: async (): Promise<TurmaDto[]> => {
+        const database = getDatabase();
         const collection = database.get<Turma>('turmas');
         const turmas = await collection.query().fetch();
         return turmas.map(turmaParaDto);
     },
 
     criar: async (data: Omit<TurmaDto, 'id'>): Promise<TurmaDto> => {
+        const database = getDatabase();
         const collection = database.get<Turma>('turmas');
         let criada!: Turma;
         await database.write(async () => {
+        const database = getDatabase();
             criada = await collection.create((t) => {
                 t.nome = data.nome;
                 t.turno = data.turno;
@@ -41,9 +44,11 @@ export const turmasService = {
     },
 
     atualizar: async (id: string, data: Omit<TurmaDto, 'id'>): Promise<void> => {
+        const database = getDatabase();
         const collection = database.get<Turma>('turmas');
         const turma = await collection.find(id);
         await database.write(async () => {
+        const database = getDatabase();
             await turma.update((t) => {
                 t.nome = data.nome;
                 t.turno = data.turno;

@@ -1,6 +1,7 @@
+using EscolaAtenta.Domain.Interfaces;
+using EscolaAtenta.Application.Common;
 using EscolaAtenta.Application.Alertas.Dtos;
 using EscolaAtenta.Application.Alertas.Queries;
-using EscolaAtenta.Application.Common;
 using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
@@ -26,17 +27,22 @@ namespace EscolaAtenta.Application.Alertas.Handlers;
 public class GetAuditoriaAlertasQueryHandler
     : IRequestHandler<GetAuditoriaAlertasQuery, PagedResult<AuditoriaAlertaDto>>
 {
+    private readonly ICurrentUserService _currentUser;
     private readonly AppDbContext _context;
 
-    public GetAuditoriaAlertasQueryHandler(AppDbContext context)
+    public GetAuditoriaAlertasQueryHandler(AppDbContext context, ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     public async Task<PagedResult<AuditoriaAlertaDto>> Handle(
         GetAuditoriaAlertasQuery request,
         CancellationToken cancellationToken)
     {
+        var usuarioId = AutorizacaoUsuario.ExigirIdentidade(_currentUser);
+        var administrador = _currentUser.Papel == "Administrador";
+        var turmasPermitidas = _context.UsuarioTurmas.Where(ut => ut.UsuarioId == usuarioId).Select(ut => ut.TurmaId);
         // ── Bounds guard: proteção contra valores de paginação inválidos ou maliciosos ──
         var pageNumber = Math.Max(1, request.PageNumber);
         var pageSize   = Math.Clamp(request.PageSize, 1, 100);
@@ -49,7 +55,7 @@ public class GetAuditoriaAlertasQueryHandler
         // Ocultar esses registros deixaria o histórico de resolução incompleto.
         var query = _context.AlertasEvasao
             .AsNoTracking()
-            .Where(a => a.Resolvido);
+            .Where(a => a.Resolvido && (administrador || (a.TurmaId.HasValue && turmasPermitidas.Contains(a.TurmaId.Value))));
 
         // ── Filtros opcionais — aplicados antes do COUNT para máxima performance ───────
 

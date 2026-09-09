@@ -1,3 +1,5 @@
+using EscolaAtenta.Domain.Interfaces;
+using EscolaAtenta.Application.Common;
 // Query para obter alunos com informações de faltas
 // Usada pelo Dashboard da Diretoria para visualização de alertas
 //
@@ -33,19 +35,24 @@ public record AlunoComFaltasDto(
 /// </summary>
 public class GetAlunosComFaltasHandler : IRequestHandler<GetAlunosComFaltasQuery, IReadOnlyList<AlunoComFaltasDto>>
 {
+    private readonly ICurrentUserService _currentUser;
     private readonly AppDbContext _dbContext;
 
-    public GetAlunosComFaltasHandler(AppDbContext dbContext)
+    public GetAlunosComFaltasHandler(AppDbContext dbContext, ICurrentUserService currentUser)
     {
         _dbContext = dbContext;
+        _currentUser = currentUser;
     }
 
     public async Task<IReadOnlyList<AlunoComFaltasDto>> Handle(
-        GetAlunosComFaltasQuery request, 
+        GetAlunosComFaltasQuery request,
         CancellationToken cancellationToken)
     {
+        var usuarioId = AutorizacaoUsuario.ExigirIdentidade(_currentUser);
+        var administrador = _currentUser.Papel == "Administrador";
+        var turmasPermitidas = _dbContext.UsuarioTurmas.Where(ut => ut.UsuarioId == usuarioId).Select(ut => ut.TurmaId);
         // Query base - traz apenas alunos ativos
-        var query = _dbContext.Alunos
+        var query = _dbContext.Alunos.Where(a => administrador || turmasPermitidas.Contains(a.TurmaId))
             .Include(a => a.Turma)
             .Where(a => a.Ativo)
             .AsQueryable();

@@ -35,7 +35,7 @@ public class GetAlunosComFaltasHandlerTests : IDisposable
         return ctx;
     }
 
-    private static GetAlunosComFaltasHandler CriarHandler(AppDbContext ctx) => new(ctx);
+    private static GetAlunosComFaltasHandler CriarHandler(AppDbContext ctx) => new(ctx, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString() });
 
     private async Task<(Guid turmaId, Guid alunoId)> SeedAlunoComFaltas(
         AppDbContext ctx, string nome, int totalFaltas, int faltasConsecutivas, Guid? turmaId = null)

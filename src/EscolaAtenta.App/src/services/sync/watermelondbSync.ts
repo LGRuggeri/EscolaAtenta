@@ -1,10 +1,11 @@
 import { synchronize, hasUnsyncedChanges } from '@nozbe/watermelondb/sync';
-import { Model } from '@nozbe/watermelondb';
-import database from '../../database';
+import { Database, Model } from '@nozbe/watermelondb';
+import { getDatabase } from '../../database';
 import Aluno from '../../database/models/Aluno';
 import RegistroPresenca, { StatusPresencaLocal } from '../../database/models/RegistroPresenca';
 import Turma from '../../database/models/Turma';
 import { api } from '../api';
+import { sessionScope } from '../sessionScope';
 import { AxiosError } from 'axios';
 import { chamadasService } from '../chamadasService';
 
@@ -53,6 +54,8 @@ interface SyncPushPayload {
 // ── Tipos do payload PULL (recebido da API .NET) ────────────────────────────
 
 interface SyncPullResponse {
+  allowedTurmaIds: string[];
+  allowedAlunoIds: string[];
   changes: {
     turmas: SyncTableChanges;
     alunos: SyncTableChanges;
@@ -150,6 +153,34 @@ function normalizarTurma(raw: Record<string, any>): Record<string, any> {
   };
 }
 
+// O snapshot remove acessos revogados mesmo quando não existe tombstone do servidor.
+async function pullAutorizado(database: Database, lastPulledAt: number): Promise<SyncPullResponse> {
+  let { data } = await api.get<SyncPullResponse>('/sync/pull', { params: { lastPulledAt } });
+  if (!Array.isArray(data.allowedTurmaIds) || !Array.isArray(data.allowedAlunoIds)) {
+    throw new Error('Atualize o servidor para sincronizar com isolamento de acesso.');
+  }
+  const turmas = await database.get<Turma>('turmas').query().fetch();
+  const alunos = await database.get<Aluno>('alunos').query().fetch();
+  const knownTurmas = new Set(turmas.map(t => t.id));
+  const knownAlunos = new Set(alunos.map(a => a.id));
+  // Um vínculo novo pode liberar registros anteriores ao último checkpoint.
+  if (lastPulledAt > 0 && (data.allowedTurmaIds.some(id => !knownTurmas.has(id)) ||
+      data.allowedAlunoIds.some(id => !knownAlunos.has(id)))) {
+    ({ data } = await api.get<SyncPullResponse>('/sync/pull', { params: { lastPulledAt: 0 } }));
+  }
+  const allowedTurmas = new Set(data.allowedTurmaIds);
+  const allowedAlunos = new Set(data.allowedAlunoIds);
+  // Cadastros ainda não enviados pertencem a esta conta e permanecem pendentes.
+  for (const t of turmas) if (t.syncStatus === 'created') allowedTurmas.add(t.id);
+  for (const a of alunos) if (a.syncStatus === 'created' && allowedTurmas.has(a.turmaId)) allowedAlunos.add(a.id);
+  const presencas = await database.get<RegistroPresenca>('registros_presenca').query().fetch();
+  data.changes.turmas.deleted = [...new Set([...data.changes.turmas.deleted, ...turmas.filter(t => !allowedTurmas.has(t.id)).map(t => t.id)])];
+  data.changes.alunos.deleted = [...new Set([...data.changes.alunos.deleted, ...alunos.filter(a => !allowedAlunos.has(a.id)).map(a => a.id)])];
+  data.changes.registros_presenca.deleted = [...new Set([...data.changes.registros_presenca.deleted,
+    ...presencas.filter(r => !allowedTurmas.has(r.turmaId) || !allowedAlunos.has(r.alunoId)).map(r => r.id)])];
+  return data;
+}
+
 // ── Função principal de sincronização ────────────────────────────────────────
 
 /**
@@ -163,7 +194,14 @@ function normalizarTurma(raw: Record<string, any>): Record<string, any> {
  * o erro propaga para o `synchronize()`, que aborta o ciclo sem
  * marcar nada como sincronizado. Na próxima tentativa, tudo é reenviado.
  */
-export async function syncWithServer(): Promise<SyncResult> {
+let currentSync: Promise<SyncResult> | null = null;
+export function syncWithServer(): Promise<SyncResult> {
+  if (!sessionScope.active) return Promise.resolve({ sucesso: false, rejeicoes: [], erro: 'Sessão encerrada.' });
+  if (currentSync) return currentSync;
+  currentSync = sessionScope.track(executeSync(getDatabase())).finally(() => { currentSync = null; });
+  return currentSync;
+}
+async function executeSync(database: Database): Promise<SyncResult> {
   let houvePresencaEnviada = false;
   // Registra o timestamp ANTES do sync para garantir que o pull pós-push
   // capture as atualizações feitas durante o push (independente da duração do ciclo)
@@ -175,11 +213,7 @@ export async function syncWithServer(): Promise<SyncResult> {
 
       // ── PULL: servidor → celular (turmas + alunos) ────────────────────
       pullChanges: async ({ lastPulledAt }) => {
-        const response = await api.get<SyncPullResponse>('/sync/pull', {
-          params: { lastPulledAt: lastPulledAt ?? 0 },
-        });
-
-        const { changes, timestamp } = response.data;
+        const { changes, timestamp } = await pullAutorizado(database, lastPulledAt ?? 0);
 
         const turmasNormalizadas: SyncTableChanges = {
           created: changes.turmas.created.map(normalizarTurma),
@@ -267,7 +301,7 @@ export async function syncWithServer(): Promise<SyncResult> {
             console.warn('[SYNC-PUSH] Rejeições do backend:', rejeicoes);
 
             // Reverte alterações rejeitadas para não bloquear o próximo push.
-            await reverterAlteracoesRejeitadas({
+            await reverterAlteracoesRejeitadas(database, {
               turmasCreated,
               turmasUpdated,
               alunosCreated,
@@ -300,10 +334,7 @@ export async function syncWithServer(): Promise<SyncResult> {
       await synchronize({
         database,
         pullChanges: async () => {
-          const response = await api.get<SyncPullResponse>('/sync/pull', {
-            params: { lastPulledAt: timestampAntesDoCiclo },
-          });
-          const { changes, timestamp } = response.data;
+          const { changes, timestamp } = await pullAutorizado(database, timestampAntesDoCiclo);
           return {
             changes: {
               turmas: {
@@ -364,7 +395,7 @@ interface ReverterPayload {
  * - Updated rejeitado: marca como sincronizado para não reenviar; o próximo
  *   pull trará o estado atual do servidor e sobrescreverá o status local.
  */
-async function reverterAlteracoesRejeitadas(payload: ReverterPayload): Promise<void> {
+async function reverterAlteracoesRejeitadas(database: Database, payload: ReverterPayload): Promise<void> {
   const { turmasCreated, turmasUpdated, alunosCreated, presencasCreated, presencasUpdated, rejeicoes } = payload;
 
   const idsTurmasCreated = new Set(turmasCreated.map((t) => String(t.id)));
@@ -391,7 +422,7 @@ async function reverterAlteracoesRejeitadas(payload: ReverterPayload): Promise<v
       // Updated rejeitado: restaura o status autoritativo do servidor consultando
       // a chamada do dia. Se não for possível recuperar, destrói o registro local.
       if (idsPresencasUpdated.has(id)) {
-        await restaurarPresencaDoServidor(id);
+        await restaurarPresencaDoServidor(database, id);
         continue;
       }
 
@@ -433,7 +464,7 @@ async function reverterAlteracoesRejeitadas(payload: ReverterPayload): Promise<v
  * autoritativo do servidor. Se a chamada não existir no servidor ou o aluno
  * não constar nela, o registro local é destruído.
  */
-async function restaurarPresencaDoServidor(idExterno: string): Promise<void> {
+async function restaurarPresencaDoServidor(database: Database, idExterno: string): Promise<void> {
   try {
     const registro = await database.get<RegistroPresenca>('registros_presenca').find(idExterno);
     const turmaId = registro.turmaId;
@@ -528,5 +559,5 @@ function mapearStatusServidorParaLocal(status: string): StatusPresencaLocal {
  * Usa a API nativa do WatermelonDB (verifica _status interno).
  */
 export async function hasPendingSync(): Promise<boolean> {
-  return hasUnsyncedChanges({ database });
+  return sessionScope.active ? hasUnsyncedChanges({ database: getDatabase() }) : false;
 }

@@ -10,11 +10,11 @@
 
 [Setup]
 AppName=EscolaAtenta
-AppVersion=1.4.1
+AppVersion=1.4.2
 AppPublisher=EscolaAtenta
 DefaultDirName=C:\EscolaAtenta
 DefaultGroupName=EscolaAtenta
-OutputBaseFilename=EscolaAtenta-Setup
+OutputBaseFilename=EscolaAtenta-Setup-1.4.2
 OutputDir=installer-output
 Compression=lzma2
 SolidCompression=yes
@@ -29,6 +29,7 @@ DisableDirPage=yes
 MinVersion=10.0
 
 [Files]
+Source: "scripts\Protect-Installation.ps1"; Flags: dontcopy
 ; Binários da API (Self-Contained)
 Source: "src\EscolaAtenta.API\bin\Publish\win-x64\*"; DestDir: "{app}\API"; Flags: ignoreversion recursesubdirs createallsubdirs
 
@@ -64,7 +65,31 @@ Filename: "sc.exe"; Parameters: "delete EscolaAtenta"; Flags: runhidden waitunti
 Filename: "taskkill.exe"; Parameters: "/F /IM EscolaAtenta.TrayMonitor.exe"; Flags: runhidden; RunOnceId: "KillTrayMonitor"
 
 [Dirs]
-; Bloqueia a pasta base: Administradores e SYSTEM têm acesso total. Utilizadores comuns (Users) apenas leitura/execução.
-Name: "{app}"; Permissions: admins-full system-full users-readexec
+; ACLs restritas são aplicadas pelo script antes e depois da cópia.
+Name: "{app}"
 ; Criar pasta de Logs com permissão para o serviço escrever
 Name: "{app}\Logs"
+
+[Code]
+procedure ProtegerInstalacao;
+var
+  ResultCode: Integer;
+begin
+  ExtractTemporaryFile('Protect-Installation.ps1');
+  if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' +
+    ExpandConstant('{tmp}\Protect-Installation.ps1') + '" -InstallationRoot "' +
+    ExpandConstant('{app}') + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    RaiseException('Não foi possível aplicar as permissões de segurança.');
+  if ResultCode <> 0 then
+    RaiseException('Falha ao proteger dados locais. A instalação não pode continuar.');
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  { Protege também dados de instalações antigas antes de copiar novos arquivos.
+    A segunda passagem remove ACLs explícitas herdadas de versões anteriores.
+    ssPostInstall ocorre antes das entradas [Run], portanto antes do serviço. }
+  if (CurStep = ssInstall) or (CurStep = ssPostInstall) then
+    ProtegerInstalacao;
+end;

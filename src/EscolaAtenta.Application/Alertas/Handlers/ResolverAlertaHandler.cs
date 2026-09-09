@@ -1,3 +1,4 @@
+using EscolaAtenta.Application.Common;
 using EscolaAtenta.Application.Alertas.Commands;
 using EscolaAtenta.Infrastructure.Data;
 using EscolaAtenta.Domain.Interfaces;
@@ -19,18 +20,20 @@ public class ResolverAlertaHandler : IRequestHandler<ResolverAlertaCommand, bool
 
     public async Task<bool> Handle(ResolverAlertaCommand request, CancellationToken cancellationToken)
     {
+        var usuarioId = AutorizacaoUsuario.ExigirIdentidade(_currentUserService);
+        if (_currentUserService.Papel is not ("Supervisao" or "Administrador"))
+            throw new UnauthorizedAccessException("Somente supervisão ou administrador pode resolver alertas.");
         var alerta = await _context.AlertasEvasao.FirstOrDefaultAsync(a => a.Id == request.AlertaId, cancellationToken);
-        
+
         if (alerta == null)
         {
             return false;
         }
 
-        if (!Guid.TryParse(_currentUserService.UsuarioId, out var usuarioId))
-        {
-            throw new UnauthorizedAccessException("Usuário inválido ou não autenticado.");
-        }
-
+        if (_currentUserService.Papel != "Administrador"
+            && (!alerta.TurmaId.HasValue || !await _context.UsuarioTurmas.AnyAsync(
+                ut => ut.UsuarioId == usuarioId && ut.TurmaId == alerta.TurmaId.Value, cancellationToken)))
+            return false;
         alerta.MarcarComoResolvido(usuarioId, request.Justificativa);
 
         _context.AlertasEvasao.Update(alerta);

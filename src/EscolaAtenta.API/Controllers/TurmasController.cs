@@ -28,6 +28,7 @@ public class TurmasController : ControllerBase
     /// Cadastra uma nova Turma (Série / Classe).
     /// </summary>
     [HttpPost]
+    [Authorize(Roles = "Administrador")]
     [ProducesResponseType(typeof(TurmaDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CriarTurma([FromBody] CriarTurmaCommand command, CancellationToken ct)
@@ -51,6 +52,7 @@ public class TurmasController : ControllerBase
     /// Atualiza uma Turma existente.
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Roles = "Administrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> AtualizarTurma([FromRoute] Guid id, [FromBody] AtualizarTurmaCommand command, CancellationToken ct)
     {

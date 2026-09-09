@@ -18,6 +18,8 @@ public class SyncPullResult
 {
     public SyncPullChanges Changes { get; set; } = new();
     public long Timestamp { get; set; }
+    public List<string> AllowedTurmaIds { get; set; } = [];
+    public List<string> AllowedAlunoIds { get; set; } = [];
 }
 
 public class SyncPullChanges

@@ -1,118 +1,100 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { serverConfig } from './serverConfig';
+import { sessionScope } from './sessionScope';
 
 const TOKEN_KEY = 'escolaatenta_jwt_token';
 const REFRESH_TOKEN_KEY = 'escolaatenta_refresh_token';
+const TOKEN_SERVER_KEY = 'escolaatenta_token_server';
+let onSessionInvalid: (() => void) | undefined;
+let onPasswordRequired: (() => void) | undefined;
+export function setSessionHandlers(invalid?: () => void, password?: () => void): void {
+    onSessionInvalid = invalid;
+    onPasswordRequired = password;
+}
+export const api = axios.create({ timeout: 30000, headers: { 'Content-Type': 'application/json' } });
 
-export const api = axios.create({
-    headers: {
-        'Content-Type': 'application/json',
-    },
-});
-
-/**
- * Carrega a URL do servidor salva e atualiza o baseURL do axios.
- * Deve ser chamado na inicializacao do app e apos salvar nova configuracao.
- */
 export async function loadServerUrl(): Promise<boolean> {
     const url = await serverConfig.getUrl();
-    if (url) {
-        api.defaults.baseURL = `${url}/api/v1`;
-        return true;
-    }
-    return false;
+    api.defaults.baseURL = url ? `${url}/api/v1` : undefined;
+    return !!url;
 }
 
-// Interceptador de Requisicao: Anexa o token JWT antes da chamada sair
-api.interceptors.request.use(
-    async (config) => {
-        try {
-            const token = await SecureStore.getItemAsync(TOKEN_KEY);
-            if (token && config.headers) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-        } catch (error) {
-            console.error('Erro ao recuperar o token do SecureStore', error);
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
+api.interceptors.request.use(async (config) => {
+    const scoped = config as typeof config & { _session?: number; _finish?: () => void };
+    scoped._session ??= sessionScope.generation;
+    sessionScope.assert(scoped._session);
+    const token = await SecureStore.getItemAsync(TOKEN_KEY);
+    const tokenServer = await SecureStore.getItemAsync(TOKEN_SERVER_KEY);
+    sessionScope.assert(scoped._session);
+    delete config.headers.Authorization;
+    if (token && tokenServer === config.baseURL && !config.url?.includes('/auth/login')) {
+        config.headers.Authorization = `Bearer ${token}`;
     }
-);
+    sessionScope.track(new Promise<void>(resolve => { scoped._finish = resolve; }));
+    return config;
+});
 
-// Interceptador de Resposta: renova JWT silenciosamente via Refresh Token
-// Se o servidor retornar 401 e houver refresh token válido, tenta renovar uma vez.
-let isRefreshing = false;
-let refreshSubscribers: ((token: string) => void)[] = [];
-
-api.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-        const originalRequest = error.config;
-
-        // Evita loop em endpoints de auth e requisições já repetidas
-        if (
-            error.response?.status !== 401 ||
-            originalRequest._retry ||
-            originalRequest.url?.includes('/auth/')
-        ) {
-            return Promise.reject(error);
-        }
-
-        if (isRefreshing) {
-            // Aguarda o refresh em andamento e reenvia com o novo token
-            return new Promise((resolve) => {
-                refreshSubscribers.push((token: string) => {
-                    originalRequest.headers.Authorization = `Bearer ${token}`;
-                    resolve(api(originalRequest));
-                });
-            });
-        }
-
-        originalRequest._retry = true;
-        isRefreshing = true;
-
-        try {
+let refresh: Promise<string> | null = null;
+api.interceptors.response.use(response => {
+    (response.config as any)._finish?.();
+    sessionScope.assert((response.config as any)._session);
+    return response;
+}, async error => {
+    const request = error.config;
+    request?._finish?.();
+    if (!request) throw error;
+    sessionScope.assert(request._session);
+    if (error.response?.status === 403 && error.response?.data?.code === 'troca_senha_obrigatoria') {
+        onPasswordRequired?.();
+    }
+    if (error.response?.status !== 401 || request._retry || request.url?.includes('/auth/')) throw error;
+    request._retry = true;
+    const generation = request._session;
+    if (!refresh) {
+        refresh = sessionScope.track((async () => {
             const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+            sessionScope.assert(generation);
             if (!refreshToken) throw new Error('Sem refresh token');
-
             const response = await api.post('/auth/refresh', { refreshToken });
-            const { token, refreshToken: novoRefresh } = response.data;
-
-            await SecureStore.setItemAsync(TOKEN_KEY, token);
-            await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, novoRefresh);
-
-            api.defaults.headers.common.Authorization = `Bearer ${token}`;
-            refreshSubscribers.forEach(cb => cb(token));
-            refreshSubscribers = [];
-
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return api(originalRequest);
-        } catch {
-            console.warn('[Auth] Refresh token inválido — sessão encerrada.');
-            await SecureStore.deleteItemAsync(TOKEN_KEY);
-            await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
-            refreshSubscribers = [];
-            return Promise.reject(error);
-        } finally {
-            isRefreshing = false;
-        }
+            sessionScope.assert(generation);
+            await authStorage.saveToken(response.data.token);
+            await authStorage.saveRefreshToken(response.data.refreshToken);
+            if (response.data.deveAlterarSenha === true) onPasswordRequired?.();
+            return response.data.token as string;
+        })());
     }
-);
+    const currentRefresh = refresh;
+    try {
+        await currentRefresh;
+        sessionScope.assert(generation);
+        return api(request);
+    } catch (failure) {
+        if (generation === sessionScope.generation) {
+            await authStorage.removeToken();
+            onSessionInvalid?.();
+        }
+        throw failure;
+    } finally {
+        if (refresh === currentRefresh) refresh = null;
+    }
+});
 
-// Funcoes utilitarias para gerenciar o token no cofre
 export const authStorage = {
     saveToken: async (token: string) => {
+        await SecureStore.setItemAsync(TOKEN_SERVER_KEY, api.defaults.baseURL ?? '');
         await SecureStore.setItemAsync(TOKEN_KEY, token);
     },
     getToken: async () => {
-        return await SecureStore.getItemAsync(TOKEN_KEY);
+        const server = await SecureStore.getItemAsync(TOKEN_SERVER_KEY);
+        // Tokens legados sem origem exigem login para não serem enviados a outro servidor.
+        return server === api.defaults.baseURL ? SecureStore.getItemAsync(TOKEN_KEY) : null;
     },
     removeToken: async () => {
+        delete api.defaults.headers.common.Authorization;
         await SecureStore.deleteItemAsync(TOKEN_KEY);
         await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+        await SecureStore.deleteItemAsync(TOKEN_SERVER_KEY);
     },
     saveRefreshToken: async (token: string) => {
         await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);

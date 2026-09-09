@@ -12,7 +12,7 @@ import { turmasService } from '../../services/turmasService';
 import { useAuth } from '../../hooks/useAuth';
 import { TurmaDto, MigrarTurmaResultadoDto } from '../../types/dtos';
 import { PapelUsuario } from '../../types/enums';
-import database from '../../database';
+import { getDatabase } from '../../database';
 import Aluno from '../../database/models/Aluno';
 import { Q } from '@nozbe/watermelondb';
 
@@ -36,6 +36,7 @@ function toIsoUtc(d: Date): string {
 }
 
 export function MigracaoTurmaScreen() {
+    const database = getDatabase();
     const navigation = useNavigation<AppNavigationProp>();
     const { user } = useAuth();
 

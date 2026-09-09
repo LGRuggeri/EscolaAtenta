@@ -1,3 +1,5 @@
+using EscolaAtenta.Domain.Interfaces;
+using EscolaAtenta.Application.Common;
 using EscolaAtenta.Application.Alunos.Commands;
 using EscolaAtenta.Application.Alunos.DTOs;
 using EscolaAtenta.Domain.Entities;
@@ -9,15 +11,18 @@ namespace EscolaAtenta.Application.Alunos.Handlers;
 
 public class CriarAlunoHandler : IRequestHandler<CriarAlunoCommand, AlunoDto>
 {
+    private readonly ICurrentUserService _currentUser;
     private readonly AppDbContext _context;
 
-    public CriarAlunoHandler(AppDbContext context)
+    public CriarAlunoHandler(AppDbContext context, ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     public async Task<AlunoDto> Handle(CriarAlunoCommand request, CancellationToken cancellationToken)
     {
+        AutorizacaoUsuario.ExigirAdministrador(_currentUser);
         // Verifica se a Turma existe
         var turma = await _context.Turmas.FirstOrDefaultAsync(t => t.Id == request.TurmaId, cancellationToken);
         if (turma == null)
@@ -37,11 +42,11 @@ public class CriarAlunoHandler : IRequestHandler<CriarAlunoCommand, AlunoDto>
         await _context.SaveChangesAsync(cancellationToken);
 
         return new AlunoDto(
-            aluno.Id, 
-            aluno.Nome, 
-            aluno.Matricula, 
-            aluno.TurmaId, 
-            aluno.FaltasConsecutivasAtuais, 
+            aluno.Id,
+            aluno.Nome,
+            aluno.Matricula,
+            aluno.TurmaId,
+            aluno.FaltasConsecutivasAtuais,
             aluno.TotalFaltas);
     }
 }

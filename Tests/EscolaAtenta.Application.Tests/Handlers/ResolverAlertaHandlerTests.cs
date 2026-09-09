@@ -21,7 +21,7 @@ public class ResolverAlertaHandlerTests
     public async Task Handle_QuandoAlertaNaoEncontrado_DeveRetornarFalso()
     {
         await using var ctx = CriarContexto();
-        var handler = new ResolverAlertaHandler(ctx, new FakeCurrentUserService());
+        var handler = new ResolverAlertaHandler(ctx, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString() });
 
         var resultado = await handler.Handle(
             new ResolverAlertaCommand { AlertaId = Guid.NewGuid(), Justificativa = "qualquer" },

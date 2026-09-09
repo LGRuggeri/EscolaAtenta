@@ -1,0 +1,4 @@
+repro/bin/
+repro/obj/
+preview/
+__pycache__/

@@ -1,0 +1,77 @@
+[
+  {
+    "caso": "controle_sem_token",
+    "confirmado": true,
+    "detalhe": "HTTP 401"
+  },
+  {
+    "caso": "controle_monitor_usuarios",
+    "confirmado": true,
+    "detalhe": "HTTP 403"
+  },
+  {
+    "caso": "pull_expoe_aluno_alheio",
+    "confirmado": true,
+    "detalhe": "HTTP 200; aluno da turma B retornado a monitor vinculado apenas à A"
+  },
+  {
+    "caso": "dashboard_expoe_aluno_alheio",
+    "confirmado": true,
+    "detalhe": "HTTP 200"
+  },
+  {
+    "caso": "listagem_expoe_turma_alheia",
+    "confirmado": true,
+    "detalhe": "HTTP 200"
+  },
+  {
+    "caso": "controle_lista_alunos_bloqueada",
+    "confirmado": true,
+    "detalhe": "HTTP 500; host isolado sem GlobalExceptionHandler"
+  },
+  {
+    "caso": "monitor_cria_turma_online",
+    "confirmado": true,
+    "detalhe": "HTTP 201"
+  },
+  {
+    "caso": "monitor_cria_aluno_turma_alheia",
+    "confirmado": true,
+    "detalhe": "HTTP 201"
+  },
+  {
+    "caso": "supervisor_resolve_alerta_alheio",
+    "confirmado": true,
+    "detalhe": "HTTP 204"
+  },
+  {
+    "caso": "auditoria_sqlite_falha",
+    "confirmado": true,
+    "detalhe": "HTTP 500; não contar como vazamento comprovado de detalhes"
+  },
+  {
+    "caso": "troca_obrigatoria_so_cliente",
+    "confirmado": true,
+    "detalhe": "deveAlterarSenha=true; GET usuários HTTP 200"
+  },
+  {
+    "caso": "refresh_sobrevive_troca_senha",
+    "confirmado": true,
+    "detalhe": "Troca HTTP 204; refresh anterior HTTP 200"
+  },
+  {
+    "caso": "jwt_preserva_papel_revogado",
+    "confirmado": true,
+    "detalhe": "Admin rebaixado no banco; token antigo HTTP 200"
+  },
+  {
+    "caso": "jwt_usuario_desativado_aceito",
+    "confirmado": true,
+    "detalhe": "Usuário inativo no banco; token antigo HTTP 200"
+  },
+  {
+    "caso": "fallback_dev_assinatura_forjavel",
+    "confirmado": true,
+    "detalhe": "Validação criptográfica local; condicionada a Development com Jwt:SecretKey vazia; nenhum segredo exportado"
+  }
+]

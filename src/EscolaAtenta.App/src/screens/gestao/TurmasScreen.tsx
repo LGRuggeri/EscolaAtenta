@@ -1,3 +1,5 @@
+import { useAuth } from '../../hooks/useAuth';
+import { PapelUsuario } from '../../types/enums';
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, FlatList, Alert } from 'react-native';
 import { Text, FAB, ActivityIndicator, Card, IconButton } from 'react-native-paper';
@@ -12,6 +14,7 @@ import { theme } from '../../theme/colors';
 
 export function TurmasScreen() {
     const navigation = useNavigation<AppNavigationProp>();
+    const admin = useAuth().user?.papel === PapelUsuario.Administrador;
     const [turmas, setTurmas] = useState<TurmaDto[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -52,13 +55,13 @@ export function TurmasScreen() {
                         </Text>
                     </View>
                 </View>
-                <IconButton
+                {admin && <IconButton
                     icon="pencil-outline"
                     size={20}
                     iconColor={theme.colors.textSecondary}
                     onPress={() => navigation.navigate('TurmaForm', { turma: item })}
                     style={styles.editButton}
-                />
+                />}
             </Card.Content>
         </Card>
     );
@@ -84,18 +87,18 @@ export function TurmasScreen() {
                         <EmptyState
                             icon="school-outline"
                             title="Nenhuma turma encontrada"
-                            subtitle="Toque no + para criar a primeira turma"
+                            subtitle={admin ? "Toque no + para criar a primeira turma" : "Nenhuma turma disponível"}
                         />
                     }
                 />
             )}
 
-            <FAB
+            {admin && <FAB
                 icon="plus"
                 style={styles.fab}
                 onPress={() => navigation.navigate('TurmaForm', {})}
                 label="Nova Turma"
-            />
+            />}
         </SafeAreaView>
     );
 }

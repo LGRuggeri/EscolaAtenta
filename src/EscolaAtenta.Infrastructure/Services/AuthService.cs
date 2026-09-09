@@ -1,6 +1,6 @@
 // Implementacao do servico de autenticacao
 // USA BCrypt para hash de senhas e JWT para tokens de acesso
-// 
+//
 // SEGURANCA (AppSec):
 // - BCrypt: trabalho constante (cost factor 10) - resistente a rainbow tables e GPU attacks
 // - Nao usa MD5/SHA1 - apenas algoritmos Designed for password hashing
@@ -35,9 +35,9 @@ public class AuthService : IAuthService
         {
             // Lê sempre em runtime para pegar a chave persistida após geração no startup
             var key = _configuration["Jwt:SecretKey"];
-            return string.IsNullOrWhiteSpace(key)
-                ? "ChaveSecretaDeDesenvolvimentoMuitoLongaParaTestes123456!"
-                : key;
+            if (string.IsNullOrWhiteSpace(key))
+                throw new InvalidOperationException("Chave JWT não inicializada.");
+            return key;
         }
     }
 
@@ -54,7 +54,9 @@ public class AuthService : IAuthService
             new Claim(JwtRegisteredClaimNames.Email, usuario.Email),
             new Claim(ClaimTypes.Role, usuario.Papel.ToString()), // OBRIGATÓRIO: Uso da URI completa nativa
             new Claim("role", usuario.Papel.ToString()), // Fallback explícito para JS/WASM
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim("versao_sessao", VersaoSessao.Calcular(usuario)),
+            new Claim("deve_alterar_senha", usuario.DeveAlterarSenha ? "true" : "false")
         };
 
         // Chave simetrica - em producao, usar RSA ou ECDSA com chave armazenada em vault

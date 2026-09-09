@@ -9,7 +9,7 @@ import { theme, palette } from '../../theme/colors';
 import { serverConfig } from '../../services/serverConfig';
 import { loadServerUrl } from '../../services/api';
 import { AppNavigationProp } from '../../navigation/types';
-import database from '../../database';
+
 
 const PORTA_PADRAO = '5114';
 
@@ -43,30 +43,6 @@ export function ConfiguracaoServidorScreen() {
         const result = await serverConfig.testConnection(buildUrl());
         setResultado(result);
         setTestando(false);
-    };
-
-    const handleLimparBanco = () => {
-        Alert.alert(
-            'Limpar banco local',
-            'Isso apagará todos os dados locais e sincronizará tudo do servidor. Dados não sincronizados serão perdidos.\n\nDeseja continuar?',
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Limpar e sincronizar',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await database.write(async () => {
-                                await database.unsafeResetDatabase();
-                            });
-                            Alert.alert('Banco limpo', 'O banco local foi resetado. O app sincronizará tudo ao abrir novamente.');
-                        } catch (err: any) {
-                            Alert.alert('Erro', 'Não foi possível limpar o banco: ' + (err?.message ?? 'erro desconhecido'));
-                        }
-                    }
-                },
-            ]
-        );
     };
 
     const handleSalvar = async () => {
@@ -178,15 +154,7 @@ export function ConfiguracaoServidorScreen() {
                     SALVAR
                 </Button>
 
-                <Button
-                    mode="outlined"
-                    onPress={handleLimparBanco}
-                    icon="database-remove"
-                    textColor={theme.colors.error}
-                    style={styles.resetButton}
-                >
-                    Limpar banco local e ressincronizar
-                </Button>
+                <Text variant="bodySmall">Os dados offline ficam separados por servidor e conta. Trocar o servidor preserva os registros pendentes da conta anterior.</Text>
             </ScrollView>
         </SafeAreaView>
     );

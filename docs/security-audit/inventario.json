@@ -1,0 +1,4761 @@
+{
+  "commit": "f7550204891aa6f2914a9280fe26ddb2d55ef793",
+  "branch": "fix/revisao-sync-seguranca-dados",
+  "commits": 85,
+  "blobs_unicos_inspecionados": 1821,
+  "arquivos": [
+    {
+      "arquivo": ".env",
+      "linhas": 32,
+      "sha256": "8d0e67dd81937c90ba77b2e318a728a2b5008548144f9a13c0423aba654b9e8d"
+    },
+    {
+      "arquivo": ".gitignore",
+      "linhas": 504,
+      "sha256": "d1e023e0a95f122aa575d8f5dc7d70c1bb769ae3fc6b29996270c6592de359ad"
+    },
+    {
+      "arquivo": "AGENTS.md",
+      "linhas": 360,
+      "sha256": "e93e29132a0d8132f9dfc6e4000745620390106fbdf0ba970c0fefd0f04a689c"
+    },
+    {
+      "arquivo": "ATUALIZACAO.md",
+      "linhas": 219,
+      "sha256": "00d129193a79b1c4be54dd85494c7c6796509078c231f2697ec0497e9d7b17eb"
+    },
+    {
+      "arquivo": "build-release.ps1",
+      "linhas": 72,
+      "sha256": "ca4cae955061df951e1c6528c265260227433c809c3dc4c8345050afebbf52b1"
+    },
+    {
+      "arquivo": "escolaatenta-installer.iss",
+      "linhas": 70,
+      "sha256": "6c5d8774cdeacd99d54118f3a0a46c36b69de5ce55b1ee73f33277baa0995e29"
+    },
+    {
+      "arquivo": "EscolaAtenta.sln",
+      "linhas": 131,
+      "sha256": "e80bff6ec927e00e897b48bb17cc6d44183cd67e0caf250bec860bd65c46e63b"
+    },
+    {
+      "arquivo": "INSTALACAO.txt",
+      "linhas": 220,
+      "sha256": "28d815198d4c19ced93c29844bf31d5492421c828c28b9fa3fe56e7bf3548edc"
+    },
+    {
+      "arquivo": "README.md",
+      "linhas": 190,
+      "sha256": "c2b3ebbfd946fb8047bd06fd69b75bf10b958e7e78642d8dd22c39beb3712a50"
+    },
+    {
+      "arquivo": "start",
+      "linhas": 1,
+      "sha256": "9aa0d0f137270b31033e206a30bc43916d8ed33b49d14fdeef980281530bf560"
+    },
+    {
+      "arquivo": "version.json",
+      "linhas": 4,
+      "sha256": "bfe41d1e11397c37247da089c4791703b4491f4742b731d7bcbea0f1f608f735"
+    },
+    {
+      "arquivo": ".claude/settings.local.json",
+      "linhas": 67,
+      "sha256": "42d5cdde3e0d6b27f2f63329d7ab7537dda61128769d31dfcd58aff5a3e2e1e9"
+    },
+    {
+      "arquivo": ".vscode/settings.json",
+      "linhas": 3,
+      "sha256": "4c877983b7fe645c5c8bc37cca10c11598f5fe06f9d6e6ce45a1b06261909e3c"
+    },
+    {
+      "arquivo": "postgres_data/pg_hba.conf",
+      "linhas": 128,
+      "sha256": "af0fdb739b67d1a552cd82c19311b813e753d4f651a61e6b563f48b55dca5e74"
+    },
+    {
+      "arquivo": "postgres_data/pg_ident.conf",
+      "linhas": 72,
+      "sha256": "b4dfef08731a7d20a3bb724ad4cf3e1cd91ec01fbe51349c6a3acc5704072965"
+    },
+    {
+      "arquivo": "postgres_data/PG_VERSION",
+      "linhas": 1,
+      "sha256": "54183f4323f377b737433a1e98229ead0fdc686f93bab057ecb612daa94002b5"
+    },
+    {
+      "arquivo": "postgres_data/postgresql.auto.conf",
+      "linhas": 2,
+      "sha256": "0874e665ecf5c0a6135a73158ea1b71a959dafb809574810da5c9cc28c0c63ed"
+    },
+    {
+      "arquivo": "postgres_data/postgresql.conf",
+      "linhas": 847,
+      "sha256": "4634abd0a6b52710a8765d47b1b225a55f8d985f54cc503f82ec783979766983"
+    },
+    {
+      "arquivo": "postgres_data/postmaster.opts",
+      "linhas": 1,
+      "sha256": "986beb203393b7f4de2dbdf159179ebcb2301b1c08a5a8072775200f1e45dfea"
+    },
+    {
+      "arquivo": "src/Directory.Build.props",
+      "linhas": 18,
+      "sha256": "e964577862c243b68c80553c1796d6c581d1a2f617314a2e7f3e2c54235bc74b"
+    },
+    {
+      "arquivo": ".claude/projects/c--Users-RUGGERI-FAMILY-EscolaAtenta/memory/android-build-fixes.md",
+      "linhas": 220,
+      "sha256": "b5a85d20fd4537d761f4e110e64d691346a678ab913e28bd333b9ac10dfb2d56"
+    },
+    {
+      "arquivo": ".claude/projects/c--Users-RUGGERI-FAMILY-EscolaAtenta/memory/MEMORY.md",
+      "linhas": 97,
+      "sha256": "610fbe5ccdc7a67bcad1389a75703816b807312342e4dcafd6aa8597bfcbc371"
+    },
+    {
+      "arquivo": ".claude/projects/c--Users-RUGGERI-FAMILY-EscolaAtenta/memory/security-performance-qa.md",
+      "linhas": 160,
+      "sha256": "b292bd92816c488854fac4b2bfc315195ad998f775a8c0bb8bb3b1faa6147c3a"
+    },
+    {
+      "arquivo": ".claude/projects/c--Users-RUGGERI-FAMILY-EscolaAtenta/memory/server-connection-troubleshooting.md",
+      "linhas": 238,
+      "sha256": "1ebee0b2e2791f50ee5674292cae8b38d71a34121181bb44b18655b87bcfce6f"
+    },
+    {
+      "arquivo": ".claude/projects/c--Users-RUGGERI-FAMILY-EscolaAtenta/memory/watermelondb-sync-fixes.md",
+      "linhas": 298,
+      "sha256": "4da6e994f62029784e2f2dce676bcc67ec9f55b586bd8238df784eae3fd29dc0"
+    },
+    {
+      "arquivo": ".cursor/rules/andrade-backend.mdc",
+      "linhas": 17,
+      "sha256": "b6d770162ad8a5fa3f90d730d4611a65d8b05217fbe3b2a7183a63ee8cb2fae4"
+    },
+    {
+      "arquivo": ".cursor/rules/bartolomeu-techlead.mdc",
+      "linhas": 33,
+      "sha256": "6b7575a5c75eb1b86bdb113459b05ca669184b6bc1c8289ee14bda84d8e60c7f"
+    },
+    {
+      "arquivo": ".cursor/rules/charles-devsecops.mdc",
+      "linhas": 17,
+      "sha256": "4094196d0fd87752b968dd9ee76d2e953c26dc6140801d98a4a4e6a8932e59b0"
+    },
+    {
+      "arquivo": ".cursor/rules/gabriel-frontend.mdc",
+      "linhas": 17,
+      "sha256": "58339d3d1317617cd55c7d8de52714c4c3dac645040db5b5dc80c68cc66eeaac"
+    },
+    {
+      "arquivo": ".cursor/skills/andrade-backend/SKILL.md",
+      "linhas": 427,
+      "sha256": "a7984e0ea95c0ec09ad596f142fe10703c053771874db0aa8da30682ed4c2891"
+    },
+    {
+      "arquivo": ".cursor/skills/bartolomeu-techlead/SKILL.md",
+      "linhas": 373,
+      "sha256": "be356024195d7f4c0bd6923a1e62791f7f86c4ebb75f3b5bb56ccefbee49f783"
+    },
+    {
+      "arquivo": ".cursor/skills/charles-devsecops/SKILL.md",
+      "linhas": 411,
+      "sha256": "e69089046d48089706d76354dcead0dc71818f7717cf0e0844e3d0053fa0a25e"
+    },
+    {
+      "arquivo": ".cursor/skills/gabriel-frontend/SKILL.md",
+      "linhas": 438,
+      "sha256": "924a5fa1e5fe8bb37430f92f0ee438e9258b59652f0e403ef48ddd8d88244d55"
+    },
+    {
+      "arquivo": "postgres_data/global/1213_vm",
+      "linhas": 1,
+      "sha256": "d2ff96f801d42fa8dd7ffbf34844d7ec17226c2e0574d992c5a67261810e7a4b"
+    },
+    {
+      "arquivo": "postgres_data/global/1214",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/1261_vm",
+      "linhas": 1,
+      "sha256": "561f3653f490e1c5b7ee6f710bd9a6dde4ca99b0ee38f8ff0cb235005db40b29"
+    },
+    {
+      "arquivo": "postgres_data/global/2396_vm",
+      "linhas": 1,
+      "sha256": "96ef1f3b5d3a017c8f459433050d243a48ff92f105249b216fdefd3e6c01f7f6"
+    },
+    {
+      "arquivo": "postgres_data/global/2846",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/2964",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/2966",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/3592",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/4060",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/4175",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/4177",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/4181",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/4183",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/4185",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/6000",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/6100",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/6243",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/global/6244",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/pg_subtrans/0000",
+      "linhas": 1,
+      "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+    },
+    {
+      "arquivo": "postgres_data/pg_xact/0000",
+      "linhas": 1,
+      "sha256": "4db8e0412704d0c90f8b31887c30792c5a3d3c28ee81319349f05620a05e251f"
+    },
+    {
+      "arquivo": "postgres_data/base/1/13466",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/13471",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/13476",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/13478_vm",
+      "linhas": 1,
+      "sha256": "7effd38f87e79b2b6d14dc96072019962b9d23641d8be4147389382b3f0b8e23"
+    },
+    {
+      "arquivo": "postgres_data/base/1/13481",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/1417",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/1418",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2224",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2328",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2336",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2600_fsm",
+      "linhas": 1,
+      "sha256": "edd1bc0c221144e5d48b4a0da27f31b4995ee8ea8156dbdb85b0d5736ec68046"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2600_vm",
+      "linhas": 1,
+      "sha256": "0c34b037cb7b54d711bc6e8b816ce8747944063a7c62d17c54f721b9950221c3"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2602_fsm",
+      "linhas": 40,
+      "sha256": "16a015e5d056fe50ccf8f527f611163ee8da057fda46b2a9288919bb7edfb80a"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2604",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2606_vm",
+      "linhas": 1,
+      "sha256": "be7b76749b3fd6b54b6d127b70fc8ff504c4e6a0d7760e159f95cc59af1efba2"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2607_fsm",
+      "linhas": 40,
+      "sha256": "3184d8a5d01dd16a0ef31a9c1cbf372d22a3d49be67606a99f465326c2e1fc7e"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2608_fsm",
+      "linhas": 1,
+      "sha256": "88edee5b8c4233101bb233f2d6664c97c66efb6bae89085297a8a57d696daf2d"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2609_fsm",
+      "linhas": 1,
+      "sha256": "42c21183db86928f768e5204f1c547633d9a5770b60e5a5914067a1959b583b0"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2610_fsm",
+      "linhas": 5,
+      "sha256": "280e1943abb68798824cd591bdfd4f0ea7dc44c9d39c37d213fe65f59118bd76"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2611",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2612_vm",
+      "linhas": 1,
+      "sha256": "cebf5e6b0065d0a5a54a0cedbb180929481093648a257358ab2686d0dc72d31f"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2613",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2615_vm",
+      "linhas": 1,
+      "sha256": "ad4374f82809b8551b634901c076e06c15a6865b097588a998ca2e714634ebdf"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2616_fsm",
+      "linhas": 1,
+      "sha256": "90f7ba448d89c896ddd4b5d16485a3c9b00b9c88b6c823e9f35fdb8925f59cae"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2617_fsm",
+      "linhas": 1,
+      "sha256": "5b4c0fbcc8da57c2d2e589b99767adaada45873bb942898e30f332c7af7bdcf9"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2618_fsm",
+      "linhas": 6,
+      "sha256": "0529f16d7f566e6529f1b4f38b73729af2f3876aa12116bcd9ae70ccb1b0cf25"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2620",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2753_fsm",
+      "linhas": 1,
+      "sha256": "72349e98eb8e2a239faab9695e01a28eb8b39ab411d74d38ddf82da698c5bd5e"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2830",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2832",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2834",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2836_fsm",
+      "linhas": 1,
+      "sha256": "322e53619d1df4575b3684bed9ea0f317ce991e92a4aa235829d0cfee8648ca2"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2838_fsm",
+      "linhas": 12,
+      "sha256": "3da41a5ca6553ee2aa37910df49b5af4000ac7f30df2e2edd75029725ecd1754"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2840_fsm",
+      "linhas": 40,
+      "sha256": "004c8bb50f960ac48da4af1aee1e89fa182e941b86d11f8a17e4bfbd28a5895f"
+    },
+    {
+      "arquivo": "postgres_data/base/1/2995",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3118",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3256",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3350",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3381",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3394_fsm",
+      "linhas": 1,
+      "sha256": "ac23177b47176bb7b7bd792660cab6aeb90d155b3ba53edba7483bba413fe70f"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3394_vm",
+      "linhas": 1,
+      "sha256": "0c7e1a1e94fc19ebac8e5ee8201d51c1eb74b665c33d4d642e2bee443386ccdb"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3429",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3430",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3439",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3466",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3501",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3576",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3596",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3598",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3600_fsm",
+      "linhas": 1,
+      "sha256": "fe90e47a4ce577fe24913985c5c5158a6ef386f29f5f6fed5d6b426fe7ccca93"
+    },
+    {
+      "arquivo": "postgres_data/base/1/3603_fsm",
+      "linhas": 1,
+      "sha256": "7dbd8a67fd7f0cdfb9de6d39ef3427611d109bb250d9ae76124044c5a5f9750a"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4143",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4145",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4147",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4149",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4151",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4153",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4155",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4157",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4159",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4163",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4165",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4167",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4169",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4171",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/4173",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/6102",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/6104",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/6106",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/6175",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/6228",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/6237",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/826",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/1/PG_VERSION",
+      "linhas": 1,
+      "sha256": "54183f4323f377b737433a1e98229ead0fdc686f93bab057ecb612daa94002b5"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/13466",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/13471",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/13476",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/13481",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/1417",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/1418",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/2224",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/2328",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/2336",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/2611",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/2613",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/2830",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/2832",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/2834",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/2995",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/3118",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/3256",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/32863",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/32953",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/32958",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/32967",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/3350",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/3381",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/3429",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/3430",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/3439",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/3466",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/3501",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/3576",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/3596",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/3598",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/40971",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4143",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4145",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4147",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4149",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4151",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4153",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4155",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4157",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4159",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4163",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4165",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4167",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4169",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4171",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/4173",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/6102",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/6104",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/6106",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/6175",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/6228",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/6237",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/826",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/32775/PG_VERSION",
+      "linhas": 1,
+      "sha256": "54183f4323f377b737433a1e98229ead0fdc686f93bab057ecb612daa94002b5"
+    },
+    {
+      "arquivo": "postgres_data/base/4/13466",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/13471",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/13476",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/13478_vm",
+      "linhas": 1,
+      "sha256": "7effd38f87e79b2b6d14dc96072019962b9d23641d8be4147389382b3f0b8e23"
+    },
+    {
+      "arquivo": "postgres_data/base/4/13481",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/1417",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/1418",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2224",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2328",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2336",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2600_fsm",
+      "linhas": 1,
+      "sha256": "edd1bc0c221144e5d48b4a0da27f31b4995ee8ea8156dbdb85b0d5736ec68046"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2600_vm",
+      "linhas": 1,
+      "sha256": "0c34b037cb7b54d711bc6e8b816ce8747944063a7c62d17c54f721b9950221c3"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2602_fsm",
+      "linhas": 40,
+      "sha256": "16a015e5d056fe50ccf8f527f611163ee8da057fda46b2a9288919bb7edfb80a"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2604",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2606_vm",
+      "linhas": 1,
+      "sha256": "be7b76749b3fd6b54b6d127b70fc8ff504c4e6a0d7760e159f95cc59af1efba2"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2607_fsm",
+      "linhas": 40,
+      "sha256": "3184d8a5d01dd16a0ef31a9c1cbf372d22a3d49be67606a99f465326c2e1fc7e"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2608_fsm",
+      "linhas": 1,
+      "sha256": "88edee5b8c4233101bb233f2d6664c97c66efb6bae89085297a8a57d696daf2d"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2609_fsm",
+      "linhas": 1,
+      "sha256": "42c21183db86928f768e5204f1c547633d9a5770b60e5a5914067a1959b583b0"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2610_fsm",
+      "linhas": 5,
+      "sha256": "280e1943abb68798824cd591bdfd4f0ea7dc44c9d39c37d213fe65f59118bd76"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2611",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2612_vm",
+      "linhas": 1,
+      "sha256": "cebf5e6b0065d0a5a54a0cedbb180929481093648a257358ab2686d0dc72d31f"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2613",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2615_vm",
+      "linhas": 1,
+      "sha256": "ad4374f82809b8551b634901c076e06c15a6865b097588a998ca2e714634ebdf"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2616_fsm",
+      "linhas": 1,
+      "sha256": "90f7ba448d89c896ddd4b5d16485a3c9b00b9c88b6c823e9f35fdb8925f59cae"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2617_fsm",
+      "linhas": 1,
+      "sha256": "5b4c0fbcc8da57c2d2e589b99767adaada45873bb942898e30f332c7af7bdcf9"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2618_fsm",
+      "linhas": 6,
+      "sha256": "0529f16d7f566e6529f1b4f38b73729af2f3876aa12116bcd9ae70ccb1b0cf25"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2619_fsm",
+      "linhas": 1,
+      "sha256": "5b5e8fb0785e7f5b46d3092f0afced91e4906ec206cc4ee245966d5fc645e973"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2620",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2753_fsm",
+      "linhas": 1,
+      "sha256": "72349e98eb8e2a239faab9695e01a28eb8b39ab411d74d38ddf82da698c5bd5e"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2830",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2832",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2834",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2836_fsm",
+      "linhas": 1,
+      "sha256": "322e53619d1df4575b3684bed9ea0f317ce991e92a4aa235829d0cfee8648ca2"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2838_fsm",
+      "linhas": 12,
+      "sha256": "3da41a5ca6553ee2aa37910df49b5af4000ac7f30df2e2edd75029725ecd1754"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2840_fsm",
+      "linhas": 1,
+      "sha256": "87b8a269c794b997fea4366e10e324df19ac1193c088b7dda198f6cc63265600"
+    },
+    {
+      "arquivo": "postgres_data/base/4/2995",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3118",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3256",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3350",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3381",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3394_fsm",
+      "linhas": 1,
+      "sha256": "ac23177b47176bb7b7bd792660cab6aeb90d155b3ba53edba7483bba413fe70f"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3394_vm",
+      "linhas": 1,
+      "sha256": "0c7e1a1e94fc19ebac8e5ee8201d51c1eb74b665c33d4d642e2bee443386ccdb"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3429",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3430",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3439",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3466",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3501",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3576",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3596",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3598",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3600_fsm",
+      "linhas": 1,
+      "sha256": "fe90e47a4ce577fe24913985c5c5158a6ef386f29f5f6fed5d6b426fe7ccca93"
+    },
+    {
+      "arquivo": "postgres_data/base/4/3603_fsm",
+      "linhas": 1,
+      "sha256": "7dbd8a67fd7f0cdfb9de6d39ef3427611d109bb250d9ae76124044c5a5f9750a"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4143",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4145",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4147",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4149",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4151",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4153",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4155",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4157",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4159",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4163",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4165",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4167",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4169",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4171",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/4173",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/6102",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/6104",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/6106",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/6175",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/6228",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/6237",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/826",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/4/PG_VERSION",
+      "linhas": 1,
+      "sha256": "54183f4323f377b737433a1e98229ead0fdc686f93bab057ecb612daa94002b5"
+    },
+    {
+      "arquivo": "postgres_data/base/5/13466",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/13471",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/13476",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/13478_vm",
+      "linhas": 1,
+      "sha256": "7effd38f87e79b2b6d14dc96072019962b9d23641d8be4147389382b3f0b8e23"
+    },
+    {
+      "arquivo": "postgres_data/base/5/13481",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/1417",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/1418",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2224",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2328",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2336",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2600_fsm",
+      "linhas": 1,
+      "sha256": "edd1bc0c221144e5d48b4a0da27f31b4995ee8ea8156dbdb85b0d5736ec68046"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2600_vm",
+      "linhas": 1,
+      "sha256": "0c34b037cb7b54d711bc6e8b816ce8747944063a7c62d17c54f721b9950221c3"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2602_fsm",
+      "linhas": 40,
+      "sha256": "16a015e5d056fe50ccf8f527f611163ee8da057fda46b2a9288919bb7edfb80a"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2604",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2606_vm",
+      "linhas": 1,
+      "sha256": "be7b76749b3fd6b54b6d127b70fc8ff504c4e6a0d7760e159f95cc59af1efba2"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2607_fsm",
+      "linhas": 40,
+      "sha256": "3184d8a5d01dd16a0ef31a9c1cbf372d22a3d49be67606a99f465326c2e1fc7e"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2608_fsm",
+      "linhas": 1,
+      "sha256": "88edee5b8c4233101bb233f2d6664c97c66efb6bae89085297a8a57d696daf2d"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2609_fsm",
+      "linhas": 1,
+      "sha256": "42c21183db86928f768e5204f1c547633d9a5770b60e5a5914067a1959b583b0"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2610_fsm",
+      "linhas": 5,
+      "sha256": "280e1943abb68798824cd591bdfd4f0ea7dc44c9d39c37d213fe65f59118bd76"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2611",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2612_vm",
+      "linhas": 1,
+      "sha256": "cebf5e6b0065d0a5a54a0cedbb180929481093648a257358ab2686d0dc72d31f"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2613",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2615_vm",
+      "linhas": 1,
+      "sha256": "ad4374f82809b8551b634901c076e06c15a6865b097588a998ca2e714634ebdf"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2616_fsm",
+      "linhas": 1,
+      "sha256": "90f7ba448d89c896ddd4b5d16485a3c9b00b9c88b6c823e9f35fdb8925f59cae"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2617_fsm",
+      "linhas": 1,
+      "sha256": "5b4c0fbcc8da57c2d2e589b99767adaada45873bb942898e30f332c7af7bdcf9"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2618_fsm",
+      "linhas": 6,
+      "sha256": "0529f16d7f566e6529f1b4f38b73729af2f3876aa12116bcd9ae70ccb1b0cf25"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2619_fsm",
+      "linhas": 1,
+      "sha256": "5b5e8fb0785e7f5b46d3092f0afced91e4906ec206cc4ee245966d5fc645e973"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2620",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2753_fsm",
+      "linhas": 1,
+      "sha256": "72349e98eb8e2a239faab9695e01a28eb8b39ab411d74d38ddf82da698c5bd5e"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2830",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2832",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2834",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2836_fsm",
+      "linhas": 1,
+      "sha256": "322e53619d1df4575b3684bed9ea0f317ce991e92a4aa235829d0cfee8648ca2"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2838_fsm",
+      "linhas": 12,
+      "sha256": "3da41a5ca6553ee2aa37910df49b5af4000ac7f30df2e2edd75029725ecd1754"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2840_fsm",
+      "linhas": 1,
+      "sha256": "87b8a269c794b997fea4366e10e324df19ac1193c088b7dda198f6cc63265600"
+    },
+    {
+      "arquivo": "postgres_data/base/5/2995",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3118",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3256",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3350",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3381",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3394_fsm",
+      "linhas": 1,
+      "sha256": "ac23177b47176bb7b7bd792660cab6aeb90d155b3ba53edba7483bba413fe70f"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3394_vm",
+      "linhas": 1,
+      "sha256": "0c7e1a1e94fc19ebac8e5ee8201d51c1eb74b665c33d4d642e2bee443386ccdb"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3429",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3430",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3439",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3466",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3501",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3576",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3596",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3598",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3600_fsm",
+      "linhas": 1,
+      "sha256": "fe90e47a4ce577fe24913985c5c5158a6ef386f29f5f6fed5d6b426fe7ccca93"
+    },
+    {
+      "arquivo": "postgres_data/base/5/3603_fsm",
+      "linhas": 1,
+      "sha256": "7dbd8a67fd7f0cdfb9de6d39ef3427611d109bb250d9ae76124044c5a5f9750a"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4143",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4145",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4147",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4149",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4151",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4153",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4155",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4157",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4159",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4163",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4165",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4167",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4169",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4171",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/4173",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/6102",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/6104",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/6106",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/6175",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/6228",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/6237",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/826",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "postgres_data/base/5/PG_VERSION",
+      "linhas": 1,
+      "sha256": "54183f4323f377b737433a1e98229ead0fdc686f93bab057ecb612daa94002b5"
+    },
+    {
+      "arquivo": "postgres_data/pg_multixact/members/0000",
+      "linhas": 1,
+      "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+    },
+    {
+      "arquivo": "postgres_data/pg_multixact/offsets/0000",
+      "linhas": 1,
+      "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/appsettings.Development.json",
+      "linhas": 47,
+      "sha256": "12907c30b4245887ac73f4c6bade223d0d5ee4569fe173b28701a6fa0db6a814"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/appsettings.json",
+      "linhas": 90,
+      "sha256": "2932c9f443021700cbae56c67cbafc96b805b38cb4732a0fb51abb193c5d4785"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/DataSeeder.cs",
+      "linhas": 50,
+      "sha256": "e462987dd2837bcd65b1fcc68c2dc89fdde63dc30078ba0bd77f422c8e4a1f86"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/EscolaAtenta.API.csproj",
+      "linhas": 48,
+      "sha256": "8c92f51b12d51412fb16ce6342d4a945e8c29106f5ebc52761a2b20c4b6ec6f4"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Program.cs",
+      "linhas": 475,
+      "sha256": "8be0ca91982411e56bbb8957c1842f975980d1dab8c20e685de8b01f43420819"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/.gitignore",
+      "linhas": 41,
+      "sha256": "5936b94a73a28b6735de672b54c2c058a33c9ae1edb62d87d6a4418e14447805"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/app.json",
+      "linhas": 41,
+      "sha256": "a402ca5db3b4788e6246730a67a3400e8e03aebb6c0fa082e1b2b0aff1f913b5"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/App.tsx",
+      "linhas": 18,
+      "sha256": "25424d129b4b71c2c6dad503bcca9b2d91311134569153661241e6cd355781f6"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/babel.config.js",
+      "linhas": 7,
+      "sha256": "b0df28fa108f63c4e2300cb89eeb477b5e39cebc2b7d7d8f3aad4a7a2e27e86f"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/eas.json",
+      "linhas": 22,
+      "sha256": "85cb7dfbce2b8a1ddc55ad0fed12c362d1133c7fae7ea66a576a1899f8951f52"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/index.ts",
+      "linhas": 8,
+      "sha256": "5c157f4d44972d9c84415e1e4bda595b3abcd8cf733f8a9cd20935bec3eccc42"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/package-lock.json",
+      "linhas": 10398,
+      "sha256": "b9bce34e386f08897bcdc1f71ee06369c28459788b84693abbe4972036c358ec"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/package.json",
+      "linhas": 43,
+      "sha256": "ae78bda4b4a1ac5ac6cfdfb37a092686a36bf81801d49dba86d8d95386c96681"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/tsconfig.json",
+      "linhas": 9,
+      "sha256": "e83076d0d65ca7d65b802f460ec3528a33e3fb781475d4fe1e11b3b1e8fd60de"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/EscolaAtenta.Application.csproj",
+      "linhas": 27,
+      "sha256": "c1efd9daac6d101610cd76607790b2c12f0f4b7b936e059eb7d62bccffd8675a"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/EscolaAtenta.Domain.csproj",
+      "linhas": 18,
+      "sha256": "14b4659b214e0ea81f50e6adc3924971ef7a98fa032dde099c249b90b3eef418"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/EscolaAtenta.Infrastructure.csproj",
+      "linhas": 40,
+      "sha256": "723bb68c7e9dbe802be2ffffe5ede58d4796152e588d55e7311eaadcb8d2aa60"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.TrayMonitor/app.manifest",
+      "linhas": 24,
+      "sha256": "dccbcea703d3f680a481aea5bc3b20c1277a2b6414614cbc3ad96b227243909e"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.TrayMonitor/EscolaAtenta.TrayMonitor.csproj",
+      "linhas": 17,
+      "sha256": "41d71ec137971d9f909a25fbf56a1f552fbfb7891622ae34fb9d6c32825586a2"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.TrayMonitor/EscolaAtenta.TrayMonitor.csproj.user",
+      "linhas": 8,
+      "sha256": "3d6b17cfbaff603db720a83180b5826ad667a9277443c4e4a97989af799509b4"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.TrayMonitor/Program.cs",
+      "linhas": 29,
+      "sha256": "6921c58cc15a4ef6267e2d6b1ecae3dc498c1a4d6a8882b00a71b23049d7461e"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.TrayMonitor/TrayApplicationContext.cs",
+      "linhas": 420,
+      "sha256": "f85a963c8ab5ba26607478a9f2bccb29562d2f21bc699474909d30b62b99351e"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.TrayMonitor/UpdateManager.cs",
+      "linhas": 107,
+      "sha256": "d959bf367180caacfc387cd04522b6265a567117e839b77634d2ad0494b8a4b7"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AlertasController.cs",
+      "linhas": 121,
+      "sha256": "01b246cb25a2447dabc0834b056bd50f7050c700784832dcf133f5eea4d1dbd6"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AlunosController.cs",
+      "linhas": 106,
+      "sha256": "810a9bbf9cfb5f9846c51a85ebed5d0ad9be56d3c97bae08a93b7dd5b9e3006c"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AuthController.cs",
+      "linhas": 161,
+      "sha256": "673290d0805035394e0b58dc72784520be74e82da53296a31aad01c27f6b52fc"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/ChamadasController.cs",
+      "linhas": 61,
+      "sha256": "9b38c8e80ed151b32d5f68639540ce2320eaf705ad6dc5e6f2c84c6acd7e17ff"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/DashboardController.cs",
+      "linhas": 56,
+      "sha256": "9569acf8fd1432e52ad46565e9a0aa1a48b0a0666861aaa492bc4db97fbef851"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/SyncController.cs",
+      "linhas": 64,
+      "sha256": "70b8a93921e905248e67abd94ac26087c1e1617add2e787e349e94e75e2d380d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/TurmasController.cs",
+      "linhas": 127,
+      "sha256": "794d1fae9ef89f2bb5f9d63db32ee32213a634175cace769ef3da85133fd1f92"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/UsuariosController.cs",
+      "linhas": 157,
+      "sha256": "212709f8d337f9f8b37fce7701f98d3baf95bfce038c176113ded4bec4118a31"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260225.log",
+      "linhas": 673,
+      "sha256": "13be3fef70c9de1f8adff9cf5fe3e9d9d7fa609305167ac96f89cdb94dcb3414"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260226.log",
+      "linhas": 2359,
+      "sha256": "8bcf005ea8b6491afe9801c4a9b9b441ebb0faab8efb2ea19cc324a6029ad31d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260227.log",
+      "linhas": 1294,
+      "sha256": "d792ceb2b4ce199d0020aed4f2bb139cc1a4a67ea69d0b497950b4050d541e0e"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260227_001.log",
+      "linhas": 1153,
+      "sha256": "6c7401ebe81fddedb10d8a1c58c5c8af022b032dd263a1ae5e3075e9bfc0aa67"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260227_002.log",
+      "linhas": 167,
+      "sha256": "628cbb8b7ef2e96782aaca0dfd4e9a9b4a5c65ee5e0d468ade9e5bf30ce0b795"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260227_003.log",
+      "linhas": 3523,
+      "sha256": "da69ff51af37081074e164f666556fa29f05a1780a3c0b404c2a182475485cd2"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260302.log",
+      "linhas": 1817,
+      "sha256": "35ef96a63b08293a6173b02a8a30d3871ad0f10848c15e1e9251d320c573fd4e"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260303.log",
+      "linhas": 397,
+      "sha256": "9d5a4e09cc27192d8df29a3edcd38c6d659d45040c6921e297d52c9f9bfdadd2"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260303_001.log",
+      "linhas": 2931,
+      "sha256": "44edf1a65bb2ac4b48505dace103d0ee816465c524f7f835cb042b296ecdf52f"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260304.log",
+      "linhas": 1093,
+      "sha256": "988fcadff276e327d35226fb3f0ebecf97534044129fc81d942685144aa859f9"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260304_001.log",
+      "linhas": 2042,
+      "sha256": "083afc30496d272bc23556561a5bece81009eb662d889310e8a1874bf2d344df"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260304_002.log",
+      "linhas": 2572,
+      "sha256": "9d5365f3f48464270d399dd67832ac28845d0e6b9cac0a8a300532559cb1ba99"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260305.log",
+      "linhas": 602,
+      "sha256": "a3e4d8fc6969ec2a8b8adcbbbf75f0b37f80da6fdcb377d959339289f01c7705"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-20260305_001.log",
+      "linhas": 347,
+      "sha256": "8082bfe424379c4f4cd260c92c3d8b67b5ac694f42cf89107750aaab373e65cd"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/logs/escolaatenta-log-20260305.txt",
+      "linhas": 41,
+      "sha256": "f227dba6193c2f96ef28f521c47610bf7a32964caaedda903353e4b9e554b446"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Middleware/GlobalExceptionHandler.cs",
+      "linhas": 128,
+      "sha256": "b13585c1343ee0292d6db49e80d26e22e8adbb448d2ff33c5c87dd98b4cde730"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Middleware/SecurityHeadersMiddleware.cs",
+      "linhas": 61,
+      "sha256": "61a7fe2de91970b7b324d76331b6765558b31d1ee862ce6a48edd0c16865ea79"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Properties/launchSettings.json",
+      "linhas": 14,
+      "sha256": "ee84cc10af0cfbf32005a8743cf53b80add9b3c65b2ccc064ef2f5b3a454958d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Workers/CloudEgressWorker.cs",
+      "linhas": 58,
+      "sha256": "2e2eeee0ad45a7bd3973a37b184425b636bbd1d30721aba71a542bfd109b06f2"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Workers/HeartbeatWorker.cs",
+      "linhas": 146,
+      "sha256": "7d46113e42602bcce407024d0c840f1b8a9a1c21d99f12fdb88b0867b8ea6784"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Workers/SyncLogCleanupWorker.cs",
+      "linhas": 54,
+      "sha256": "df41a4d2c3a12532a9dd0fb69ac3d81c07101496a1bcd1332af13d734cf21327"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Properties/PublishProfiles/win-x64-selfcontained.pubxml",
+      "linhas": 25,
+      "sha256": "23fba06244c1dd368d1c1d78f3d3daf899a0693ae077c860a85a6af5caad1cbb"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/.gitignore",
+      "linhas": 16,
+      "sha256": "03263c9a1436e264a87c6e0547007488dc980efb2326724b5a85c0835bac34a7"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/build.gradle",
+      "linhas": 24,
+      "sha256": "bdb916d3fe7085c9e9f3bb45bd5eacb97f5d2c5a2b2af965642f7d904739ca68"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/gradle.properties",
+      "linhas": 65,
+      "sha256": "815512557a44f1e92bf4e2c139a0017e4e0c00fbfc7a60d7b777a4f0fa4ae765"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/gradlew",
+      "linhas": 251,
+      "sha256": "ee038d6f6b21501d34c5eac442aad930fd6b82191f9bb00f1780cc101ca14a68"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/gradlew.bat",
+      "linhas": 94,
+      "sha256": "1d297e00bd21de3ace22b4d7f2de1f9dfa858883d66bbf7c1ccbecccec8f4f3b"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/local.properties",
+      "linhas": 2,
+      "sha256": "302a7a5cfa65fcb8e619dd147718c47a786b827e757712c1049ee89e06270b29"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/settings.gradle",
+      "linhas": 46,
+      "sha256": "583b4b3db18bbd234ebc37756a0780809f5889d8eb3f0d06818f448debef1796"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/assets/ea-logo.svg",
+      "linhas": 45,
+      "sha256": "fe9a8735a8e761441c564812f602655b1b215488c784429208670e334545300d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/dist/metadata.json",
+      "linhas": 1,
+      "sha256": "298a16deb34a0b778a761206a2a3ba8a2d9ee1148e84c921da6bb5eaa5387be4"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/build.gradle",
+      "linhas": 192,
+      "sha256": "496fe4fcfdd506b4611b2d21fbeedc4b57494f98f951c93764a00cd64dfefa6d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/proguard-rules.pro",
+      "linhas": 18,
+      "sha256": "381d4682393da0e15a65534628d623716028c28dcbd0d21dcfdbe9699c87702c"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/hash_key.txt",
+      "linhas": 31,
+      "sha256": "8195d3351cb4c21c2b1961e71e6f71d2ad372d2159f6675fbe7edeb701df7aa9"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.ninja_log",
+      "linhas": 2,
+      "sha256": "ddd6d00fece842d527eb051d0ab55c111e8abed3642c2ce540224e76901e6254"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/additional_project_files.txt",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/android_gradle_build.json",
+      "linhas": 54,
+      "sha256": "abda0ac9949ec778dd96fa688f1983fe1106c8b785e0518385e03464c0d5ceda"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/android_gradle_build_mini.json",
+      "linhas": 41,
+      "sha256": "796f21889ab7e8596647397d135be8865bc59ac9608cf5e55df852b2b6db2f46"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/build.ninja",
+      "linhas": 587,
+      "sha256": "09705ef212bc63da217258516ffd530aaa9709fc73a905ab766c8b91dafcd16d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/build_file_index.txt",
+      "linhas": 3,
+      "sha256": "e809e2312a66975bd498ab6dc94ac93aa795a78d0983e701a61095e53edf096b"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeCache.txt",
+      "linhas": 418,
+      "sha256": "3f7a7334d57ef455094254de88ce4a202305ba0a29d6b78a07e2a6b07fbb0a46"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/cmake_install.cmake",
+      "linhas": 61,
+      "sha256": "d13bdb84e797db59507245da726780d589ebe09c8b064b252c4ace8c8cfce095"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/compile_commands.json",
+      "linhas": 147,
+      "sha256": "7cc617de150abebd001f569fcaf477f366c0a12189fd31aaafce81ed36ec7876"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/metadata_generation_command.txt",
+      "linhas": 24,
+      "sha256": "60ca29e8be854eaacf9751b477b9b810fc4cd9a6424e2b86bb189be3b001d5d2"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/prefab_config.json",
+      "linhas": 9,
+      "sha256": "656b982da1ae7318e999cb53237672d6f5982760cc745697eff09a3513d26d41"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/symbol_folder_index.txt",
+      "linhas": 1,
+      "sha256": "290d407b250cf4e10c7b605b8f572b58a8dd7bddbeac22a814776a8c9511ec5e"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/cmake.check_cache",
+      "linhas": 1,
+      "sha256": "95079b44bcef481d601432c2fd3c654d7fe85b9c8386c355f2874502b47441d7"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/cmake.verify_globs",
+      "linhas": 1,
+      "sha256": "2fff056693febfc278b6e2b09770406ec8a2fb6efaef84b573dbb47f573e4e7f"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/CMakeError.log",
+      "linhas": 23,
+      "sha256": "d24493af75c63a4ce1c047bb0e89e9197d83c575213b35ac5ab1213041c664cc"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/CMakeOutput.log",
+      "linhas": 307,
+      "sha256": "77a0592536d708165d9c7bce859260dc306cd5d319c5a0c407a6245c10954b68"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/rules.ninja",
+      "linhas": 111,
+      "sha256": "bb1eb8e4742585f049bb81d1b53be762c706065b3f2413f16eca7cbf5d049664"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/TargetDirectories.txt",
+      "linhas": 9,
+      "sha256": "3f9fa4ea4356b8a0450a5f99199b6c39521e0566d164ffede5b87070bcb620f8"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/VerifyGlobs.cmake",
+      "linhas": 123,
+      "sha256": "4f35b747716bd2536fe6ec6f5188d3fa8520b61c710877441aff7add15e258f8"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/rnscreens_autolinked_build/cmake_install.cmake",
+      "linhas": 44,
+      "sha256": "b99f97786d958fc7ee18285eb347efa4ae834b6b11cb8ceb70415ab30eaea647"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/safeareacontext_autolinked_build/cmake_install.cmake",
+      "linhas": 44,
+      "sha256": "a814911721a4b707a08af13ff2326d421f6a63a62212aca31faf93f9c6196b41"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.cmake/api/v1/reply/cache-v2-b23ddf9a7bdd50e6db33.json",
+      "linhas": 1427,
+      "sha256": "cd9dd549f3411596ea9272e9a817d7af54c2c0f5ea5a4652598f93ec0f287bc7"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.cmake/api/v1/reply/cmakeFiles-v1-2570f382eb6cf2149c7d.json",
+      "linhas": 863,
+      "sha256": "610b73cc909f6359ab2d4ca242d11fa88a56df13a0bd72b578e3db732f4719fc"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.cmake/api/v1/reply/codemodel-v2-305bbd935f5bda9c5139.json",
+      "linhas": 113,
+      "sha256": "ff24aee2fe047e5ad899c601e1ebe039519ee202d5344f902a4e3077406b19e7"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.cmake/api/v1/reply/directory-.-RelWithDebInfo-d0094a50bb2071803777.json",
+      "linhas": 14,
+      "sha256": "7934b0ebd3c2643b221b784bf8c5ad209d92cde7491e640a65ffe2138a34e8f2"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.cmake/api/v1/reply/directory-rnscreens_autolinked_build-RelWithDebInfo-293c96f9d429e273511a.json",
+      "linhas": 14,
+      "sha256": "32391cfb97ad1b9800b0a41cfde38dad75370c6f58f670eeba2ee023b841d7ed"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.cmake/api/v1/reply/directory-safeareacontext_autolinked_build-RelWithDebInfo-ebca2fe279649af048f0.json",
+      "linhas": 14,
+      "sha256": "1659fba1a0f9caf986a2e5c399986f5c79b38e5d9abaf5b772338b4c1a7bd418"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.cmake/api/v1/reply/index-2026-03-26T05-24-12-0983.json",
+      "linhas": 92,
+      "sha256": "fd5f49efec53f5b404da80ada00b88bbe2d135f2329721c618b0e40a361c165f"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.cmake/api/v1/reply/target-appmodules-RelWithDebInfo-2091412da29bc8dfb36d.json",
+      "linhas": 349,
+      "sha256": "1c1fc98b06e70cf961bbc901a4d882f62c4fb4890ef425059dfaa2a5ed411352"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.cmake/api/v1/reply/target-react_codegen_rnscreens-RelWithDebInfo-77d8296c4e3b1d99e5a4.json",
+      "linhas": 405,
+      "sha256": "325818246efda76078342b8cf7e22468e84771152d911eaf28c3660fd607a0c4"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.cmake/api/v1/reply/target-react_codegen_safeareacontext-RelWithDebInfo-4df7a1dd3ecf1a38175e.json",
+      "linhas": 332,
+      "sha256": "46990b50200a71061f37ce98d72ca2f61f81dd1414c2f2862116373e473396ed"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.cmake/api/v1/query/client-agp/cache-v2",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.cmake/api/v1/query/client-agp/cmakeFiles-v1",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/.cmake/api/v1/query/client-agp/codemodel-v2",
+      "linhas": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/3.22.1-g37088a8-dirty/CMakeCCompiler.cmake",
+      "linhas": 72,
+      "sha256": "6b8d0564ff4723b7395d667a59341963454b432e6d15566fdfe449f8ed736744"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/3.22.1-g37088a8-dirty/CMakeCXXCompiler.cmake",
+      "linhas": 83,
+      "sha256": "e3f6be50f4c9e90da79548f0ee337f57049f9dbc27e901860f1665b280f6fcd4"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/3.22.1-g37088a8-dirty/CMakeSystem.cmake",
+      "linhas": 15,
+      "sha256": "c0dcc18e5a261d69bda6389fbe24c9127613768085159210c71d84f8def20828"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/3.22.1-g37088a8-dirty/CompilerIdC/CMakeCCompilerId.c",
+      "linhas": 803,
+      "sha256": "a5bc5d659352bb93e28ce0ec49b3b97490ecc65afce5456f43d04795d0ad627f"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/3.22.1-g37088a8-dirty/CompilerIdCXX/CMakeCXXCompilerId.cpp",
+      "linhas": 791,
+      "sha256": "6ee4286c9b42405ee114ccf00a8ae3093b7c2ff079cae1a946af11d96a5898ab"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/src/CMakeLists.txt",
+      "linhas": 8,
+      "sha256": "b3d81ebbc51f0e4347584e5259ec715c089a1703318b6b1186ac21a3fd28bce3"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/src/foo.cpp",
+      "linhas": 4,
+      "sha256": "c8cdf453146d28acee1e4f2172edd9fc0547facd97ba1b9f3c51793543ab2d0f"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/src/main.cpp",
+      "linhas": 6,
+      "sha256": "592bfcd6b6d767218b1d9f0197a0571047c3060ccaf7d45f25191ccd303277b3"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/prefab/arm64-v8a/prefab/lib/aarch64-linux-android/cmake/fbjni/fbjniConfig.cmake",
+      "linhas": 9,
+      "sha256": "99a3e07e591e64bfe2f3f5f1fbba2bedf7c7c17764539b0cf33a6855d48fdcc0"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/prefab/arm64-v8a/prefab/lib/aarch64-linux-android/cmake/fbjni/fbjniConfigVersion.cmake",
+      "linhas": 9,
+      "sha256": "9e571ddb6042315379cd6ef6d278989dcdca17b3cb0b3fcd6f67806710a566f2"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/prefab/arm64-v8a/prefab/lib/aarch64-linux-android/cmake/hermes-engine/hermes-engineConfig.cmake",
+      "linhas": 9,
+      "sha256": "deba2c8c22837c75389e7d8fe2f064e831c8b021ad9464051e60a44d3dab32bc"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/prefab/arm64-v8a/prefab/lib/aarch64-linux-android/cmake/hermes-engine/hermes-engineConfigVersion.cmake",
+      "linhas": 9,
+      "sha256": "5cdce6262a87ea13d16bf83153a43e84a90aa49902da2e861f609f4250346c81"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/prefab/arm64-v8a/prefab/lib/aarch64-linux-android/cmake/ReactAndroid/ReactAndroidConfig.cmake",
+      "linhas": 27,
+      "sha256": "224c944b2b52c9e09e357f75c55e00d9e2dc7ef235d6cb13d340ecf96be64e0a"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/RelWithDebInfo/4yv5h5t6/prefab/arm64-v8a/prefab/lib/aarch64-linux-android/cmake/ReactAndroid/ReactAndroidConfigVersion.cmake",
+      "linhas": 9,
+      "sha256": "5cdce6262a87ea13d16bf83153a43e84a90aa49902da2e861f609f4250346c81"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/.cxx/tools/release/arm64-v8a/compile_commands.json",
+      "linhas": 147,
+      "sha256": "7cc617de150abebd001f569fcaf477f366c0a12189fd31aaafce81ed36ec7876"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/src/debug/AndroidManifest.xml",
+      "linhas": 7,
+      "sha256": "fb1795032c764d975376e1612ab7022058eca2268a45efbe731a47a5d3ac0f60"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/src/main/AndroidManifest.xml",
+      "linhas": 25,
+      "sha256": "eda4b92843ebe6df632540755f6ff4c93c31f9bdcdcde8599d5e00c192de69d5"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/src/main/java/com/escolaatenta/app/MainActivity.kt",
+      "linhas": 61,
+      "sha256": "753101d60011c436970d1ac60ed4f3f82300b8ddbd66e6f1fba986ef5823743e"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/src/main/java/com/escolaatenta/app/MainApplication.kt",
+      "linhas": 57,
+      "sha256": "afab5c180c41d912550cedcbf38cb9011f83fbdc5fb1650b483f504555f4fa22"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/src/main/res/drawable/ic_launcher_background.xml",
+      "linhas": 6,
+      "sha256": "51fca95679d075ddbe2b9fe7ad2efb5ef545c5770a9ad6cafe8bf610c18c67be"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/src/main/res/drawable/rn_edit_text_material.xml",
+      "linhas": 37,
+      "sha256": "738e3aaad53180caba1419a6d5db8465a0742662fe59a4bbaf05f1061cbc3390"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+      "linhas": 5,
+      "sha256": "03d70962a0beea2bb6ab1a838b015d90da6c33adb045ff85f7b198aca70df08d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml",
+      "linhas": 5,
+      "sha256": "03d70962a0beea2bb6ab1a838b015d90da6c33adb045ff85f7b198aca70df08d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/src/main/res/values/colors.xml",
+      "linhas": 6,
+      "sha256": "3e4cd3d5afaeaa190c52412fce1a0d90f9928a66d16b6a81fbd22077970d7ca0"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/src/main/res/values/strings.xml",
+      "linhas": 5,
+      "sha256": "002ff9f064d99a9b4b786281a281739cc7f9f05b4ed722e354c08083ea0a935c"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/src/main/res/values/styles.xml",
+      "linhas": 11,
+      "sha256": "c66c5bf3d4f39e0d1526902281dc98ab4e0f138f02062261b48a20cc54956fcc"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/app/src/main/res/values-night/colors.xml",
+      "linhas": 1,
+      "sha256": "c30a9f37e6b34372e1db8c812d64a18719acf7c52c11ff2f7e5e5ed5e05c2072"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/android/gradle/wrapper/gradle-wrapper.properties",
+      "linhas": 7,
+      "sha256": "7e0821d895908883350587c74476b717016ab416320c44dc82a10def916c6fb5"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/contexts/AuthContext.tsx",
+      "linhas": 109,
+      "sha256": "900f93748fe649dfe5457cfbb882eb4b2fefe156e2262c57d6a1ad1b19e887fd"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/database/index.ts",
+      "linhas": 24,
+      "sha256": "21178b8e2123c6c65ca2b659545afb0588d8cf5343753644f52d0061825f1fc0"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/database/migrations.ts",
+      "linhas": 58,
+      "sha256": "173b46e1e1559c0b789edce49341a9030a09b61b21ffc20e9f7422a6bc5659ee"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/database/schema.ts",
+      "linhas": 37,
+      "sha256": "26ccc60b845c520d7cd391b635c6ea0a4921dae53836b82dfe269d3db74d73b0"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/hooks/useAuth.ts",
+      "linhas": 10,
+      "sha256": "85c3bd9cf09c9862894c1bb9bdbf873c57d20efeb4de718923cfcf6e23aab5d8"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/hooks/useInactivityLogout.ts",
+      "linhas": 50,
+      "sha256": "5e616f6379d2e21a7f39efed86a5dcd3b960f1024b7cb601d612222050bc59b1"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/hooks/useSyncEngine.ts",
+      "linhas": 121,
+      "sha256": "93fdf8c3b6e281fe55f3a398d1578de57a5888d3c59c0dbabc292dc468f2796c"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/navigation/AppNavigator.tsx",
+      "linhas": 79,
+      "sha256": "01252316d784077f122d2546ccac8dc0f9a1add5d6242573c21aaa81b37938cf"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/navigation/types.ts",
+      "linhas": 24,
+      "sha256": "d7a085fdb782ad281d7ea4e3df69efe92185347d2b8f4522928e468660736cb2"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/services/alertasService.ts",
+      "linhas": 111,
+      "sha256": "94915a1499e4b1f085291f13e111795035ae0b24f37286b6697e35554af988e0"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/services/alunosService.ts",
+      "linhas": 65,
+      "sha256": "ae3c9eaa14fb67bafc0fc590420be0e4f8ec9237c20f08e780bf762497a9daf7"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/services/api.ts",
+      "linhas": 120,
+      "sha256": "d468d712b6a3bd736a5c0f71c0383a301d7ba539b0dd4b90ff6d0e10ca6d37c7"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/services/authService.ts",
+      "linhas": 9,
+      "sha256": "2302bd5b81bd37e041aa7ce0b21503a3d98a459461d1bd11ea8c96b30de69fe7"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/services/chamadasService.ts",
+      "linhas": 23,
+      "sha256": "ff37f9aa4b0835e8e83422438ad68bfb744c132d58449350c5a479ae4088372c"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/services/dashboardService.ts",
+      "linhas": 11,
+      "sha256": "4e414907c0a81fb781c7dbe4d4dbe2bcb7bb95ba69898ce154d2572a6875af0e"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/services/serverConfig.ts",
+      "linhas": 37,
+      "sha256": "b68ee92b689d6ba126fbc702091574c275ad6351422c0ad58e11901d1cfbf950"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/services/turmasService.ts",
+      "linhas": 54,
+      "sha256": "a25f97aec352c3e29564b04147d40b3cbac08d16f2b19667ba101bc2f51f5b8b"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/services/usuariosService.ts",
+      "linhas": 73,
+      "sha256": "5e8ebc444edeeee4f2a4397584248be4604af6537a92e1f0e2a9f9ddf69b3744"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/theme/colors.ts",
+      "linhas": 116,
+      "sha256": "fde8c718b5f95bd6be4d580e82817b935f10b49b0f658e7c23c5f55d7704726e"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/theme/formStyles.ts",
+      "linhas": 29,
+      "sha256": "3dc871acc43470f9e59d553b44fb5f384b5549a930f72c733119f29958fa7cb1"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/theme/paperTheme.ts",
+      "linhas": 48,
+      "sha256": "6e67a894f5a388a5ada4984899b5f0a528784dc913d73874360e74542aba32b0"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/types/dtos.ts",
+      "linhas": 151,
+      "sha256": "9957bb85a7c2b6567b6e372da11be3d431fac9a251148dc6cb9a38d70ca48fcd"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/types/enums.ts",
+      "linhas": 75,
+      "sha256": "ac14749e5a2f0f7a51b227102aad49400f116e5c31c322091efc5b0db1cf437a"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/components/dashboard/QuadroDeHonraFrequencia.tsx",
+      "linhas": 201,
+      "sha256": "7c76d5e0065e575f2cbc7e25c871feb40dd469de719fbee0ae995c77a2194ba5"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/components/domain/HistoricoPresencasTimeline.tsx",
+      "linhas": 189,
+      "sha256": "2c71d3c4c1f76dbbf2cff02fe919127aa0f3ed9eae612cad228fa36c80d53244"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/components/ui/AppCard.tsx",
+      "linhas": 85,
+      "sha256": "6832e32035432733e96e9d1fd20e5032ef3761d70c7c4a7302d4115c8d676ab7"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/components/ui/AppHeader.tsx",
+      "linhas": 35,
+      "sha256": "f43c0129804f25d3e2a92969a520ff6c75965537363845435420fdb1a3cb3467"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/components/ui/EmptyState.tsx",
+      "linhas": 50,
+      "sha256": "73b2ecdec1debdd899b5a298c4edf786e5bde83764f6fa0400d1531c2bbdc0ef"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/components/ui/index.ts",
+      "linhas": 4,
+      "sha256": "45d13b502f352bff07d1eea065aaf125968b7e2c3d409139d5f47a8ad1835a22"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/components/ui/StatusChip.tsx",
+      "linhas": 34,
+      "sha256": "5d2cc76e26e9573561dd5c720cc6dc2da1dc96d62a91aebc7e077575982ed268"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/database/models/Aluno.ts",
+      "linhas": 19,
+      "sha256": "e34d4ff0deb8302f17f9b557bda5df12c185f744b8be132ce00d41533d044d84"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/database/models/RegistroPresenca.ts",
+      "linhas": 43,
+      "sha256": "27763b49eb9ae13f7292d83db8de0522f2dfedcb3277edb7700185c60364ce1a"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/database/models/Turma.ts",
+      "linhas": 19,
+      "sha256": "0d07015426d2df8365b497b6ba98367a5c6b98ab878544f16a84deb3ba37b591"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/auth/LoginScreen.tsx",
+      "linhas": 262,
+      "sha256": "ff980f91035805316d95224a9ddfd075d284ec5783b69ed20f7e5b83fbebd657"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/auth/TrocarSenhaScreen.tsx",
+      "linhas": 113,
+      "sha256": "c2ed041d39eb938e8297c3649114a4a9aea3a4a3b5aea4cb08827a3dc8f5a8ed"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/dashboard/AlertasScreen.tsx",
+      "linhas": 553,
+      "sha256": "dbd15f56a56eabd32fa44bf4d3dd9249599206ec223986e60775d03674c16dc7"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/dashboard/HistoricoAlertasScreen.tsx",
+      "linhas": 379,
+      "sha256": "8095e8ea3feafc39049376920c01b108035bbdb88ef975728c84c32640ee3148"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/dashboard/HomeScreen.tsx",
+      "linhas": 197,
+      "sha256": "c84216ea170acea7d8eab6482492c3d2b7fb36f75b1c260ccd8f7c8e3fdcc2de"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/gestao/AlunoFormScreen.tsx",
+      "linhas": 97,
+      "sha256": "fc37f2687c0ed62b324e1aa18f5bb6b5b2654992bd91e282497a7e0da0b288dd"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/gestao/AlunosScreen.tsx",
+      "linhas": 165,
+      "sha256": "a4b32ba7d1167ab485126e6ed4a9022c970c55acec8c5958b1c68ba7ddd4d6be"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/gestao/MigracaoTurmaScreen.tsx",
+      "linhas": 629,
+      "sha256": "944d77fc18d1e882703d39f57006774ef13027151bb42dd336e03119b0b07ab1"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/gestao/TurmaFormScreen.tsx",
+      "linhas": 116,
+      "sha256": "d8ac62823afa30c72a2a1aced9e45a70fbacb74472e8ae694d67408f8a649bbe"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/gestao/TurmasScreen.tsx",
+      "linhas": 142,
+      "sha256": "c2397fa7950d4688862b34028f4df1a66e2d0bc72682f6c863ba51a9922dcc24"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/gestao/UsuarioFormScreen.tsx",
+      "linhas": 274,
+      "sha256": "88e2bb19a8cc6c9cf7f7a467a5f2c045e511c9fd7cb9c87de57fe25de99b4c32"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/gestao/UsuariosScreen.tsx",
+      "linhas": 252,
+      "sha256": "ebeb8088455422acab19866f3b59d1158993ef325d337f6db858d4869473f05b"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/operacao/ChamadaScreen.tsx",
+      "linhas": 995,
+      "sha256": "3af68211fc13e88607a9462c516122ef1bc9921a29c6fb2eac376fd53f62fc83"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/relatorios/RelatorioPresencasScreen.tsx",
+      "linhas": 516,
+      "sha256": "fe4bedd3b4e511dc73365bd72280bc1491f14b01fb7e41b69f23db8583ec5389"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/relatorios/RelatoriosMenuScreen.tsx",
+      "linhas": 64,
+      "sha256": "59839ac7cde594b5632444bb75e2b14c0adf7afce0a1b0f189f517ce819f3195"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/relatorios/RelatorioTurmaScreen.tsx",
+      "linhas": 599,
+      "sha256": "e033a93f50668353172c120acf32e6856299ed4618fb29c26a4e6543e69fda49"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/screens/settings/ConfiguracaoServidorScreen.tsx",
+      "linhas": 210,
+      "sha256": "1170f63aa6c19a65a458948097700f544e5ece4453d7123ee909aac9e774c420"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/services/sync/watermelondbSync.ts",
+      "linhas": 532,
+      "sha256": "d7c822465cb69e7d8398502dd37a68b87422f0adc88c7cb973a98f16017eeb8a"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Auth/LoginCommand.cs",
+      "linhas": 27,
+      "sha256": "306f8d0c091d26347bb4e5f0f7f25cd7cbaf9c2e559523f20a780f2a3ec9a8d3"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Auth/LoginHandler.cs",
+      "linhas": 85,
+      "sha256": "c521fde97fafcb28b9af9169bf92dae4fc54f7d4e0150a5e06c4195ad893694f"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Common/PagedResult.cs",
+      "linhas": 33,
+      "sha256": "f62f5ccd01016d43ccb3776410252d3576ab48b1a0eead1303e802039ccc91d0"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/EventHandlers/FaltasConsecutivasNormalizadasHandler.cs",
+      "linhas": 53,
+      "sha256": "1e8bee3188d2f8da41dcf0bcdb76bbece8ac05482833f34496ebbc37e2063fba"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/EventHandlers/LimiteFaltasAtingidoHandler.cs",
+      "linhas": 113,
+      "sha256": "441cdc4a06a04ea501502b5847b38da758ba69f49f3ee87e386b908f606eab01"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alertas/Commands/ResolverAlertaCommand.cs",
+      "linhas": 9,
+      "sha256": "f20f1eebbeaa549eab4998cfbfaaaa575aff8a93dabdca2331346adb6185fb78"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alertas/Dtos/AlertaEvasaoDto.cs",
+      "linhas": 26,
+      "sha256": "6168c8bc3fbfb459a7c79541729755f85dd53159b263c64aa38bab1ec166450d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alertas/Dtos/AuditoriaAlertaDto.cs",
+      "linhas": 23,
+      "sha256": "0b46b2598aa4763fef24af04708246404ac70b12f7d9c6bd4af1cb9d0d0d1c68"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alertas/Handlers/GetAlertasHandler.cs",
+      "linhas": 186,
+      "sha256": "33a40be0c19af75fdfc2ae8f19b3ae960c34db7eb5d3c70839459a045958cc8c"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alertas/Handlers/GetAuditoriaAlertasQueryHandler.cs",
+      "linhas": 114,
+      "sha256": "e04c62e847a64fcbf32e76bce27ac3670824e7ce5d9b2e23c1f241c428ec3810"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alertas/Handlers/ResolverAlertaHandler.cs",
+      "linhas": 41,
+      "sha256": "2831bb999ad27b6fbed3f617d25524652a07d12c788509d7d09a64adb4bb6c26"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alertas/Queries/GetAlertasQuery.cs",
+      "linhas": 28,
+      "sha256": "1470d4d14180f349b8b381eb63da7806545a1f206103e72374ba6def9cb2bcda"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alertas/Queries/GetAuditoriaAlertasQuery.cs",
+      "linhas": 26,
+      "sha256": "43f2721f09b86829568c29a42f091680a2e858a6ca68d475b2b00bacdfb9c9bc"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Commands/AtualizarAlunoCommand.cs",
+      "linhas": 5,
+      "sha256": "f55e26ff44deb06d33d90bc588d7745663c8e51f2d4beb46f42b5d4016decce3"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Commands/CriarAlunoCommand.cs",
+      "linhas": 6,
+      "sha256": "e93cdc1b64e1944201187bad5ada55d1a0dbd6c7481caba5bd40f496f30539d0"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Commands/TransferirAlunoCommand.cs",
+      "linhas": 9,
+      "sha256": "fda4095cdbf0146d5be181fc5147dcbea37c4c172a84ed2fb9bf6cdd94e399fd"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/DTOs/AlunoDto.cs",
+      "linhas": 9,
+      "sha256": "36789f7233eede5b6207be9576e547e7c78a2ebf0907fac043bf6cdfa3fd02bf"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/DTOs/HistoricoPresencaDto.cs",
+      "linhas": 9,
+      "sha256": "bb2c7896d5dc0dc356a78f27ac5d07feb837b8dc1ab695a12f63bf5acaeba2d4"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/DTOs/HistoricoTurmaAlunoDto.cs",
+      "linhas": 11,
+      "sha256": "f75cc03cdd5083495f8a9e48ce1cfff36bc2760e932620708e016a4a10d3389b"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/AtualizarAlunoHandler.cs",
+      "linhas": 55,
+      "sha256": "8f2c34c004e9cd9ea36df064477c8204b1d07b42f7d8faaef674e075b68580d3"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/CriarAlunoHandler.cs",
+      "linhas": 47,
+      "sha256": "f9df20fb05d066b8a741594aa010102d5adb06ebad079fa211aa6c4a6b1726c4"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/GetAlunosPorTurmaQueryHandler.cs",
+      "linhas": 64,
+      "sha256": "9c25140d29f37c1152eb78f4a614b0a4f56b38180c6117faf907bf80de2dd6a5"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/GetHistoricoPresencasAlunoQueryHandler.cs",
+      "linhas": 103,
+      "sha256": "1eb94fd1af04829bfe46380ec8133c1ca0a9f246dbd135e77a05d6f7c31c6a92"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/ObterHistoricoTurmasAlunoHandler.cs",
+      "linhas": 87,
+      "sha256": "2aa35ab352d084793dfe50eefa9e417a92649bfd48d539b02710c6a82ee9da47"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/TransferirAlunoHandler.cs",
+      "linhas": 99,
+      "sha256": "56a7ac696c36936c611d9d66c2eb2a1f1bbae222acd13b9cf56ced568571f34b"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Queries/GetAlunosComFaltasQuery.cs",
+      "linhas": 84,
+      "sha256": "4b75a2725d57a731b53af695decd9650fe7e0d23cdccf5e6a42f1b7653eef850"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Queries/GetAlunosPorTurmaQuery.cs",
+      "linhas": 6,
+      "sha256": "0ea935dff94ccb2985d2799290cbdbca5ac6e5128482c8880b17407480ac1dff"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Queries/GetHistoricoPresencasAlunoQuery.cs",
+      "linhas": 12,
+      "sha256": "1c1760a3d58c4f16df4f666a3fba3ecac282526553b03ae12be9e0e5a43af3da"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Queries/ObterHistoricoTurmasAlunoQuery.cs",
+      "linhas": 6,
+      "sha256": "a5d94ee4ed89e8b365d0793e45e1a7780182e9ad4f909d3579cfca6ec90e58df"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Commands/RealizarChamadaCommand.cs",
+      "linhas": 15,
+      "sha256": "9d95562664172486d537858c4836db1265b05c01bc9d54e9d431fc89d85d014d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Commands/RegistrarPresencaCommand.cs",
+      "linhas": 27,
+      "sha256": "b778c3300d73afc20664fc92cd9af1f25d541465931844adea6b6e56a571b7e4"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Commands/SyncPushCommand.cs",
+      "linhas": 88,
+      "sha256": "39a6d5915c211aa834b17028db10c0ac4c779f97f93d0f3411f4d05530b5286f"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/ObterChamadaPorTurmaEDiaHandler.cs",
+      "linhas": 106,
+      "sha256": "73e6eb1b164b184dfcc30b5c7fdbca719baed9ee579fd902a44af28e2c2d0ed3"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/RealizarChamadaHandler.cs",
+      "linhas": 303,
+      "sha256": "4a747d9e265a5aea0e9e719c42697a7d9cf376ef7343c2f69ec81d6d756d9870"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/RegistrarPresencaHandler.cs",
+      "linhas": 102,
+      "sha256": "f313ecacad1d5c3f114b04426def4eeb9ec91c22d48a4a14691ae69b673b3ca8"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/SyncPullHandler.cs",
+      "linhas": 266,
+      "sha256": "054050ce74b5ccce316e51c5b48bd6bcc15ca25490c51942f7cb240de170c2a9"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/SyncPushHandler.cs",
+      "linhas": 1176,
+      "sha256": "eccd3508947ecdcfb27a7525230280da766b10932c87dc85be08b72d4fdbe549"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Queries/ObterChamadaPorTurmaEDiaQuery.cs",
+      "linhas": 25,
+      "sha256": "a9caa4c0ddb5076d1678f04355acc38150da2e2becee0b228d240dc69be5eb2b"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Queries/SyncPullQuery.cs",
+      "linhas": 91,
+      "sha256": "6d14c8060c6c623bf98590881425648f26eb00ddc34ca228de652125cb559d62"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Dashboard/Dtos/TurmaFrequenciaPerfeitaDto.cs",
+      "linhas": 9,
+      "sha256": "a20dcbd1b3d7df3cdf5ec1cdf4e17396c849cc22877476649282d08dc99c48ba"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Dashboard/Handlers/GetTurmasFrequenciaPerfeitaQueryHandler.cs",
+      "linhas": 99,
+      "sha256": "b7ac783d6ea0e568dc322084e7f7dd0029a3233c44882ca67c1a813003e88cda"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Dashboard/Queries/GetTurmasFrequenciaPerfeitaQuery.cs",
+      "linhas": 11,
+      "sha256": "4bf7221bbed1aef1737dc08bf0151290628be646513db6ab2d841dad4a7a48f0"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Commands/AtualizarTurmaCommand.cs",
+      "linhas": 5,
+      "sha256": "957011b18f07038c85b3787abc2352134de3ea5b7f303ce6d3eb82c298735cba"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Commands/CriarTurmaCommand.cs",
+      "linhas": 6,
+      "sha256": "4800c776e4fe79ec21a8c6171d6b4f44ce783da8f59368b48b257a3acb2c1b56"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Commands/MigrarTurmaCommand.cs",
+      "linhas": 11,
+      "sha256": "9cf7a10e60ee688f248ff420561670461d020d7dd757cc61fbcef9f2d6b98c4d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Turmas/DTOs/MigrarTurmaResultadoDto.cs",
+      "linhas": 6,
+      "sha256": "ae60e36c4cd5edc579b81c9e4420c21c0abbe884d0b41f7a8fb15dae31e715e6"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Turmas/DTOs/RelatorioTurmaDto.cs",
+      "linhas": 28,
+      "sha256": "0c7fbb10aed108fae114e6bedf503fc63898f18751d57508e2bd32982d80a5f6"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Turmas/DTOs/TurmaDto.cs",
+      "linhas": 3,
+      "sha256": "c6c68116eb3e0f63d257fa65fbdb539d2de56598f5615ef097feb238d29a5cc0"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Handlers/AtualizarTurmaHandler.cs",
+      "linhas": 55,
+      "sha256": "333f69e5b6ddd019e47576a78eba19af96ad454ecbacb9ac359b5e410ace0f4c"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Handlers/CriarTurmaHandler.cs",
+      "linhas": 32,
+      "sha256": "e68df5273101453391598f7c105287685bd3a7f126da36dfaffef6188b082fab"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Handlers/GetTurmasQueryHandler.cs",
+      "linhas": 28,
+      "sha256": "3793924ef1c448efe4e5b838046ce0a136b76e007f94f6ccbc7054fa11c24987"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Handlers/MigrarTurmaHandler.cs",
+      "linhas": 155,
+      "sha256": "4fd9a35a1bee33f1d0ca4952ba0857062174faf2fdf564b7c6b3494de16fc882"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Handlers/RelatorioTurmaHandler.cs",
+      "linhas": 179,
+      "sha256": "85aacab38d4355d904fc6f9ad4c7ed1e616f8e4a28c4bc851230a9ab0ecda535"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Queries/GetTurmasQuery.cs",
+      "linhas": 6,
+      "sha256": "71bfce641661944f2dfbd4fb0535a71b847894c6a9c27975c71cb67c57bb6ac8"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Queries/RelatorioTurmaQuery.cs",
+      "linhas": 101,
+      "sha256": "4a43a241bd56b7e22735142aa79485caa73fe7bc63c9aff040a48ce1210febf0"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Usuarios/Commands/AlternarStatusUsuarioCommand.cs",
+      "linhas": 35,
+      "sha256": "5fda217004c08815d962c50082f1ac5ac7654599cb353010afa6a3499a971d58"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Usuarios/Commands/AtualizarUsuarioCommand.cs",
+      "linhas": 29,
+      "sha256": "4c2efe9c903b19798b8a71efa5678a8566df0aa3e11dea2123935e03b3cc29c3"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Usuarios/Commands/CriarUsuarioCommand.cs",
+      "linhas": 48,
+      "sha256": "e8289f0296fe368220f8cd6fc86a292af6881766b332bfff6b727e82ac6a71e8"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Usuarios/DTOs/UsuarioDetalheDto.cs",
+      "linhas": 13,
+      "sha256": "e3458953245a5e8505e43770d9356a823e160b0dbe200eaf945f91ab16bc3576"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Usuarios/DTOs/UsuarioDto.cs",
+      "linhas": 15,
+      "sha256": "571d006ba7519da35f4623152a7c8972aa9d876fa909cc0261bd614e7c97e831"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Usuarios/Queries/GetUsuarioByIdQuery.cs",
+      "linhas": 37,
+      "sha256": "9f180df11325aa9e6e87926deb33d953079b101e9fe93914f2efce14b933bc41"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Usuarios/Queries/GetUsuariosQuery.cs",
+      "linhas": 24,
+      "sha256": "5ac2e7d890ab2afa2fbe842ed340dfcd3409c4e37538b708ad645dbbc9bdf426"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Application/Usuarios/Queries/GetUsuariosQueryHandler.cs",
+      "linhas": 79,
+      "sha256": "af5ab5cce97e506783591d592628a04cd9d63a2f4c0b0cfa131ece77efa8528c"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Common/EntityBase.cs",
+      "linhas": 81,
+      "sha256": "3bd32a4fb8d8fd6150dc90d485271571d5c5a8ccf50bc829cf234d1b038c381e"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Common/IDomainEvent.cs",
+      "linhas": 18,
+      "sha256": "13b127311d88b847f3d06cf9634e4c8558c1f28e6f7d546b0f6f7d66d35cf616"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Common/ISoftDeletable.cs",
+      "linhas": 30,
+      "sha256": "4ccef1e75ecc153708d37f2f2f66c5358bbb787499f279f3220e1ef000f878de"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Entities/AlertaEvasao.cs",
+      "linhas": 138,
+      "sha256": "50f54d957664ad6cd9963d63a5fa70cfc20530613c4f9f8d624ab13e0f25bab7"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Entities/Aluno.cs",
+      "linhas": 394,
+      "sha256": "cc3cbf2f790e0ad56d37e16a35e53bf3ec55d9c08ec45655abb8c3ea9c7ebf6c"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Entities/AlunoTurmaHistorico.cs",
+      "linhas": 81,
+      "sha256": "5c9d9e8c767c052a3233ca9ee6d5121510c79e8a29fc85925ba6dec8e6e3a093"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Entities/Chamada.cs",
+      "linhas": 95,
+      "sha256": "a79f6a4baff999ea0efc0b322b68df01b0601c2a6d4fb50b20b7929a713e594d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Entities/RefreshToken.cs",
+      "linhas": 19,
+      "sha256": "a27f4bb1d8ce18fcd693639b2aee02050140828aaca085fae273ffecc42a8712"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Entities/RegistroPresenca.cs",
+      "linhas": 69,
+      "sha256": "6c9c3cf6e6c508f1a44d8f9d6e7b8d97f6a956766560cb295d420da891367034"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Entities/SyncLog.cs",
+      "linhas": 31,
+      "sha256": "1a2a40b75c4c847edc60de650a9eed93edcd95bf093c76237696ae5496a9330c"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Entities/Turma.cs",
+      "linhas": 112,
+      "sha256": "dc4ccf3fad5bace957c499fd973e6f1b919633765f7ed514135e6f11a33de923"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Entities/Usuario.cs",
+      "linhas": 133,
+      "sha256": "ce8e9cd3d2bba0d264110f10f2210988aa2e0d69ebafa3bd3a7f3eff0995fe01"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Entities/UsuarioTurma.cs",
+      "linhas": 34,
+      "sha256": "723471055f219ec498bdb528ab2a4c3f4d96a8e03b5474d7cade31af49615a77"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Enums/NivelAlertaFalta.cs",
+      "linhas": 73,
+      "sha256": "7a799db2e1e2687576e99882fcd5b92ccd50857f1172aa69442e6788abbec3fc"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Enums/PapelUsuario.cs",
+      "linhas": 25,
+      "sha256": "7b28c1d725f636380a296d4aaf7c26a1b85766095aadd9f77009e0ea7ef42720"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Enums/StatusPresenca.cs",
+      "linhas": 32,
+      "sha256": "d2f7d782da4b6fe7958dbef6e0f15adef294e7f99181532a1101829a32b32e94"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Enums/TipoAlerta.cs",
+      "linhas": 14,
+      "sha256": "90a910e52ebb09d41e988c0b129cc50e0ffcba53ff4939ba8b611e33cfab73f9"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Enums/TipoPeriodoLetivo.cs",
+      "linhas": 13,
+      "sha256": "fb6f7a3e584d514d0bbc53cc4c853005dbd5b334007a84a7230488effb037cb4"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Events/AlunoTransferidoEvent.cs",
+      "linhas": 20,
+      "sha256": "ebb7f4febafe9d08026fb2e1fbe84fdc92aff6a725455ca9ba526869c525c886"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Events/FaltasConsecutivasNormalizadasEvent.cs",
+      "linhas": 19,
+      "sha256": "827c27d36f45d0d9e67253b894fbd83b4bc7dcee97f7a3770769ca8a030332a3"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Events/LimiteFaltasAtingidoEvent.cs",
+      "linhas": 29,
+      "sha256": "6797ae2a69046c251d97daaa72c7c417d8e3e382fafbb4f1c959b03b61e19afc"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Events/PresencaRegistradaEvent.cs",
+      "linhas": 22,
+      "sha256": "947f8524d2743c861d1e0e72dd239d5ad1483cfe725e30896a13c31b0bb0f372"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Exceptions/CredenciaisInvalidasException.cs",
+      "linhas": 12,
+      "sha256": "f41b558fadb79ef2f19a32eb58da64d28a58bb556b86c10d1877b05d8c395838"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Exceptions/DomainException.cs",
+      "linhas": 20,
+      "sha256": "fb2ef0f78b8a5e8bb2ccc0823010ab1815865fc0def07ba113de00947dd39ab1"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Interfaces/IAuthService.cs",
+      "linhas": 38,
+      "sha256": "d33ff8b49a2a6d4a378bda55c0093fb3868798790ad96e1aa8cefa095608770f"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Interfaces/ICurrentUserService.cs",
+      "linhas": 30,
+      "sha256": "204ad29e8859df5b39fdd4709fc3b8cab80c3bff42a3473d31f3aba35fbf08ba"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Interfaces/IEscolaTenantProvider.cs",
+      "linhas": 13,
+      "sha256": "c3ddcc8124577a63b6782ae558b081fd129e3c259fd61d02a60578a20b122cf3"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Interfaces/IPeriodoLetivoProvider.cs",
+      "linhas": 16,
+      "sha256": "42bf1301c4e380def430bfdc39623c4d7a1945f5b252499e3d07a1e1de92f162"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Domain/Interfaces/ISqliteWriteLockProvider.cs",
+      "linhas": 16,
+      "sha256": "f3d5aa86c2af2dc7bf394a733dbdd47f800f50f2ecbbe86ceae14ad3af2a610d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/AppDbContext.cs",
+      "linhas": 247,
+      "sha256": "0a2b3124c12399bf3cf6c87402591360ec2ca5a51f971401e312f00e302def20"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/DatabaseSeeder.cs",
+      "linhas": 108,
+      "sha256": "ace48843066b6a649ce5eeba5815cb47189ef2faf2725ee1ee152de69745d19e"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Services/AuthService.cs",
+      "linhas": 110,
+      "sha256": "03a967c7dd85000ef00d9dc74265176381991eaa959bd547b726c8eeb4848956"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Services/CurrentUserService.cs",
+      "linhas": 76,
+      "sha256": "b06134b9a2e971784f6e1883c73aeb4829b5729a7c6fd732d3432bd47e43ab1f"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Services/EscolaTenantProvider.cs",
+      "linhas": 29,
+      "sha256": "56fc2e68ce7b9e966e5d4f5d940e7673361599ff6908590e888afaa7dd36d932"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Services/PasswordGenerator.cs",
+      "linhas": 47,
+      "sha256": "9869f24d03331fa59d77e98f57101f265648b7007179de470779536551d796d9"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Services/PeriodoLetivoProvider.cs",
+      "linhas": 32,
+      "sha256": "ec2ddba3d7b44040a399301faa70cc3964609a39d1bb5cfe808c6e34c14f736d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Services/SqliteWriteLockProvider.cs",
+      "linhas": 24,
+      "sha256": "1496fde31a1909480b3ad5be3f58abc4b81a357ed2227fd7a3f2a2925936d0a8"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Configurations/AlertaEvasaoConfiguration.cs",
+      "linhas": 76,
+      "sha256": "1d9e937962ed4e71252e94d31ad12306b9adfab3ffd2c4719d996222e61738a8"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Configurations/AlunoConfiguration.cs",
+      "linhas": 75,
+      "sha256": "560eb7271488f5458888822d2d38dfe01b28702b62d2b9b00a9f84a914f56aff"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Configurations/AlunoTurmaHistoricoConfiguration.cs",
+      "linhas": 41,
+      "sha256": "24dddeec408712681357fa07923efeb823e1d9f4e6f800797dee36f3503310c3"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Configurations/ChamadaConfiguration.cs",
+      "linhas": 44,
+      "sha256": "255e6c27a2f6a6ce53650b48a205ee81f7dd39bf33bd456cbf8504fb0ce4b8da"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Configurations/RegistroPresencaConfiguration.cs",
+      "linhas": 37,
+      "sha256": "896ef7909178d5e203c3c932c6cbe134110749ed17bebb3e5626c722f111ad4b"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Configurations/SyncLogConfiguration.cs",
+      "linhas": 36,
+      "sha256": "63db5fba356fcb4db8af46cf30b08dd0f76cb2fac4ef77ba434c060ef7e43acd"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Configurations/TurmaConfiguration.cs",
+      "linhas": 61,
+      "sha256": "aa4693cd9acd72a9a718d3cbe2b7fbdac6ae99bf2bfc612b2ac554464caa3bcb"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Configurations/UsuarioConfiguration.cs",
+      "linhas": 48,
+      "sha256": "f547626d5e7359f606e4043a4dfcc3d3ffe274592e32f28e45b1f64409eecebf"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Configurations/UsuarioTurmaConfiguration.cs",
+      "linhas": 41,
+      "sha256": "0b25dc8dd14b56a7b9ae2da0e96ea7c2047187b648bc523f932a79107fd206b9"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260306001313_InitialSqliteCreate.cs",
+      "linhas": 311,
+      "sha256": "9ef77818c17e1b12210162e79b63beef0ba311ed977e13e33fe713cf65292469"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260306001313_InitialSqliteCreate.Designer.cs",
+      "linhas": 476,
+      "sha256": "b5873e583271041b059773da67838b8c6156bab6d6c749a5ca4ebf07ffd36ba7"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260306005608_AddMultiTenantCloudSync.cs",
+      "linhas": 145,
+      "sha256": "bd9673b056ba98fb9a33bdd12c0ad32d0762189cb52909f98fcbd322e9739916"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260306005608_AddMultiTenantCloudSync.Designer.cs",
+      "linhas": 512,
+      "sha256": "df6268ed68305d6c4678d0517193f489d5dce97d69a553b975266381ce08ede6"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260308025610_AddDeveAlterarSenha.cs",
+      "linhas": 29,
+      "sha256": "cd50164dd7280ecda4d15e16c432f33ff38d969fada71779a7cb6f3e315b3253"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260308025610_AddDeveAlterarSenha.Designer.cs",
+      "linhas": 515,
+      "sha256": "05fc21744935435e043c8e0af1c968090e4c053f94bad2a9d6f545332ecc8f7f"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260309173346_AddIndexDataAlerta.cs",
+      "linhas": 27,
+      "sha256": "aa5fe0b29cee11a62baff93d3c4223abc16aff7d1e7c453cd3a32ae2fdb336ce"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260309173346_AddIndexDataAlerta.Designer.cs",
+      "linhas": 518,
+      "sha256": "9b58e7a8caf1b407e8b2dcbd4833ff17c8ad1bd871ca16b7565687617f3ceb1d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260309173858_AddRefreshTokens.cs",
+      "linhas": 49,
+      "sha256": "7dcd51509211a420cb41f2a2a3019a147cbd9220c64e978f8225b85dd0039c68"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260309173858_AddRefreshTokens.Designer.cs",
+      "linhas": 558,
+      "sha256": "7237825038548e4fe5f576e12585191a0325be4e5c719b702270cd03357d8986"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260325185912_AddUsuarioTurma.cs",
+      "linhas": 64,
+      "sha256": "45370f48b089b0be091af445e223d6e4926433c1eb59118d77acd871ff51fe1a"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260325185912_AddUsuarioTurma.Designer.cs",
+      "linhas": 619,
+      "sha256": "7f6b9db6a82836bf4576e5c1b317d874cbb561c0ee537c1341b851e2dbd35b3d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260815153552_AdicionarDataChamadaUnicaPorTurmaEDia.cs",
+      "linhas": 303,
+      "sha256": "6b210e50e9a4816101fba7499c7f14bbdd1bab6a379881cd1d318240a7495c03"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260815153552_AdicionarDataChamadaUnicaPorTurmaEDia.Designer.cs",
+      "linhas": 625,
+      "sha256": "9eab9a3e5b239ad044eb76deffad3581a2e446c05b09c9f7a26ac0a156c4efed"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260818202628_AdicionaHistoricoMatriculasEConfiguracaoEscolar.cs",
+      "linhas": 88,
+      "sha256": "109be93b4c22ccd0fbf761e0cf71532908ba349a1722f66cc861048d4ee4629d"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260818202628_AdicionaHistoricoMatriculasEConfiguracaoEscolar.Designer.cs",
+      "linhas": 734,
+      "sha256": "415d3760b942c0f143c1f95e87a11ad216f35808e2c800a8e34f719ec401bc37"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260821133921_RemoverConfiguracaoEscola.cs",
+      "linhas": 42,
+      "sha256": "75455fb84c97def91b6509a333faad5b7a4974fcd977969cf65a49b533ed8f9b"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260821133921_RemoverConfiguracaoEscola.Designer.cs",
+      "linhas": 700,
+      "sha256": "d368ceb22fed6ede33a5803763eb14cd43120cf2c866a809545f9ff635eba9f5"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/AppDbContextModelSnapshot.cs",
+      "linhas": 697,
+      "sha256": "fe3ac29934321dc86abe69311b05fd349d334de1949cfd536b949a1043693d60"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.TrayMonitor/Services/UpdateCheckService.cs",
+      "linhas": 80,
+      "sha256": "4b0c3eb0323b6449b898444d29ee3e79d9864035fc9972cce06e3f5d80703c4e"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.TrayMonitor/Properties/PublishProfiles/win-x64-selfcontained.pubxml",
+      "linhas": 20,
+      "sha256": "c0140e8d8ea120982eb03fade4e996feb91ba069cb12ab0e07bbd3aeba95fe86"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/EscolaAtenta.Application.Tests.csproj",
+      "linhas": 33,
+      "sha256": "d64d95e3f9d8975e937d35bb44476e6692411c6345c4fc299587b2ed2d09fbe9"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/GlobalUsings.cs",
+      "linhas": 2,
+      "sha256": "ccd9e1e716a1a9282d3e17b69b8d98161fa1e12fe45632987f4958dfb770fcf5"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Domain.Tests/EscolaAtenta.Domain.Tests.csproj",
+      "linhas": 33,
+      "sha256": "3f07001b88374dde4c1efaa50a2d00f0c973d60656d0e3663f15df95b2db8ce2"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Domain.Tests/GlobalUsings.cs",
+      "linhas": 2,
+      "sha256": "ccd9e1e716a1a9282d3e17b69b8d98161fa1e12fe45632987f4958dfb770fcf5"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Domain.Tests/UnitTest1.cs",
+      "linhas": 10,
+      "sha256": "ac286ccf17787a06d6436047b9614ba60ce11004bc2b30cff78cd0069bfd378d"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Controllers/ChamadasControllerTests.cs",
+      "linhas": 27,
+      "sha256": "ea798dc5561e0f48b9bdb171c24c6bc569810e1b1b0b09b7d1f639726b67ee06"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Controllers/SyncControllerTests.cs",
+      "linhas": 82,
+      "sha256": "f71c24db1a6b23006549f2f79a5d23e229dc16b0e8858ca5fe1aa138ab6fc382"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Fakes/FakeAuthService.cs",
+      "linhas": 23,
+      "sha256": "a1d29f7d82e44667bc1e4aa5270ce4a814a0bf42e953ccae25b176e973ffb19c"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Fakes/FakeCurrentUserService.cs",
+      "linhas": 10,
+      "sha256": "482c78ad5aa8c01ac0d57b12c408d423127baea22a288f071d0424c99b66bbbf"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Fakes/FakeMediator.cs",
+      "linhas": 41,
+      "sha256": "b88fa29c6e3fea1773f30dccfded86936161048032f33e25d915cbcc3d9d4711"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Fakes/FakeSqliteWriteLockProvider.cs",
+      "linhas": 9,
+      "sha256": "601230f62e86a5909d4410de951144212e94cafaa768429ea47698bd5b9babe6"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Fakes/FakeTenantProvider.cs",
+      "linhas": 8,
+      "sha256": "e4d73119e3d12f2bdb5991424666ab5da68c6533b10e8065b3c22e9f20b9e265"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/AlternarStatusUsuarioHandlerTests.cs",
+      "linhas": 66,
+      "sha256": "7af6b40682196b470afc88e9474419fb31c9795cd4a0efa7240896b519dc03fc"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/AtualizarAlunoHandlerTests.cs",
+      "linhas": 49,
+      "sha256": "25c2a6c1b7e258b3816e9ca9f80f118dece9bb2a50ae3e01bbfb3ecda0f7d376"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/AtualizarTurmaHandlerTests.cs",
+      "linhas": 138,
+      "sha256": "5dea82de4e95de1fc874c3a2ca02feb3be3564635310106b97855d460f727352"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/AtualizarUsuarioHandlerTests.cs",
+      "linhas": 111,
+      "sha256": "20e84af4b448d773e080c1065420d74a559d1e8089bd3f540c8b5e79cf4bf97e"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/CriarAlunoHandlerTests.cs",
+      "linhas": 51,
+      "sha256": "f495b6346a27bfdb51307d081eebc23c834a937528eef70c1d98d151c1fa0b74"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/CriarTurmaHandlerTests.cs",
+      "linhas": 36,
+      "sha256": "cf7241f108a03c7cd7331c42651d646b8fbceec5a2360b9d82687a88e3b4466d"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/CriarUsuarioHandlerTests.cs",
+      "linhas": 65,
+      "sha256": "f153c83023aaab031d8c2dfcefa811489b9e3d18641fe889c3fd243ad99a29eb"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/FaltasConsecutivasNormalizadasHandlerTests.cs",
+      "linhas": 57,
+      "sha256": "f9a4d0bc70afba9f7d0cc9cb981dac9958471afe4ffce10653210497c4a22238"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/GetAlertasHandlerTests.cs",
+      "linhas": 237,
+      "sha256": "8a79ee73b117b3961620912e07cd427a5c19c75ee6176791a8945850780e9cad"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/GetAlunosComFaltasHandlerTests.cs",
+      "linhas": 177,
+      "sha256": "f7e413701119e244783126a9fc4994c682f6d05cad8f8832285252659982a8e5"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/GetAlunosPorTurmaQueryHandlerTests.cs",
+      "linhas": 177,
+      "sha256": "1da117ff57a061d527b4612a7eef0b32224d750835d1aae033806af2fe97c220"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/GetAuditoriaAlertasQueryHandlerTests.cs",
+      "linhas": 180,
+      "sha256": "027144102fbd412a538b68b470f295d1bd5b64791713885ba2681b95cf552744"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/GetHistoricoPresencasAlunoQueryHandlerTests.cs",
+      "linhas": 272,
+      "sha256": "ddaee729cef6fd0c4d77d1e33bb5f94c8a98127d4416a09a22a627fa07c67f28"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/GetTurmasFrequenciaPerfeitaQueryHandlerTests.cs",
+      "linhas": 217,
+      "sha256": "dc9ecb0f46af081461119880d45008fc82281d425272db42f41d1575d28d1d67"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/GetTurmasQueryHandlerTests.cs",
+      "linhas": 88,
+      "sha256": "a5f0ab8c79dc6e5b21e70e02d1e1deca06f8a92e19180211aa85965e12c43e05"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/GetUsuarioByIdQueryHandlerTests.cs",
+      "linhas": 92,
+      "sha256": "2d7b297ee559e91a1f184f7e07489ae1909e960b7eb33b42b2849331c7c63cda"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/GetUsuariosQueryHandlerTests.cs",
+      "linhas": 164,
+      "sha256": "4814e53d76fc070d9699fa45385361f44f39b8ec173beb608c73f36b0c314e1f"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/LimiteFaltasAtingidoHandlerTests.cs",
+      "linhas": 87,
+      "sha256": "ad59220a6744b62054b4b31e10f2a7b668e40a161fd85547862592f6a6aa2609"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/LoginHandlerTests.cs",
+      "linhas": 177,
+      "sha256": "8d3638cbac9bc0fcbec456be57d3ed6629c14754f859f4382bd493a18cd88291"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/MigrarTurmaHandlerTests.cs",
+      "linhas": 80,
+      "sha256": "4bea07097816c94196c88cbb9a87436ed73f420825271b2e157cf559d15702db"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/ObterChamadaPorTurmaEDiaHandlerTests.cs",
+      "linhas": 290,
+      "sha256": "84078e14529918ddf847e42c59a55d3dd0edb5b465980848db5a762c23db2efa"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/ObterHistoricoTurmasAlunoHandlerTests.cs",
+      "linhas": 59,
+      "sha256": "71166e61607f82a4c10d036b034145b9b079bc8f2998e14447d378af84f7a464"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/RealizarChamadaHandlerIntegrationTests.cs",
+      "linhas": 237,
+      "sha256": "bd6a9405fc17c2300bbae63e3222699591b58eb943fa6b64f6cd32399a94fd18"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/RealizarChamadaHandlerTests.cs",
+      "linhas": 570,
+      "sha256": "b15771df24ebe9ce513a3947f758df1f4a86ce9f315f279d100b383b86d058d9"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/RegistrarPresencaHandlerTests.cs",
+      "linhas": 156,
+      "sha256": "ad2b987c05cf7f3052198a5e6dc0b43a712e246dd0816050d90c06eaa08da17e"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/RelatorioTurmaHandlerTests.cs",
+      "linhas": 353,
+      "sha256": "8b0ee045ddb0405342ae432b1d2e9ade9beaef1bcce8eeb5d94b26614b3fe125"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/ResolverAlertaHandlerTests.cs",
+      "linhas": 72,
+      "sha256": "d960ffdc083d24f6986a97f2d366ae68df0fe073d96bd5e2f0bedae843d7092e"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/SyncPullHandlerTests.cs",
+      "linhas": 262,
+      "sha256": "7b1bc36fb1dc431aea95f304065f858ab698d1a7202c0744cc44a8e2060f659d"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/SyncPushHandlerTests.cs",
+      "linhas": 1396,
+      "sha256": "7ac1b3c9987101adb4bc496d52bb7641f1f1397ced83308eb05adfa5cf8309b2"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Handlers/TransferirAlunoHandlerTests.cs",
+      "linhas": 156,
+      "sha256": "a20ce141a7e2f26f914ba3b8fabbffe1d3a26bd87697c79bfff239942c71eb78"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Domain.Tests/Entities/AlertaEvasaoTests.cs",
+      "linhas": 112,
+      "sha256": "737ceaa56a4cdbcd15fa5627bcdabb33e9e1307a6930f5e1db2801d275ea8e08"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Domain.Tests/Entities/AlunoTests.cs",
+      "linhas": 455,
+      "sha256": "ebe0d5c12f51fe676d59d5ca45177703b1faff7419f9cfe92ea5abb58eb72834"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Domain.Tests/Entities/ChamadaTests.cs",
+      "linhas": 153,
+      "sha256": "f4728ef9f4140692af2a82264ece0ba5d3f3b2fa0dc1518e8f3e8bf39422d7fa"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Domain.Tests/Entities/RegistroPresencaTests.cs",
+      "linhas": 50,
+      "sha256": "724474150bd9f27ea360435d00a46f125afece3f538d5389ba3617081f10d0d1"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Domain.Tests/Entities/TurmaTests.cs",
+      "linhas": 56,
+      "sha256": "2a4e93594101ff12c511b70439c042fce39d9d1f45153012b5ae20f24477e42c"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Domain.Tests/Entities/UsuarioTests.cs",
+      "linhas": 109,
+      "sha256": "efc63ddfd97a5d235ee9b3ecd7b0b3b2bada5a93286b3018a56f84647944f162"
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Domain.Tests/Exceptions/CredenciaisInvalidasExceptionTests.cs",
+      "linhas": 31,
+      "sha256": "62a2f6147ddd4130574d7cb00d886621e3600a2679659390e9b3e21880005f84"
+    },
+    {
+      "arquivo": "V-prod/Logs/api-20260813.log",
+      "linhas": 1204,
+      "sha256": "bb270aa1c60a3ebf320966d1eb357b0305e94146e6e39f8c8d0734c4558df09c"
+    },
+    {
+      "arquivo": "V-prod/Logs/api-20260814.log",
+      "linhas": 238,
+      "sha256": "3a3fc4805adab657b6a4a6ffb8af0f8265d8cca285eca581d3d73e0cc30e960b"
+    },
+    {
+      "arquivo": "V-prod/Logs/api-20260815.log",
+      "linhas": 278,
+      "sha256": "7333ffda3257ddd6e9b6de3cd31df8b8b2034952d00f59eb9539fbfad4f26f2e"
+    },
+    {
+      "arquivo": "V-prod/Logs/api-20260817.log",
+      "linhas": 909,
+      "sha256": "26534e2c8f3e664a4d9426a92a2db8735d0a9a6950e80519db1ed9a606bca2a7"
+    },
+    {
+      "arquivo": "V-prod/Logs/api-20260818.log",
+      "linhas": 1355,
+      "sha256": "2e027d8bea8d4663aa5a2a86dad55f7833030c1e41fd256ade25e45458165615"
+    },
+    {
+      "arquivo": "V-prod/Logs/api-20260819.log",
+      "linhas": 1717,
+      "sha256": "7592ad0636b6175b1d73bd1d6948c34149430682f4e4604dff2be316aad32c5a"
+    },
+    {
+      "arquivo": "V-prod/Logs/api-20260820.log",
+      "linhas": 1176,
+      "sha256": "df877fc7b7ba6792f38562a3822d58d93fac1f5d5e09c596213afdab083ee25e"
+    },
+    {
+      "arquivo": "V-prod/Logs/escolaatenta-log-20260813.txt",
+      "linhas": 1206,
+      "sha256": "bfd26895723bc6b1fd1abef5080284e6f9310be4bd7d41dca86d72d2c9bfe3fc"
+    },
+    {
+      "arquivo": "V-prod/Logs/escolaatenta-log-20260814.txt",
+      "linhas": 238,
+      "sha256": "8b3bda9f69539938277348a28cddba35d9284399d819fe512e1250d6a1c804c2"
+    },
+    {
+      "arquivo": "V-prod/Logs/escolaatenta-log-20260815.txt",
+      "linhas": 278,
+      "sha256": "58be3865dc1e42ed1db794c73322a6f1a268739c0917241a67b054275a3dd7fd"
+    },
+    {
+      "arquivo": "V-prod/Logs/escolaatenta-log-20260817.txt",
+      "linhas": 913,
+      "sha256": "ca16b4fcb014d9cb0e9b57fd8a4498f6bdfc5450a171dd54cce8471e5d7ece31"
+    },
+    {
+      "arquivo": "V-prod/Logs/escolaatenta-log-20260818.txt",
+      "linhas": 1358,
+      "sha256": "5208f405e8901d002e990e8785b132c3cfa5f7f48c9605891cf289cf1a779091"
+    },
+    {
+      "arquivo": "V-prod/Logs/escolaatenta-log-20260819.txt",
+      "linhas": 1717,
+      "sha256": "8bbbb79d3471d22279f8feec172cf2be5d2637e2c771f7ab77febbb722df19e5"
+    },
+    {
+      "arquivo": "V-prod/Logs/escolaatenta-log-20260820.txt",
+      "linhas": 1180,
+      "sha256": "c72739d1254ff59d7bbd9fc1ea4d02112d927c6fecae4349e176a8e988f4537b"
+    }
+  ],
+  "segredos_atuais_candidatos": [
+    {
+      "arquivo": ".claude/projects/c--Users-RUGGERI-FAMILY-EscolaAtenta/memory/security-performance-qa.md",
+      "ocorrencias": [
+        {
+          "linha": 31,
+          "variavel": "SecretKey",
+          "estado": "vazio",
+          "comprimento": 0
+        }
+      ]
+    },
+    {
+      "arquivo": ".claude/projects/c--Users-RUGGERI-FAMILY-EscolaAtenta/memory/watermelondb-sync-fixes.md",
+      "ocorrencias": [
+        {
+          "linha": 193,
+          "variavel": "SecretKey",
+          "estado": "vazio",
+          "comprimento": 0
+        }
+      ]
+    },
+    {
+      "arquivo": ".cursor/skills/charles-devsecops/SKILL.md",
+      "ocorrencias": [
+        {
+          "linha": 172,
+          "variavel": "jwtSecret",
+          "estado": "literal_redigido",
+          "comprimento": 29
+        }
+      ]
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/appsettings.Development.json",
+      "ocorrencias": [
+        {
+          "linha": 34,
+          "variavel": "SecretKey",
+          "estado": "vazio",
+          "comprimento": 0
+        }
+      ]
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/appsettings.json",
+      "ocorrencias": [
+        {
+          "linha": 74,
+          "variavel": "ApiKey",
+          "estado": "vazio",
+          "comprimento": 0
+        },
+        {
+          "linha": 85,
+          "variavel": "SecretKey",
+          "estado": "vazio",
+          "comprimento": 0
+        }
+      ]
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Program.cs",
+      "ocorrencias": [
+        {
+          "linha": 83,
+          "variavel": "secretKey",
+          "estado": "literal_redigido",
+          "comprimento": 56
+        }
+      ]
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/package-lock.json",
+      "ocorrencias": [
+        {
+          "linha": 111,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 434,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1458,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1509,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1523,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2034,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2068,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2593,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 5590,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 6826,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 7532,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 16
+        },
+        {
+          "linha": 7859,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        }
+      ]
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/src/services/api.ts",
+      "ocorrencias": [
+        {
+          "linha": 5,
+          "variavel": "TOKEN_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 22
+        },
+        {
+          "linha": 6,
+          "variavel": "REFRESH_TOKEN_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 26
+        }
+      ]
+    },
+    {
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Fakes/FakeAuthService.cs",
+      "ocorrencias": [
+        {
+          "linha": 13,
+          "variavel": "Token",
+          "estado": "literal_redigido",
+          "comprimento": 14
+        }
+      ]
+    }
+  ],
+  "segredos_historicos_candidatos": [
+    {
+      "commit": "f7550204891aa6f2914a9280fe26ddb2d55ef793",
+      "arquivo": "Tests/EscolaAtenta.Application.Tests/Fakes/FakeAuthService.cs",
+      "blob": "1e210b0f0794071cbfb6a8320a140c35ba09917a",
+      "ocorrencias": [
+        {
+          "linha": 13,
+          "variavel": "Token",
+          "estado": "literal_redigido",
+          "comprimento": 14
+        }
+      ]
+    },
+    {
+      "commit": "f7550204891aa6f2914a9280fe26ddb2d55ef793",
+      "arquivo": "src/EscolaAtenta.API/Program.cs",
+      "blob": "efb81ceaa5342479050087a93215d5afe98c231f",
+      "ocorrencias": [
+        {
+          "linha": 83,
+          "variavel": "secretKey",
+          "estado": "literal_redigido",
+          "comprimento": 56
+        }
+      ]
+    },
+    {
+      "commit": "f7550204891aa6f2914a9280fe26ddb2d55ef793",
+      "arquivo": "src/EscolaAtenta.API/appsettings.Development.json",
+      "blob": "706450a26a03c7bc5c1bc886fe5457b404d96404",
+      "ocorrencias": [
+        {
+          "linha": 34,
+          "variavel": "SecretKey",
+          "estado": "vazio",
+          "comprimento": 0
+        }
+      ]
+    },
+    {
+      "commit": "f7550204891aa6f2914a9280fe26ddb2d55ef793",
+      "arquivo": "src/EscolaAtenta.API/appsettings.json",
+      "blob": "c253fe228fde2c06db6af57330ee394253701f6e",
+      "ocorrencias": [
+        {
+          "linha": 74,
+          "variavel": "ApiKey",
+          "estado": "vazio",
+          "comprimento": 0
+        },
+        {
+          "linha": 85,
+          "variavel": "SecretKey",
+          "estado": "vazio",
+          "comprimento": 0
+        }
+      ]
+    },
+    {
+      "commit": "f7550204891aa6f2914a9280fe26ddb2d55ef793",
+      "arquivo": "src/EscolaAtenta.App/package-lock.json",
+      "blob": "571ccb2c94df463776cff47d2dbb504c77a9d9d3",
+      "ocorrencias": [
+        {
+          "linha": 111,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 434,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1458,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1509,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1523,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2034,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2068,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2593,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 5590,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 6826,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 7532,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 16
+        },
+        {
+          "linha": 7859,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        }
+      ]
+    },
+    {
+      "commit": "f7550204891aa6f2914a9280fe26ddb2d55ef793",
+      "arquivo": "src/EscolaAtenta.App/src/services/api.ts",
+      "blob": "3ea9059971f0f41abbb4e415d66979891c89474a",
+      "ocorrencias": [
+        {
+          "linha": 5,
+          "variavel": "TOKEN_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 22
+        },
+        {
+          "linha": 6,
+          "variavel": "REFRESH_TOKEN_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 26
+        }
+      ]
+    },
+    {
+      "commit": "2fcce1ceb9fb3a8ca9b6ca135c4c85d0aa472ebb",
+      "arquivo": "src/EscolaAtenta.API/Program.cs",
+      "blob": "d3797ce3e904ebb26f9139788003f29cc64f08ec",
+      "ocorrencias": [
+        {
+          "linha": 83,
+          "variavel": "secretKey",
+          "estado": "literal_redigido",
+          "comprimento": 56
+        }
+      ]
+    },
+    {
+      "commit": "2fcce1ceb9fb3a8ca9b6ca135c4c85d0aa472ebb",
+      "arquivo": "src/EscolaAtenta.API/appsettings.json",
+      "blob": "634d6a588e76355a9b54e848cdcb1e283c474b97",
+      "ocorrencias": [
+        {
+          "linha": 73,
+          "variavel": "ApiKey",
+          "estado": "vazio",
+          "comprimento": 0
+        },
+        {
+          "linha": 84,
+          "variavel": "SecretKey",
+          "estado": "vazio",
+          "comprimento": 0
+        }
+      ]
+    },
+    {
+      "commit": "0b73566de55dbeab1268092f76b6c95ebcf20a1b",
+      "arquivo": "src/EscolaAtenta.API/appsettings.json",
+      "blob": "523997ede04a07898eb664576770e3a8608a3106",
+      "ocorrencias": [
+        {
+          "linha": 74,
+          "variavel": "ApiKey",
+          "estado": "vazio",
+          "comprimento": 0
+        },
+        {
+          "linha": 85,
+          "variavel": "SecretKey",
+          "estado": "vazio",
+          "comprimento": 0
+        }
+      ]
+    },
+    {
+      "commit": "6f58f5e5ce974f43bc8089b872f7cedd776abe1c",
+      "arquivo": "src/EscolaAtenta.App/package-lock.json",
+      "blob": "30b2c4de3573467db7377226fbd2083648205497",
+      "ocorrencias": [
+        {
+          "linha": 108,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 431,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1455,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1506,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1520,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2009,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2043,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2568,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 5545,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 6781,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 7487,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 16
+        },
+        {
+          "linha": 7814,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        }
+      ]
+    },
+    {
+      "commit": "1fadfb0da5698028b8ac21ca9194e3164b42f3e9",
+      "arquivo": "build-temp/EscolaAtenta.API.deps.json",
+      "blob": "627052a7fe1cd9c8f4505814930b59d68d50b6ea",
+      "ocorrencias": [
+        {
+          "linha": 22,
+          "variavel": "System.IdentityModel.Tokens.Jwt",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        },
+        {
+          "linha": 655,
+          "variavel": "Microsoft.IdentityModel.Tokens",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        },
+        {
+          "linha": 677,
+          "variavel": "Microsoft.IdentityModel.Tokens",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        },
+        {
+          "linha": 689,
+          "variavel": "System.IdentityModel.Tokens.Jwt",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        },
+        {
+          "linha": 966,
+          "variavel": "Microsoft.IdentityModel.JsonWebTokens",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        },
+        {
+          "linha": 967,
+          "variavel": "Microsoft.IdentityModel.Tokens",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        },
+        {
+          "linha": 1028,
+          "variavel": "System.IdentityModel.Tokens.Jwt",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        }
+      ]
+    },
+    {
+      "commit": "1fadfb0da5698028b8ac21ca9194e3164b42f3e9",
+      "arquivo": "build-temp/EscolaAtenta.Application.deps.json",
+      "blob": "5d06b1f9ef753ff2fff777e7a1437d0e3993cf0a",
+      "ocorrencias": [
+        {
+          "linha": 231,
+          "variavel": "Microsoft.IdentityModel.Tokens",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        },
+        {
+          "linha": 288,
+          "variavel": "Microsoft.IdentityModel.JsonWebTokens",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        },
+        {
+          "linha": 289,
+          "variavel": "Microsoft.IdentityModel.Tokens",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        },
+        {
+          "linha": 318,
+          "variavel": "System.IdentityModel.Tokens.Jwt",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        }
+      ]
+    },
+    {
+      "commit": "1fadfb0da5698028b8ac21ca9194e3164b42f3e9",
+      "arquivo": "build-temp/EscolaAtenta.Infrastructure.deps.json",
+      "blob": "53e79a9b14a2fda7381f6a75d9becc75ae3e830f",
+      "ocorrencias": [
+        {
+          "linha": 17,
+          "variavel": "System.IdentityModel.Tokens.Jwt",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        },
+        {
+          "linha": 221,
+          "variavel": "Microsoft.IdentityModel.Tokens",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        },
+        {
+          "linha": 278,
+          "variavel": "Microsoft.IdentityModel.JsonWebTokens",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        },
+        {
+          "linha": 279,
+          "variavel": "Microsoft.IdentityModel.Tokens",
+          "estado": "literal_redigido",
+          "comprimento": 5
+        }
+      ]
+    },
+    {
+      "commit": "1fadfb0da5698028b8ac21ca9194e3164b42f3e9",
+      "arquivo": "build-temp/appsettings.Development.json",
+      "blob": "12b2191e9920c274165fec16bb0265a91d02fbcc",
+      "ocorrencias": [
+        {
+          "linha": 34,
+          "variavel": "SecretKey",
+          "estado": "literal_redigido",
+          "comprimento": 56
+        }
+      ]
+    },
+    {
+      "commit": "1fadfb0da5698028b8ac21ca9194e3164b42f3e9",
+      "arquivo": "src/EscolaAtenta.API/Program.cs",
+      "blob": "c4d303302ee24d4836ab49cef3597787e2ef459e",
+      "ocorrencias": [
+        {
+          "linha": 83,
+          "variavel": "secretKey",
+          "estado": "literal_redigido",
+          "comprimento": 56
+        }
+      ]
+    },
+    {
+      "commit": "1fadfb0da5698028b8ac21ca9194e3164b42f3e9",
+      "arquivo": "src/EscolaAtenta.API/appsettings.Development.json",
+      "blob": "bb8c30678de9e9c13aa9253a2b8ff23f0b93d423",
+      "ocorrencias": [
+        {
+          "linha": 34,
+          "variavel": "SecretKey",
+          "estado": "literal_redigido",
+          "comprimento": 56
+        }
+      ]
+    },
+    {
+      "commit": "1fadfb0da5698028b8ac21ca9194e3164b42f3e9",
+      "arquivo": "src/EscolaAtenta.App/src/services/api.ts",
+      "blob": "526ecdff83d84e90b6a0a5c954fd0edc5905cbaa",
+      "ocorrencias": [
+        {
+          "linha": 5,
+          "variavel": "TOKEN_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 22
+        }
+      ]
+    },
+    {
+      "commit": "d2d4264a832e4a2251e73185cea7677b64efa881",
+      "arquivo": "src/EscolaAtenta.API/appsettings.json",
+      "blob": "943ad80190762adc9d39780ea2e65d82ed24bfb1",
+      "ocorrencias": [
+        {
+          "linha": 50,
+          "variavel": "ApiKey",
+          "estado": "vazio",
+          "comprimento": 0
+        }
+      ]
+    },
+    {
+      "commit": "aca2443abf0fc4b26ca81b306a1b19e7a6f2633c",
+      "arquivo": "src/EscolaAtenta.App/package-lock.json",
+      "blob": "aef329fc5c54338a62c644e6e371053905d63a5b",
+      "ocorrencias": [
+        {
+          "linha": 104,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 427,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1451,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1502,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1516,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2005,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2039,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2564,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 5256,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 6476,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 7176,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 16
+        },
+        {
+          "linha": 7503,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        }
+      ]
+    },
+    {
+      "commit": "aca2443abf0fc4b26ca81b306a1b19e7a6f2633c",
+      "arquivo": "src/EscolaAtenta.App/src/services/api.ts",
+      "blob": "64008be0236bc160bcf4e8700a22142793cb23a8",
+      "ocorrencias": [
+        {
+          "linha": 7,
+          "variavel": "TOKEN_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 22
+        }
+      ]
+    },
+    {
+      "commit": "ea6867d3515701029ce7b8c6c9004c4ea07c863f",
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260225212500_AddControleFaltasEvasao.Designer.cs",
+      "blob": "b59464a06db08e7430e89464437b6860d01bd9d4",
+      "ocorrencias": [
+        {
+          "linha": 345,
+          "variavel": "HashSenha",
+          "estado": "literal_redigido",
+          "comprimento": 60
+        }
+      ]
+    },
+    {
+      "commit": "ea6867d3515701029ce7b8c6c9004c4ea07c863f",
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/20260225212645_FixSeedData.Designer.cs",
+      "blob": "92bc643841b962de47d7b893f9e3a35a1538cf75",
+      "ocorrencias": [
+        {
+          "linha": 344,
+          "variavel": "HashSenha",
+          "estado": "literal_redigido",
+          "comprimento": 60
+        }
+      ]
+    },
+    {
+      "commit": "7902210fc117f4a24f5381d8aebe7e72fd7c5107",
+      "arquivo": "src/EscolaAtenta.API/appsettings.Development.json",
+      "blob": "dfae23d528d664067d12121226b0c115e3876836",
+      "ocorrencias": [
+        {
+          "linha": 34,
+          "variavel": "SecretKey",
+          "estado": "literal_redigido",
+          "comprimento": 56
+        }
+      ]
+    },
+    {
+      "commit": "7902210fc117f4a24f5381d8aebe7e72fd7c5107",
+      "arquivo": "src/EscolaAtenta.App/package-lock.json",
+      "blob": "422342904eedda56286e14ad15a6c5f254e3a208",
+      "ocorrencias": [
+        {
+          "linha": 101,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 424,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1448,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1499,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1513,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2002,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2036,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2561,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 5199,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 6404,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 7097,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 16
+        },
+        {
+          "linha": 7424,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        }
+      ]
+    },
+    {
+      "commit": "752062e5a6cea7e577c28a56fe7b6c9c5c1cf9d7",
+      "arquivo": "src/EscolaAtenta.App/package-lock.json",
+      "blob": "fd0d16bdbaea82c2fb9826d12b648c4ad1fd1a31",
+      "ocorrencias": [
+        {
+          "linha": 99,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 422,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1446,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1497,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1511,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 1956,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 2142,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 4540,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 5588,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        },
+        {
+          "linha": 6275,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 16
+        },
+        {
+          "linha": 6602,
+          "variavel": "js-tokens",
+          "estado": "literal_redigido",
+          "comprimento": 6
+        }
+      ]
+    },
+    {
+      "commit": "498eb80502c84a563e444e123c2e6811e0bdc9cd",
+      "arquivo": "src/EscolaAtenta.API/appsettings.Development.json",
+      "blob": "51cae672e6979a097d5bbf87cabbb6a2c8969962",
+      "ocorrencias": [
+        {
+          "linha": 33,
+          "variavel": "SecretKey",
+          "estado": "literal_redigido",
+          "comprimento": 56
+        }
+      ]
+    },
+    {
+      "commit": "498eb80502c84a563e444e123c2e6811e0bdc9cd",
+      "arquivo": "src/EscolaAtenta.WEB/Authentication/JwtAuthenticationStateProvider.cs",
+      "blob": "c0367dfafc132fe9d48feecf468435d0c52270f5",
+      "ocorrencias": [
+        {
+          "linha": 17,
+          "variavel": "TokenKey",
+          "estado": "literal_redigido",
+          "comprimento": 9
+        }
+      ]
+    },
+    {
+      "commit": "498eb80502c84a563e444e123c2e6811e0bdc9cd",
+      "arquivo": "src/EscolaAtenta.WEB/Pages/Login.razor",
+      "blob": "43a7572430f56679874cb3df05c8c05ef9463d7c",
+      "ocorrencias": [
+        {
+          "linha": 41,
+          "variavel": "senha",
+          "estado": "literal_redigido",
+          "comprimento": 9
+        }
+      ]
+    },
+    {
+      "commit": "498eb80502c84a563e444e123c2e6811e0bdc9cd",
+      "arquivo": "src/EscolaAtenta.WEB/wwwroot/lib/bootstrap/dist/js/bootstrap.bundle.js",
+      "blob": "5d3cd6c7f02e8f88a7a6efa7726d90b9b2df36d6",
+      "ocorrencias": [
+        {
+          "linha": 5590,
+          "variavel": "DATA_API_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 9
+        }
+      ]
+    },
+    {
+      "commit": "498eb80502c84a563e444e123c2e6811e0bdc9cd",
+      "arquivo": "src/EscolaAtenta.WEB/wwwroot/lib/bootstrap/dist/js/bootstrap.bundle.js.map",
+      "blob": "134aa00347d6200c7e2350f25f0b5c5e42612313",
+      "ocorrencias": [
+        {
+          "linha": 1,
+          "variavel": "DATA_API_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 9
+        }
+      ]
+    },
+    {
+      "commit": "498eb80502c84a563e444e123c2e6811e0bdc9cd",
+      "arquivo": "src/EscolaAtenta.WEB/wwwroot/lib/bootstrap/dist/js/bootstrap.bundle.min.js.map",
+      "blob": "5aeb474a41dedf2f5a1ee52ab4ff289809cfc6e8",
+      "ocorrencias": [
+        {
+          "linha": 1,
+          "variavel": "DATA_API_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 9
+        }
+      ]
+    },
+    {
+      "commit": "498eb80502c84a563e444e123c2e6811e0bdc9cd",
+      "arquivo": "src/EscolaAtenta.WEB/wwwroot/lib/bootstrap/dist/js/bootstrap.esm.js",
+      "blob": "f9a8fd1406395bf042f7dd0dedca7fd6975161b2",
+      "ocorrencias": [
+        {
+          "linha": 3747,
+          "variavel": "DATA_API_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 9
+        }
+      ]
+    },
+    {
+      "commit": "498eb80502c84a563e444e123c2e6811e0bdc9cd",
+      "arquivo": "src/EscolaAtenta.WEB/wwwroot/lib/bootstrap/dist/js/bootstrap.esm.js.map",
+      "blob": "5c1736e550d6d2344dd1b122cd851b8aa5bbff36",
+      "ocorrencias": [
+        {
+          "linha": 1,
+          "variavel": "DATA_API_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 9
+        }
+      ]
+    },
+    {
+      "commit": "498eb80502c84a563e444e123c2e6811e0bdc9cd",
+      "arquivo": "src/EscolaAtenta.WEB/wwwroot/lib/bootstrap/dist/js/bootstrap.esm.min.js",
+      "blob": "c573a34463763631ad17e6eda0ccbdfa388a6789",
+      "ocorrencias": [
+        {
+          "linha": 6,
+          "variavel": "DATA_API_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 9
+        }
+      ]
+    },
+    {
+      "commit": "498eb80502c84a563e444e123c2e6811e0bdc9cd",
+      "arquivo": "src/EscolaAtenta.WEB/wwwroot/lib/bootstrap/dist/js/bootstrap.esm.min.js.map",
+      "blob": "686e375f8a39c3d5a78bc25d1afb8a6069b05b8f",
+      "ocorrencias": [
+        {
+          "linha": 1,
+          "variavel": "DATA_API_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 9
+        }
+      ]
+    },
+    {
+      "commit": "498eb80502c84a563e444e123c2e6811e0bdc9cd",
+      "arquivo": "src/EscolaAtenta.WEB/wwwroot/lib/bootstrap/dist/js/bootstrap.js",
+      "blob": "9658fffe3d14dac5f0add43b054222f93dd29f6b",
+      "ocorrencias": [
+        {
+          "linha": 3770,
+          "variavel": "DATA_API_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 9
+        }
+      ]
+    },
+    {
+      "commit": "498eb80502c84a563e444e123c2e6811e0bdc9cd",
+      "arquivo": "src/EscolaAtenta.WEB/wwwroot/lib/bootstrap/dist/js/bootstrap.js.map",
+      "blob": "b4206e60668a66a397caf9e9afc4ec21460edd0f",
+      "ocorrencias": [
+        {
+          "linha": 1,
+          "variavel": "DATA_API_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 9
+        }
+      ]
+    },
+    {
+      "commit": "498eb80502c84a563e444e123c2e6811e0bdc9cd",
+      "arquivo": "src/EscolaAtenta.WEB/wwwroot/lib/bootstrap/dist/js/bootstrap.min.js.map",
+      "blob": "b3cd82bfd0ac55d444f7082b1d3860ab5f0f3cad",
+      "ocorrencias": [
+        {
+          "linha": 1,
+          "variavel": "DATA_API_KEY",
+          "estado": "literal_redigido",
+          "comprimento": 9
+        }
+      ]
+    },
+    {
+      "commit": "9eec8bdbcff1a5a102b8a00e4adf581c6cf65090",
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/AppDbContext.cs",
+      "blob": "6325e9e0911b856ea53ae18a42b9d89d9a14ae53",
+      "ocorrencias": [
+        {
+          "linha": 71,
+          "variavel": "HashSenha",
+          "estado": "literal_redigido",
+          "comprimento": 60
+        }
+      ]
+    },
+    {
+      "commit": "9eec8bdbcff1a5a102b8a00e4adf581c6cf65090",
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/Migrations/AppDbContextModelSnapshot.cs",
+      "blob": "3ae266adf25cf306f4117fd5d93f039c0384907e",
+      "ocorrencias": [
+        {
+          "linha": 341,
+          "variavel": "HashSenha",
+          "estado": "literal_redigido",
+          "comprimento": 60
+        }
+      ]
+    },
+    {
+      "commit": "9eec8bdbcff1a5a102b8a00e4adf581c6cf65090",
+      "arquivo": "src/EscolaAtenta.WEB/Authentication/JwtAuthenticationStateProvider.cs",
+      "blob": "6f50c9827893533980a8010b8f95f2032b2b1425",
+      "ocorrencias": [
+        {
+          "linha": 17,
+          "variavel": "TokenKey",
+          "estado": "literal_redigido",
+          "comprimento": 9
+        }
+      ]
+    },
+    {
+      "commit": "efa1bb14e249627e41bb93875fc1c960bb0733d8",
+      "arquivo": "src/EscolaAtenta.API/appsettings.Development.json",
+      "blob": "18f6e97819927711b1ceb41789d037251412fe92",
+      "ocorrencias": [
+        {
+          "linha": 31,
+          "variavel": "SecretKey",
+          "estado": "literal_redigido",
+          "comprimento": 56
+        }
+      ]
+    },
+    {
+      "commit": "efa1bb14e249627e41bb93875fc1c960bb0733d8",
+      "arquivo": "src/EscolaAtenta.Infrastructure/Data/AppDbContext.cs",
+      "blob": "303d39a55ccd6df8bfcd937e1b9e7e008fc8ed9b",
+      "ocorrencias": [
+        {
+          "linha": 71,
+          "variavel": "HashSenha",
+          "estado": "literal_redigido",
+          "comprimento": 60
+        }
+      ]
+    }
+  ],
+  "sinks_xss_candidatos": [
+    {
+      "arquivo": ".cursor/skills/andrade-backend/SKILL.md",
+      "linha": 81,
+      "tipo": "markdown"
+    },
+    {
+      "arquivo": ".cursor/skills/bartolomeu-techlead/SKILL.md",
+      "linha": 134,
+      "tipo": "markdown"
+    },
+    {
+      "arquivo": ".cursor/skills/bartolomeu-techlead/SKILL.md",
+      "linha": 210,
+      "tipo": "markdown"
+    },
+    {
+      "arquivo": ".cursor/skills/bartolomeu-techlead/SKILL.md",
+      "linha": 227,
+      "tipo": "markdown"
+    },
+    {
+      "arquivo": ".cursor/skills/bartolomeu-techlead/SKILL.md",
+      "linha": 273,
+      "tipo": "markdown"
+    },
+    {
+      "arquivo": ".cursor/skills/bartolomeu-techlead/SKILL.md",
+      "linha": 300,
+      "tipo": "markdown"
+    },
+    {
+      "arquivo": ".cursor/skills/charles-devsecops/SKILL.md",
+      "linha": 77,
+      "tipo": "markdown"
+    },
+    {
+      "arquivo": ".cursor/skills/gabriel-frontend/SKILL.md",
+      "linha": 82,
+      "tipo": "markdown"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/package-lock.json",
+      "linha": 5331,
+      "tipo": "webview"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/package-lock.json",
+      "linha": 5335,
+      "tipo": "webview"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/package-lock.json",
+      "linha": 5338,
+      "tipo": "webview"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.App/package-lock.json",
+      "linha": 5344,
+      "tipo": "webview"
+    }
+  ],
+  "limites": [
+    "Heurísticas não são prova de ausência de segredos.",
+    "Refs locais apenas; sem fetch, reflog, objetos inalcançáveis ou validação remota.",
+    "Binários e arquivos acima de 3 MB não inspecionados por conteúdo.",
+    "Candidatos de teste, placeholders e nomes de chaves não são automaticamente achados."
+  ]
+}

@@ -46,7 +46,7 @@ public class SyncPullHandlerTests : IDisposable
     }
 
     private static SyncPullHandler CriarHandler(AppDbContext ctx) =>
-        new(ctx, NullLogger<SyncPullHandler>.Instance);
+        new(ctx, NullLogger<SyncPullHandler>.Instance, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString() });
 
     [Fact]
     public async Task Handle_PrimeiroSync_DeveRetornarTudoEmCreated()

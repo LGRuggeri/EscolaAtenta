@@ -218,3 +218,25 @@ ARQUIVOS IMPORTANTES:
   C:\EscolaAtenta\TrayMonitor\               → Monitor da bandeja
 
 ================================================================================
+
+SEGURANÇA DOS DADOS LOCAIS (EA-07 / EA-08)
+A API gera uma chave JWT aleatória também em desenvolvimento e a mantém em
+API\Secrets\jwt.key (ou Secrets\jwt.key ao lado do executável local). A chave
+não é mais gravada no appsettings.json. Faça backup restrito desse arquivo;
+excluí-lo gera nova chave e invalida sessões existentes. Configurações explícitas
+via variável Jwt__SecretKey/user-secrets continuam disponíveis (mínimo 32 bytes).
+
+O instalador substitui as ACLs antigas antes da cópia e antes de iniciar o serviço:
+API, SQLite e seus arquivos WAL/SHM, configurações e Logs ficam acessíveis somente
+a SYSTEM e Administradores. O serviço padrão usa LocalSystem. Contas de serviço
+personalizadas precisam receber acesso explicitamente pelo administrador.
+Usuários comuns têm leitura/execução somente no TrayMonitor; consultar os logs
+da API e a senha inicial exige uma conta administrativa. Altere a senha inicial
+imediatamente e elimine o registro da senha dos backups de logs após provisionar.
+
+Instalações antigas devem receber o instalador atualizado com a API parada.
+Chaves que já foram expostas em appsettings.json precisam ser rotacionadas:
+remova Jwt:SecretKey do arquivo e de eventuais configurações de ambiente antigas,
+após guardar backup administrativo e agendar novo login dos usuários. A simples
+restrição de ACL não revoga uma chave já copiada. Não distribuir pastas Secrets,
+logs ou bancos junto aos binários de publicação.

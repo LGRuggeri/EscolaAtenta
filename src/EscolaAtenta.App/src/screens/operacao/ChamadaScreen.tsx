@@ -7,7 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { Q } from '@nozbe/watermelondb';
 import { RootStackParamList, AppNavigationProp } from '../../navigation/types';
-import database from '../../database';
+import { getDatabase } from '../../database';
 import Aluno from '../../database/models/Aluno';
 import RegistroPresenca, { StatusPresencaLocal } from '../../database/models/RegistroPresenca';
 import { AppHeader } from '../../components/ui';
@@ -99,6 +99,7 @@ function hojeMeiaNoite(): Date {
 }
 
 function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
+    const database = getDatabase();
     const { turmaId, turmaNome } = route.params;
     const insets = useSafeAreaInsets();
 
@@ -884,7 +885,7 @@ function ChamadaScreenRaw({ route, navigation, alunos }: ChamadaScreenProps) {
 }
 
 const EnhancedChamadaScreen = withObservables(['route'], ({ route }: { route: ChamadaRouteProp }) => ({
-    alunos: database.get<Aluno>('alunos').query(Q.where('turma_id', route.params.turmaId))
+    alunos: getDatabase().get<Aluno>('alunos').query(Q.where('turma_id', route.params.turmaId))
 }))(ChamadaScreenRaw);
 
 export function ChamadaScreen() {

@@ -35,7 +35,7 @@ public class GetTurmasQueryHandlerTests : IDisposable
         return ctx;
     }
 
-    private static GetTurmasQueryHandler CriarHandler(AppDbContext ctx) => new(ctx);
+    private static GetTurmasQueryHandler CriarHandler(AppDbContext ctx) => new(ctx, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString() });
 
     [Fact]
     public async Task Handle_SemTurmas_DeveRetornarListaVazia()

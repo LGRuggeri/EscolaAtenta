@@ -1,3 +1,5 @@
+using EscolaAtenta.Domain.Interfaces;
+using EscolaAtenta.Application.Common;
 using EscolaAtenta.Application.Turmas.Commands;
 using EscolaAtenta.Application.Turmas.DTOs;
 using EscolaAtenta.Domain.Entities;
@@ -8,15 +10,18 @@ namespace EscolaAtenta.Application.Turmas.Handlers;
 
 public class CriarTurmaHandler : IRequestHandler<CriarTurmaCommand, TurmaDto>
 {
+    private readonly ICurrentUserService _currentUser;
     private readonly AppDbContext _context;
 
-    public CriarTurmaHandler(AppDbContext context)
+    public CriarTurmaHandler(AppDbContext context, ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     public async Task<TurmaDto> Handle(CriarTurmaCommand request, CancellationToken cancellationToken)
     {
+        AutorizacaoUsuario.ExigirAdministrador(_currentUser);
         var turma = new Turma(
             id: Guid.NewGuid(),
             nome: request.Nome,
