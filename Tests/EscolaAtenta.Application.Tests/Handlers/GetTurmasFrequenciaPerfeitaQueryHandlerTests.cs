@@ -32,7 +32,8 @@ public class GetTurmasFrequenciaPerfeitaQueryHandlerTests : IDisposable
             new FakeMediator(),
             new FakeTenantProvider());
 
-    private static GetTurmasFrequenciaPerfeitaQueryHandler CriarHandler(AppDbContext ctx) => new(ctx);
+    private static GetTurmasFrequenciaPerfeitaQueryHandler CriarHandler(AppDbContext ctx) =>
+        new(ctx, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString(), EstaAutenticado = true, Papel = "Administrador" });
 
     private static GetTurmasFrequenciaPerfeitaQuery QueryMesAtual() =>
         new(new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc),

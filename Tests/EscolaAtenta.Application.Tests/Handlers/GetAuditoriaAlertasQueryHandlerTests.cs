@@ -21,7 +21,7 @@ public class GetAuditoriaAlertasQueryHandlerTests
             new FakeMediator(),
             new FakeTenantProvider());
 
-    private static GetAuditoriaAlertasQueryHandler CriarHandler(AppDbContext ctx) => new(ctx);
+    private static GetAuditoriaAlertasQueryHandler CriarHandler(AppDbContext ctx) => new(ctx, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString() });
 
     private static async Task SeedAlertaResolvido(
         AppDbContext ctx,

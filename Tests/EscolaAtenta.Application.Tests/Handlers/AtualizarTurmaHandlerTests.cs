@@ -1,4 +1,4 @@
-using EscolaAtenta.Application.Tests.Fakes;
+﻿using EscolaAtenta.Application.Tests.Fakes;
 using EscolaAtenta.Application.Turmas.Commands;
 using EscolaAtenta.Application.Turmas.Handlers;
 using EscolaAtenta.Domain.Entities;
@@ -27,7 +27,7 @@ public class AtualizarTurmaHandlerTests : IDisposable
             new DbContextOptionsBuilder<AppDbContext>()
                 .UseSqlite(_connection)
                 .Options,
-            currentUser ?? new FakeCurrentUserService(),
+            currentUser ?? new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString() },
             new FakeMediator(),
             new FakeTenantProvider());
 
@@ -37,7 +37,7 @@ public class AtualizarTurmaHandlerTests : IDisposable
     }
 
     private static AtualizarTurmaHandler CriarHandler(AppDbContext ctx, FakeCurrentUserService? currentUser = null) =>
-        new(ctx, currentUser ?? new FakeCurrentUserService(), NullLogger<AtualizarTurmaHandler>.Instance);
+        new(ctx, currentUser ?? new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString() }, NullLogger<AtualizarTurmaHandler>.Instance);
 
     [Fact]
     public async Task Handle_TurmaInexistente_DeveLancarKeyNotFoundException()
@@ -72,7 +72,7 @@ public class AtualizarTurmaHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_MonitorSemVinculo_DeveLancarKeyNotFoundException()
+    public async Task Handle_MonitorSemVinculo_DeveNegarAtualizacao()
     {
         var monitorId = Guid.NewGuid();
         var fakeUser = new FakeCurrentUserService
@@ -91,11 +91,11 @@ public class AtualizarTurmaHandlerTests : IDisposable
 
         Func<Task> act = () => CriarHandler(ctx, fakeUser).Handle(command, CancellationToken.None);
 
-        await act.Should().ThrowAsync<KeyNotFoundException>();
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
     }
 
     [Fact]
-    public async Task Handle_MonitorComVinculo_DevePermitirAtualizacao()
+    public async Task Handle_MonitorComVinculo_DeveNegarAtualizacao()
     {
         var monitorId = Guid.NewGuid();
         var fakeUser = new FakeCurrentUserService
@@ -112,11 +112,12 @@ public class AtualizarTurmaHandlerTests : IDisposable
         ctx.ChangeTracker.Clear();
 
         var command = new AtualizarTurmaCommand(turmaId, "Turma Atualizada", "Tarde", 2026);
-        await CriarHandler(ctx, fakeUser).Handle(command, CancellationToken.None);
+        Func<Task> act = () => CriarHandler(ctx, fakeUser).Handle(command, CancellationToken.None);
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
         ctx.ChangeTracker.Clear();
 
         var turma = await ctx.Turmas.FindAsync(turmaId);
-        turma!.Nome.Should().Be("Turma Atualizada");
+        turma!.Nome.Should().Be("Turma Original");
     }
 
     [Fact]

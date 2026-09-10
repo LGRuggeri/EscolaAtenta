@@ -1,5 +1,7 @@
 using EscolaAtenta.Application.Alunos.DTOs;
 using EscolaAtenta.Application.Alunos.Queries;
+using EscolaAtenta.Domain.Enums;
+using EscolaAtenta.Domain.Exceptions;
 using EscolaAtenta.Domain.Interfaces;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
@@ -42,9 +44,31 @@ public class GetHistoricoPresencasAlunoQueryHandler : IRequestHandler<GetHistori
             alunoGuid = syncLog;
         }
 
-        var alunoExiste = await _context.Alunos.AnyAsync(a => a.Id == alunoGuid, cancellationToken);
-        if (!alunoExiste)
+        var aluno = await _context.Alunos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == alunoGuid, cancellationToken);
+
+        if (aluno is null)
             return Enumerable.Empty<HistoricoPresencaDto>();
+
+        // IDOR: Administrador pode consultar qualquer aluno; demais papéis precisam de vínculo
+        // com a turma específica de cada registro histórico, nao apenas a turma atual do aluno.
+        HashSet<Guid>? turmasPermitidas = null;
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
+            && Guid.TryParse(_currentUser.UsuarioId, out var usuarioId))
+        {
+            turmasPermitidas = await _context.UsuarioTurmas
+                .Where(ut => ut.UsuarioId == usuarioId)
+                .Select(ut => ut.TurmaId)
+                .ToHashSetAsync(cancellationToken);
+
+            // Se o aluno esta na turma atual permitida, o usuario pode consultar; porem,
+            // o filtro abaixo ainda restringe os registros as turmas vinculadas.
+            if (!turmasPermitidas.Contains(aluno.TurmaId))
+            {
+                throw new DomainException("Você não tem permissão para consultar o histórico deste aluno.");
+            }
+        }
 
         _logger.LogInformation(
             "[AUDITORIA] Consulta histórico de presenças — AlunoId={AlunoId}",
@@ -52,9 +76,19 @@ public class GetHistoricoPresencasAlunoQueryHandler : IRequestHandler<GetHistori
 
         var limite = DateTime.UtcNow.AddDays(-request.Dias);
 
-        // SQLite não suporta ORDER BY em DateTimeOffset — filtra e ordena em memória
-        var historico = await _context.RegistrosPresenca
-            .Where(r => r.AlunoId == alunoGuid)
+        // SQLite nao suporta ORDER BY em DateTimeOffset — filtra e ordena em memoria.
+        // Filtra tambem por turmas vinculadas ao chamador para evitar vazamento de
+        // registros de turmas anteriores nao autorizadas (alunos transferidos).
+        var query = _context.RegistrosPresenca
+            .AsNoTracking()
+            .Where(r => r.AlunoId == alunoGuid);
+
+        if (turmasPermitidas is not null)
+        {
+            query = query.Where(r => turmasPermitidas.Contains(r.Chamada.TurmaId));
+        }
+
+        var historico = await query
             .Select(r => new HistoricoPresencaDto(
                 r.Chamada.DataHora.UtcDateTime,
                 r.Status.ToString(),

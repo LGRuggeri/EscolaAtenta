@@ -25,6 +25,7 @@ public class AlunosController : ControllerBase
     /// Cadastra um novo Aluno vinculado a uma Turma.
     /// </summary>
     [HttpPost]
+    [Authorize(Roles = "Administrador")]
     [ProducesResponseType(typeof(AlunoDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CriarAluno([FromBody] CriarAlunoCommand command, CancellationToken ct)
@@ -48,6 +49,7 @@ public class AlunosController : ControllerBase
     /// Atualiza um Aluno existente.
     /// </summary>
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Administrador")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> AtualizarAluno([FromRoute] Guid id, [FromBody] AtualizarAlunoCommand command, CancellationToken ct)
     {

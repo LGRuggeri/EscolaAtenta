@@ -1,3 +1,5 @@
+using EscolaAtenta.Domain.Interfaces;
+using EscolaAtenta.Application.Common;
 using EscolaAtenta.Application.Chamadas.Queries;
 using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Infrastructure.Data;
@@ -19,17 +21,22 @@ namespace EscolaAtenta.Application.Chamadas.Handlers;
 /// </summary>
 public class SyncPullHandler : IRequestHandler<SyncPullQuery, SyncPullResult>
 {
+    private readonly ICurrentUserService _currentUser;
     private readonly AppDbContext _context;
     private readonly ILogger<SyncPullHandler> _logger;
 
-    public SyncPullHandler(AppDbContext context, ILogger<SyncPullHandler> logger)
+    public SyncPullHandler(AppDbContext context, ILogger<SyncPullHandler> logger, ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
     public async Task<SyncPullResult> Handle(SyncPullQuery request, CancellationToken ct)
     {
+        var usuarioId = AutorizacaoUsuario.ExigirIdentidade(_currentUser);
+        var administrador = _currentUser.Papel == "Administrador";
+        var turmasPermitidas = _context.UsuarioTurmas.Where(ut => ut.UsuarioId == usuarioId).Select(ut => ut.TurmaId);
         var lastPulledAt = request.LastPulledAt ?? 0;
         var sinceUtc = lastPulledAt > 0
             ? DateTimeOffset.FromUnixTimeMilliseconds(lastPulledAt).UtcDateTime
@@ -53,7 +60,7 @@ public class SyncPullHandler : IRequestHandler<SyncPullQuery, SyncPullResult>
 
         // Carrega todas as turmas ativas em memória para filtragem.
         // Volume pequeno (app escolar) e evita UtcTicks que o SQLite provider não traduz.
-        var todasTurmas = await _context.Turmas
+        var todasTurmas = await _context.Turmas.Where(t => administrador || turmasPermitidas.Contains(t.Id))
             .AsNoTracking()
             .ToListAsync(ct);
 
@@ -88,7 +95,7 @@ public class SyncPullHandler : IRequestHandler<SyncPullQuery, SyncPullResult>
             var turmasExcluidas = await _context.Turmas
                 .IgnoreQueryFilters()
                 .AsNoTracking()
-                .Where(t => !t.Ativo)
+                .Where(t => !t.Ativo && (administrador || turmasPermitidas.Contains(t.Id)))
                 .ToListAsync(ct);
 
             changes.Turmas.Deleted = turmasExcluidas
@@ -112,7 +119,7 @@ public class SyncPullHandler : IRequestHandler<SyncPullQuery, SyncPullResult>
             syncLogsTurmas.TryGetValue(turmaGuid, out var idLocal) ? idLocal : turmaGuid.ToString();
 
         // Carrega todos os alunos ativos em memória para filtragem
-        var todosAlunos = await _context.Alunos
+        var todosAlunos = await _context.Alunos.Where(a => administrador || turmasPermitidas.Contains(a.TurmaId))
             .AsNoTracking()
             .ToListAsync(ct);
 
@@ -239,7 +246,7 @@ public class SyncPullHandler : IRequestHandler<SyncPullQuery, SyncPullResult>
             var alunosExcluidos = await _context.Alunos
                 .IgnoreQueryFilters()
                 .AsNoTracking()
-                .Where(a => !a.Ativo)
+                .Where(a => !a.Ativo && (administrador || turmasPermitidas.Contains(a.TurmaId)))
                 .ToListAsync(ct);
 
             changes.Alunos.Deleted = alunosExcluidos
@@ -260,7 +267,9 @@ public class SyncPullHandler : IRequestHandler<SyncPullQuery, SyncPullResult>
         return new SyncPullResult
         {
             Changes = changes,
-            Timestamp = serverTimestamp
+            Timestamp = serverTimestamp,
+            AllowedTurmaIds = todasTurmas.Select(t => ResolverIdTurma(t.Id)).ToList(),
+            AllowedAlunoIds = todosAlunos.Select(a => ResolverIdAluno(a.Id)).ToList()
         };
     }
 }

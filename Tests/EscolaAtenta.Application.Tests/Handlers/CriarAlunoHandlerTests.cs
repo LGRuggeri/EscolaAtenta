@@ -20,7 +20,7 @@ public class CriarAlunoHandlerTests
     public async Task Handle_QuandoTurmaNaoExiste_DeveDispararArgumentException()
     {
         await using var ctx = CriarContexto();
-        var handler = new CriarAlunoHandler(ctx);
+        var handler = new CriarAlunoHandler(ctx, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString() });
 
         Func<Task> act = () => handler.Handle(
             new CriarAlunoCommand("Ana", null, Guid.NewGuid()),
@@ -38,7 +38,7 @@ public class CriarAlunoHandlerTests
         ctx.Turmas.Add(turma);
         await ctx.SaveChangesAsync();
 
-        var handler = new CriarAlunoHandler(ctx);
+        var handler = new CriarAlunoHandler(ctx, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString() });
         var resultado = await handler.Handle(
             new CriarAlunoCommand("Carlos", "MAT099", turma.Id),
             CancellationToken.None);

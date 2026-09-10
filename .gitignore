@@ -502,3 +502,6 @@ postgres_data/
 
 # Exception for our Expo App
 !src/EscolaAtenta.App/
+
+# Chaves JWT persistidas localmente
+**/Secrets/

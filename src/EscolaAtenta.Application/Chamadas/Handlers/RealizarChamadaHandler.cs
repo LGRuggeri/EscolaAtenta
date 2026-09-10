@@ -63,6 +63,11 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
         await _lockProvider.WaitAsync(cancellationToken);
         try
         {
+            // Transação explícita para garantir que o SaveChanges e o despacho de
+            // Domain Events (alertas) sejam atômicos. Se um handler de evento
+            // falhar, o rollback preserva a consistência entre presenças e alertas.
+            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
             // 3. Busca chamada existente para a turma naquele dia
             // Filtragem por data é feita em memória para compatibilidade com SQLite/DateTimeOffset.
             var chamadasDaTurma = await _context.Chamadas
@@ -187,6 +192,7 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
 
                     // Atribui registro à Entidade Chamada
                     chamada.RegistrarPresenca(aluno.Id, registroDto.Status);
+                    aluno.RegistrarPresenca(registroDto.Status, dataHora.UtcDateTime);
                     alunosAfetados.Add(aluno.Id);
                 }
 
@@ -214,12 +220,14 @@ public class RealizarChamadaHandler : IRequestHandler<RealizarChamadaCommand, Re
 
                 // 5. Salva Tudo Atomicamente
                 await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return new RealizarChamadaResult(chamada.Id, alertasGerados);
             }
 
             // 5. Salva Tudo Atomicamente (atualização)
             await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             return new RealizarChamadaResult(
                 chamadaExistente!.Id,

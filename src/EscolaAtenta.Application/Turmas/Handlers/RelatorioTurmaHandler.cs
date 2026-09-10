@@ -2,6 +2,7 @@ using EscolaAtenta.Application.Turmas.DTOs;
 using EscolaAtenta.Application.Turmas.Queries;
 using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Domain.Exceptions;
+using EscolaAtenta.Domain.Interfaces;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -13,11 +14,13 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
 {
     private readonly AppDbContext _context;
     private readonly ILogger<RelatorioTurmaHandler> _logger;
+    private readonly ICurrentUserService _currentUser;
 
-    public RelatorioTurmaHandler(AppDbContext context, ILogger<RelatorioTurmaHandler> logger)
+    public RelatorioTurmaHandler(AppDbContext context, ILogger<RelatorioTurmaHandler> logger, ICurrentUserService currentUser)
     {
         _context = context;
         _logger = logger;
+        _currentUser = currentUser;
     }
 
     public async Task<RelatorioTurmaDto> Handle(RelatorioTurmaQuery request, CancellationToken cancellationToken)
@@ -36,7 +39,16 @@ public class RelatorioTurmaHandler : IRequestHandler<RelatorioTurmaQuery, Relato
             .FirstOrDefaultAsync(t => t.Id == turmaId, cancellationToken);
 
         if (turma == null)
-            throw new KeyNotFoundException($"Turma com ID '{request.TurmaId}' não encontrada.");
+            throw new DomainException($"Turma com ID '{request.TurmaId}' não encontrada.");
+
+        // IDOR: Administrador pode consultar qualquer turma; demais papéis precisam de vínculo
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
+            && Guid.TryParse(_currentUser.UsuarioId, out var usuarioId)
+            && !await _context.UsuarioTurmas.AnyAsync(
+                ut => ut.TurmaId == turmaId && ut.UsuarioId == usuarioId, cancellationToken))
+        {
+            throw new DomainException("Você não tem permissão para consultar o relatório desta turma.");
+        }
 
         // Alunos matriculados na turma durante o período
         var alunosMatriculados = await _context.AlunosTurmasHistorico

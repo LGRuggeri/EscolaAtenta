@@ -1,3 +1,4 @@
+using EscolaAtenta.Application.Common;
 using EscolaAtenta.Application.Alunos.Commands;
 using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Domain.Interfaces;
@@ -26,20 +27,12 @@ public class AtualizarAlunoHandler : IRequestHandler<AtualizarAlunoCommand, Unit
 
     public async Task<Unit> Handle(AtualizarAlunoCommand request, CancellationToken cancellationToken)
     {
+        AutorizacaoUsuario.ExigirAdministrador(_currentUser);
         var aluno = await _context.Alunos.FindAsync([request.Id], cancellationToken);
 
         // SEGURANÇA: Retorna 404 para não expor a existência do ID a um atacante
         if (aluno == null)
             throw new KeyNotFoundException($"Aluno com ID '{request.Id}' não encontrado.");
-
-        // IDOR: Administrador pode alterar qualquer aluno; demais papéis precisam de vínculo com a turma
-        if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
-            && Guid.TryParse(_currentUser.UsuarioId, out var uid)
-            && !await _context.UsuarioTurmas.AnyAsync(
-                ut => ut.TurmaId == aluno.TurmaId && ut.UsuarioId == uid, cancellationToken))
-        {
-            throw new KeyNotFoundException($"Aluno com ID '{request.Id}' não encontrado.");
-        }
 
         // Log de auditoria: rastreia quem alterou qual aluno
         _logger.LogInformation(

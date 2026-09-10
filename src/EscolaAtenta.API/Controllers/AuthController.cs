@@ -1,5 +1,5 @@
 // Controller de Autenticacao - API v1
-// 
+//
 // ENDPOINTS:
 // - POST /api/v1/auth/login - Login com email e senha
 //
@@ -72,8 +72,8 @@ public class AuthController : ControllerBase
             // SEGURANCA: mensagem generica para prevenir enumeração de usuários
             // Nao revela se o email existe ou nao
             _logger.LogWarning("Tentativa de login falhada para {Email}", request.Email);
-            
-            return Unauthorized(new { 
+
+            return Unauthorized(new {
                 type = "https://tools.ietf.org/html/rfc7807",
                 title = "Unauthorized",
                 status = 401,
@@ -87,6 +87,7 @@ public class AuthController : ControllerBase
     /// Requer autenticacao (JWT valido).
     /// </summary>
     [HttpPut("trocar-senha")]
+    [EscolaAtenta.API.Middleware.PermitirTrocaPendente]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -99,12 +100,16 @@ public class AuthController : ControllerBase
         if (!_currentUser.EstaAutenticado || !Guid.TryParse(_currentUser.UsuarioId, out var usuarioId))
             return Unauthorized();
 
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(ct);
         var usuario = await _dbContext.Usuarios.FirstOrDefaultAsync(u => u.Id == usuarioId, ct);
         if (usuario == null) return Unauthorized();
 
         var novoHash = _authService.GerarHashSenha(request.NovaSenha);
         usuario.AlterarSenha(novoHash);
         await _dbContext.SaveChangesAsync(ct);
+        await _dbContext.RefreshTokens.Where(rt => rt.UsuarioId == usuarioId && !rt.Revogado)
+            .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.Revogado, true), ct);
+        await transaction.CommitAsync(ct);
 
         _logger.LogInformation("Senha alterada com sucesso para {Email}", usuario.Email);
         return NoContent();
@@ -120,15 +125,22 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest request, CancellationToken ct)
     {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(ct);
         var refreshToken = await _dbContext.RefreshTokens
             .Include(rt => rt.Usuario)
             .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken, ct);
 
-        if (refreshToken == null || !refreshToken.EstaValido() || !refreshToken.Usuario.PodeAcessar())
+        if (refreshToken == null || !refreshToken.EstaValido() || !refreshToken.Usuario.PodeAcessar()
+            || (refreshToken.Usuario.DataAtualizacao.HasValue
+                && refreshToken.CriadoEm <= refreshToken.Usuario.DataAtualizacao.Value))
             return Unauthorized(new { detail = "Refresh token inválido ou expirado." });
 
         // Rotação: revoga o token atual e emite um novo
-        refreshToken.Revogado = true;
+        var consumidos = await _dbContext.RefreshTokens
+            .Where(rt => rt.Id == refreshToken.Id && !rt.Revogado)
+            .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.Revogado, true), ct);
+        if (consumidos != 1)
+            return Unauthorized(new { detail = "Refresh token já utilizado." });
 
         var novoRefreshToken = new EscolaAtenta.Domain.Entities.RefreshToken
         {
@@ -139,6 +151,7 @@ public class AuthController : ControllerBase
         _dbContext.RefreshTokens.Add(novoRefreshToken);
         await _dbContext.SaveChangesAsync(ct);
 
+        await transaction.CommitAsync(ct);
         var loginResult = _authService.GerarToken(refreshToken.Usuario);
 
         return Ok(new LoginResponse(
@@ -146,6 +159,7 @@ public class AuthController : ControllerBase
             Email: loginResult.Email,
             Papel: loginResult.Papel,
             ExpiresAt: loginResult.ExpiresAt,
+            DeveAlterarSenha: refreshToken.Usuario.DeveAlterarSenha,
             RefreshToken: novoRefreshToken.Token
         ));
     }

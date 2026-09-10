@@ -1,0 +1,20 @@
+{
+  "paginas": 21,
+  "achados": 8,
+  "severidades": {
+    "alta": 7,
+    "média": 1
+  },
+  "categorias": {
+    "1": 2,
+    "2": 3,
+    "3": 1,
+    "4": 2,
+    "5": 0
+  },
+  "extracao_texto": "seções, 8 IDs e 8 blocos de issue encontrados; acentos preservados",
+  "visual": "21 páginas rasterizadas com Poppler; inspeção de contato após correção de três quebras órfãs; gráficos, tabelas e oito issues presentes, sem cortes observados.",
+  "linhas_evidencias": "Todas as faixas existem nos arquivos da revisão auditada.",
+  "redacao_segredos": "Chave de desenvolvimento ausente do texto extraído.",
+  "sha256_pdf": "b14147c321ea4d2942c8a52e2daf647177695e8e65e4696e88ba2bd8567e3dc2"
+}

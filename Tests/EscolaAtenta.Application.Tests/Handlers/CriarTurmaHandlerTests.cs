@@ -19,7 +19,7 @@ public class CriarTurmaHandlerTests
     public async Task Handle_QuandoComandoValido_DeveCriarTurmaERetornarDto()
     {
         await using var ctx = CriarContexto();
-        var handler = new CriarTurmaHandler(ctx);
+        var handler = new CriarTurmaHandler(ctx, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString() });
 
         var resultado = await handler.Handle(
             new CriarTurmaCommand("2º Ano B", "Tarde", 2026),

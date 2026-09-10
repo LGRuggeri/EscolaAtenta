@@ -52,7 +52,7 @@ public class TransferirAlunoHandler : IRequestHandler<TransferirAlunoCommand>
 
             if (!turmasVinculadas.Contains(aluno.TurmaId) || !turmasVinculadas.Contains(request.NovaTurmaId))
             {
-                throw new KeyNotFoundException($"Aluno com ID '{request.AlunoId}' não encontrado.");
+                throw new DomainException("Você não tem permissão para transferir alunos entre essas turmas.");
             }
         }
 

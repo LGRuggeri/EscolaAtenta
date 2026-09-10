@@ -23,12 +23,13 @@ import { RelatorioPresencasScreen } from '../screens/relatorios/RelatorioPresenc
 import { RelatorioTurmaScreen } from '../screens/relatorios/RelatorioTurmaScreen';
 import { MigracaoTurmaScreen } from '../screens/gestao/MigracaoTurmaScreen';
 import { ConfiguracaoServidorScreen } from '../screens/settings/ConfiguracaoServidorScreen';
+import { PapelUsuario } from '../types/enums';
 import { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function AppNavigator() {
-    const { signed, loading, deveAlterarSenha, signOut } = useAuth();
+    const { signed, user, loading, deveAlterarSenha, signOut } = useAuth();
     const panHandlers = useInactivityLogout(signed ? signOut : () => {});
 
     if (loading) {
@@ -41,7 +42,7 @@ export function AppNavigator() {
 
     return (
         <View style={{ flex: 1 }} {...panHandlers}>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator key={user?.id ?? "anonymous"} screenOptions={{ headerShown: false }}>
             {signed && deveAlterarSenha ? (
                 // Fluxo: logado mas precisa trocar senha antes de acessar o sistema
                 <>
@@ -52,18 +53,18 @@ export function AppNavigator() {
                 <>
                     <Stack.Screen name="Home" component={HomeScreen} />
                     <Stack.Screen name="Turmas" component={TurmasScreen} />
-                    <Stack.Screen name="TurmaForm" component={TurmaFormScreen} />
+                    {user?.papel === PapelUsuario.Administrador && <Stack.Screen name="TurmaForm" component={TurmaFormScreen} />}
                     <Stack.Screen name="Alunos" component={AlunosScreen} />
-                    <Stack.Screen name="AlunoForm" component={AlunoFormScreen} />
+                    {user?.papel === PapelUsuario.Administrador && <Stack.Screen name="AlunoForm" component={AlunoFormScreen} />}
                     <Stack.Screen name="ChamadaOperacao" component={ChamadaScreen} />
-                    <Stack.Screen name="Usuarios" component={UsuariosScreen} />
-                    <Stack.Screen name="UsuarioForm" component={UsuarioFormScreen} />
+                    {user?.papel === PapelUsuario.Administrador && <Stack.Screen name="Usuarios" component={UsuariosScreen} />}
+                    {user?.papel === PapelUsuario.Administrador && <Stack.Screen name="UsuarioForm" component={UsuarioFormScreen} />}
                     <Stack.Screen name="Alertas" component={AlertasScreen} />
                     <Stack.Screen name="HistoricoAlertas" component={HistoricoAlertasScreen} />
                     <Stack.Screen name="RelatoriosMenu" component={RelatoriosMenuScreen} />
                     <Stack.Screen name="RelatorioPresencas" component={RelatorioPresencasScreen} />
                     <Stack.Screen name="RelatorioTurma" component={RelatorioTurmaScreen} />
-                    <Stack.Screen name="MigracaoTurma" component={MigracaoTurmaScreen} />
+                    {user?.papel === PapelUsuario.Administrador && <Stack.Screen name="MigracaoTurma" component={MigracaoTurmaScreen} />}
                     <Stack.Screen name="TrocarSenha" component={TrocarSenhaScreen} />
                 </>
             ) : (

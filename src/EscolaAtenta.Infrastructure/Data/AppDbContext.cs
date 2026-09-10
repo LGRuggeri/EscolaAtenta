@@ -88,6 +88,56 @@ public class AppDbContext : DbContext
     /// </summary>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        // O provider InMemory usado em testes não oferece transações.
+        var externa = Database.CurrentTransaction;
+        await using var propria = Database.IsRelational() && externa is null
+            ? await Database.BeginTransactionAsync(cancellationToken) : null;
+        var savepoint = externa?.SupportsSavepoints == true ? "eventos_" + Guid.NewGuid().ToString("N") : null;
+        if (savepoint is not null)
+            await externa!.CreateSavepointAsync(savepoint, cancellationToken);
+
+        try
+        {
+            PrepararAlteracoes();
+            var eventos = ColetarEDedupDomainEvents();
+            var resultado = await base.SaveChangesAsync(cancellationToken);
+            const int maxIteracoes = 5;
+            for (var i = 0; eventos.Count > 0; i++)
+            {
+                if (i >= maxIteracoes)
+                    throw new InvalidOperationException("Limite de eventos em cascata excedido; operação cancelada.");
+                foreach (var evento in eventos)
+                    await _mediator.Publish(evento, cancellationToken);
+
+                // Entidades criadas/alteradas por eventos recebem as mesmas regras
+                // de auditoria, escola, soft delete e sincronização da gravação inicial.
+                PrepararAlteracoes();
+                eventos = ColetarEDedupDomainEvents();
+                if (ChangeTracker.HasChanges())
+                    await base.SaveChangesAsync(cancellationToken);
+            }
+            if (savepoint is not null)
+                await externa!.ReleaseSavepointAsync(savepoint, cancellationToken);
+            if (propria is not null)
+                await propria.CommitAsync(cancellationToken);
+            return resultado;
+        }
+        catch
+        {
+            // O cancelamento da requisição não deve impedir a reversão.
+            if (propria is not null)
+                await propria.RollbackAsync(CancellationToken.None);
+            else if (savepoint is not null)
+                await externa!.RollbackToSavepointAsync(savepoint, CancellationToken.None);
+            // As entidades já aceitas pelo EF não representam mais o estado do banco.
+            // Uma nova tentativa deve recarregar os registros e gerar novos eventos.
+            ChangeTracker.Clear();
+            throw;
+        }
+    }
+
+    private void PrepararAlteracoes()
+    {
         var agora = DateTimeOffset.UtcNow;
         var usuarioAtual = _currentUserService.UsuarioId;
 
@@ -133,79 +183,71 @@ public class AppDbContext : DbContext
                 case EntityState.Modified:
                     entry.CurrentValues[nameof(EntityBase.DataAtualizacao)] = agora;
                     entry.CurrentValues[nameof(EntityBase.UsuarioAtualizacao)] = usuarioAtual;
-                    
+
                     // Modificou localmente, precisa enviar o delta para a Nuvem
                     entry.CurrentValues[nameof(EntityBase.CloudSyncedAt)] = null;
-                    
+
                     // Protege campos de criação contra sobrescrita acidental
                     entry.Property(e => e.DataCriacao).IsModified = false;
                     entry.Property(e => e.UsuarioCriacao).IsModified = false;
-                    
+
                     // Protege EscolaId (o dono nunca muda)
                     entry.Property(e => e.EscolaId).IsModified = false;
+
+                    // Nota: não protegemos Ativo/DataExclusao/UsuarioExclusao aqui
+                    // porque a reativação e o soft delete são operações de domínio
+                    // legítimas realizadas pelos métodos Reativar/Desativar.
+                    // A segurança dessas mudanças fica nos handlers autorizados.
                     break;
             }
         }
 
-        // ── Coleta de Domain Events e Despacho Atômico ────────────────────────────
-        // Despachamos os eventos ANTES do commit, dentro do fluxo da mesma requisição.
-        // Se os handlers alterarem entidades ou adicionarem novas, elas são
-        // processadas na mesma transação banco assegurada pelo SaveChangesAsync.
-        while (true)
+    }
+
+    private List<INotification> ColetarEDedupDomainEvents()
+    {
+        var entidadesComEventos = ChangeTracker
+            .Entries<EntityBase>()
+            .Where(e => e.Entity.DomainEvents.Count != 0)
+            .Select(e => e.Entity)
+            .ToList();
+
+        if (!entidadesComEventos.Any())
+            return [];
+
+        var domainEvents = entidadesComEventos
+            .SelectMany(e => e.DomainEvents)
+            .ToList();
+
+        entidadesComEventos.ForEach(e => e.ClearDomainEvents());
+
+        // ── Deduplicação defensiva de eventos de threshold ─────────────────────
+        // Mantemos apenas o último evento de threshold por (AlunoId, Tipo)
+        // para cada batch, evitando alertas duplicados.
+        var eventosVistos = new HashSet<string>();
+        var eventosFiltrados = new List<INotification>();
+        for (int i = domainEvents.Count - 1; i >= 0; i--)
         {
-            var entidadesComEventos = ChangeTracker
-                .Entries<EntityBase>()
-                .Where(e => e.Entity.DomainEvents.Count != 0)
-                .Select(e => e.Entity)
-                .ToList();
-
-            if (!entidadesComEventos.Any())
-                break;
-
-            var domainEvents = entidadesComEventos
-                .SelectMany(e => e.DomainEvents)
-                .ToList();
-
-            entidadesComEventos.ForEach(e => e.ClearDomainEvents());
-
-            // ── Deduplicação defensiva de eventos de threshold ─────────────────────
-            // Os handlers de alerta consultam o banco para evitar duplicatas. Como
-            // eles são executados antes do commit, um segundo evento equivalente
-            // não veria a entidade adicionada pelo primeiro. Mantemos apenas o
-            // último evento de threshold por (AlunoId, Tipo) para cada batch.
-            var eventosVistos = new HashSet<string>();
-            var eventosFiltrados = new List<INotification>();
-            for (int i = domainEvents.Count - 1; i >= 0; i--)
+            var evt = domainEvents[i];
+            var chave = evt switch
             {
-                var evt = domainEvents[i];
-                var chave = evt switch
-                {
-                    LimiteFaltasAtingidoEvent e => $"{e.AlunoId}:{nameof(LimiteFaltasAtingidoEvent)}",
-                    _ => string.Empty
-                };
+                LimiteFaltasAtingidoEvent e => $"{e.AlunoId}:{nameof(LimiteFaltasAtingidoEvent)}",
+                _ => string.Empty
+            };
 
-                if (string.IsNullOrEmpty(chave))
-                {
-                    eventosFiltrados.Insert(0, evt);
-                    continue;
-                }
-
-                if (!eventosVistos.Contains(chave))
-                {
-                    eventosVistos.Add(chave);
-                    eventosFiltrados.Insert(0, evt);
-                }
+            if (string.IsNullOrEmpty(chave))
+            {
+                eventosFiltrados.Insert(0, evt);
+                continue;
             }
 
-            foreach (var domainEvent in eventosFiltrados)
+            if (!eventosVistos.Contains(chave))
             {
-                await _mediator.Publish(domainEvent, cancellationToken);
+                eventosVistos.Add(chave);
+                eventosFiltrados.Insert(0, evt);
             }
         }
 
-        // ── Persistência Atômica ───────────────────────────────────────────────────────
-        var resultado = await base.SaveChangesAsync(cancellationToken);
-
-        return resultado;
+        return eventosFiltrados;
     }
 }

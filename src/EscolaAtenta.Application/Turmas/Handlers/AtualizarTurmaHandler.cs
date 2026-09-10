@@ -1,3 +1,4 @@
+using EscolaAtenta.Application.Common;
 using EscolaAtenta.Application.Turmas.Commands;
 using EscolaAtenta.Domain.Enums;
 using EscolaAtenta.Domain.Interfaces;
@@ -26,20 +27,12 @@ public class AtualizarTurmaHandler : IRequestHandler<AtualizarTurmaCommand, Unit
 
     public async Task<Unit> Handle(AtualizarTurmaCommand request, CancellationToken cancellationToken)
     {
+        AutorizacaoUsuario.ExigirAdministrador(_currentUser);
         var turma = await _context.Turmas.FindAsync([request.Id], cancellationToken);
 
         // SEGURANÇA: Retorna 404 para não expor a existência do ID a um atacante
         if (turma == null)
             throw new KeyNotFoundException($"Turma com ID '{request.Id}' não encontrada.");
-
-        // IDOR: Administrador pode alterar qualquer turma; demais papéis precisam de vínculo
-        if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
-            && Guid.TryParse(_currentUser.UsuarioId, out var uid)
-            && !await _context.UsuarioTurmas.AnyAsync(
-                ut => ut.TurmaId == request.Id && ut.UsuarioId == uid, cancellationToken))
-        {
-            throw new KeyNotFoundException($"Turma com ID '{request.Id}' não encontrada.");
-        }
 
         // Log de auditoria: rastreia quem alterou qual turma
         _logger.LogInformation(

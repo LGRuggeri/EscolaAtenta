@@ -1,0 +1,877 @@
+{
+  "projeto": "Escola Atenta",
+  "data": "08/09/2026",
+  "commit": "f7550204891aa6f2914a9280fe26ddb2d55ef793",
+  "branch": "fix/revisao-sync-seguranca-dados",
+  "achados": [
+    {
+      "id": "EA-01",
+      "categoria": 1,
+      "severidade": "alta",
+      "titulo": "Consultas e pull expõem dados de turmas sem vínculo",
+      "locais": [
+        {
+          "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/SyncPullHandler.cs",
+          "inicio": 54,
+          "fim": 58
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/SyncPullHandler.cs",
+          "inicio": 114,
+          "fim": 141
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Application/Alunos/Queries/GetAlunosComFaltasQuery.cs",
+          "inicio": 43,
+          "fim": 80
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Application/Turmas/Handlers/GetTurmasQueryHandler.cs",
+          "inicio": 18,
+          "fim": 24
+        },
+        {
+          "arquivo": "src/EscolaAtenta.API/Controllers/SyncController.cs",
+          "inicio": 17,
+          "fim": 38
+        },
+        {
+          "arquivo": "src/EscolaAtenta.API/Controllers/DashboardController.cs",
+          "inicio": 16,
+          "fim": 38
+        }
+      ],
+      "descricao": "Um usuário autenticado pode pedir o primeiro pull, consultar alunos com faltas ou listar turmas. Esses handlers não recebem a identidade para restringir UsuarioTurmas. AppDbContext aplica somente Ativo, não propriedade. A consulta opcional por TurmaId no dashboard é filtro do cliente, não autorização.",
+      "condicoes": "Monitor ou Supervisão autenticado, com vínculo apenas à turma A, e dados existentes na turma B. Acesso à API local da escola.",
+      "impacto": "Exposição de nomes, IDs, turma e contadores de frequência; dashboard também retorna matrícula. Permite descobrir IDs utilizados nas outras falhas. Não depende de vários tenants no mesmo banco.",
+      "correcao": "Aplicar escopo comum por UsuarioTurmas às consultas e aos deltas created/updated/deleted; permitir abrangência global apenas a Administrador. Definir remoção local quando um vínculo for revogado.",
+      "verificacao": "Reprodução HTTP com SQLite em memória: pull, dashboard e listagem retornaram 200 e incluíram os dados da turma B para Monitor vinculado apenas à A.",
+      "trecho": "var todosAlunos = await _context.Alunos\n    .AsNoTracking().ToListAsync(ct);",
+      "aceite": [
+        "Reproduzir o cenário descrito e confirmar a rejeição ou segregação esperada.",
+        "Preservar o fluxo legítimo para o papel e os vínculos autorizados.",
+        "Adicionar teste de regressão que use os controles reais e SQLite quando aplicável."
+      ]
+    },
+    {
+      "id": "EA-02",
+      "categoria": 1,
+      "severidade": "alta",
+      "titulo": "Cache offline permanece compartilhado entre contas e servidores",
+      "locais": [
+        {
+          "arquivo": "src/EscolaAtenta.App/src/contexts/AuthContext.tsx",
+          "inicio": 98,
+          "fim": 102
+        },
+        {
+          "arquivo": "src/EscolaAtenta.App/src/database/index.ts",
+          "inicio": 10,
+          "fim": 24
+        },
+        {
+          "arquivo": "src/EscolaAtenta.App/src/screens/gestao/AlunosScreen.tsx",
+          "inicio": 36,
+          "fim": 57
+        },
+        {
+          "arquivo": "src/EscolaAtenta.App/src/services/serverConfig.ts",
+          "inicio": 10,
+          "fim": 13
+        },
+        {
+          "arquivo": "src/EscolaAtenta.App/src/services/sync/watermelondbSync.ts",
+          "inicio": 165,
+          "fim": 178
+        }
+      ],
+      "descricao": "O app mantém uma única instância de WatermelonDB. Sair remove tokens e estado React, mas não associa nem segrega o banco por usuário/servidor. Após outro login, telas consultam o mesmo cache por turma; a configuração de outro servidor apenas troca a URL.",
+      "condicoes": "Mesma instalação do app já contém dados; outra conta autenticada entra, ou o servidor configurado é alterado. Não exige root no Android. A revisão é estática, sem execução em dispositivo.",
+      "impacto": "A segunda sessão pode visualizar dados baixados pela anterior. Deltas locais pendentes também não carregam proprietário de sessão, criando risco de envio sob a identidade seguinte. O defeito permanece mesmo após corrigir o filtro do servidor.",
+      "correcao": "Segregar cache e fila de sync por servidor e identidade, suspendendo sync durante a troca. Preservar pendências da conta anterior em armazenamento inacessível à nova sessão; evitar apagá-las indiscriminadamente.",
+      "verificacao": "Fluxo estático completo: singleton database -> signOut sem segregação -> nova sessão -> consulta local apenas por turma_id. Não houve reprodução Android.",
+      "trecho": "async function signOut() {\n    await authStorage.removeToken();\n    setUser(null);\n    setDeveAlterarSenha(false);\n}",
+      "aceite": [
+        "Reproduzir o cenário descrito e confirmar a rejeição ou segregação esperada.",
+        "Preservar o fluxo legítimo para o papel e os vínculos autorizados.",
+        "Adicionar teste de regressão que use os controles reais e SQLite quando aplicável."
+      ]
+    },
+    {
+      "id": "EA-03",
+      "categoria": 2,
+      "severidade": "alta",
+      "titulo": "Rotas REST contornam a restrição administrativa aplicada no sync",
+      "locais": [
+        {
+          "arquivo": "src/EscolaAtenta.Application/Turmas/Handlers/CriarTurmaHandler.cs",
+          "inicio": 18,
+          "fim": 28
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/CriarAlunoHandler.cs",
+          "inicio": 19,
+          "fim": 37
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Application/Turmas/Handlers/AtualizarTurmaHandler.cs",
+          "inicio": 35,
+          "fim": 51
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/AtualizarAlunoHandler.cs",
+          "inicio": 35,
+          "fim": 51
+        },
+        {
+          "arquivo": "src/EscolaAtenta.API/Controllers/TurmasController.cs",
+          "inicio": 14,
+          "fim": 35
+        },
+        {
+          "arquivo": "src/EscolaAtenta.API/Controllers/AlunosController.cs",
+          "inicio": 13,
+          "fim": 32
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/SyncPushHandler.cs",
+          "inicio": 172,
+          "fim": 183
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/SyncPushHandler.cs",
+          "inicio": 685,
+          "fim": 695
+        }
+      ],
+      "descricao": "O sync permite criar e editar cadastros apenas a Administrador, mas as rotas REST exigem só autenticação. As criações não verificam papel; criar aluno verifica apenas se TurmaId existe. As edições aceitam qualquer papel com vínculo, contrariando o bloqueio administrativo equivalente do sync.",
+      "condicoes": "Monitor ou Supervisão com token válido. Para criar aluno em turma alheia basta conhecer seu GUID; ele é obtenível em EA-01. Edições exigem vínculo, ao contrário das criações.",
+      "impacto": "Criação de turmas e inserção de alunos em turmas não autorizadas, além de edição de cadastros vinculados por papéis que o sync proíbe. Compromete integridade cadastral.",
+      "correcao": "Centralizar a política administrativa e aplicá-la igualmente no REST e no sync. Se a política permitir criação delegada, verificar explicitamente o vínculo da turma e documentar a exceção.",
+      "verificacao": "HTTP 201 para Monitor criar turma e inserir aluno na turma B sem vínculo. Edições verificadas estaticamente. Agrupamento por causa raiz: políticas diferentes para a mesma operação.",
+      "trecho": "var turma = await _context.Turmas\n    .FirstOrDefaultAsync(t => t.Id == request.TurmaId, cancellationToken);\n// Apenas existência é verificada antes de criar o aluno.",
+      "aceite": [
+        "Reproduzir o cenário descrito e confirmar a rejeição ou segregação esperada.",
+        "Preservar o fluxo legítimo para o papel e os vínculos autorizados.",
+        "Adicionar teste de regressão que use os controles reais e SQLite quando aplicável."
+      ]
+    },
+    {
+      "id": "EA-04",
+      "categoria": 3,
+      "severidade": "alta",
+      "titulo": "Supervisão resolve alertas de turmas sem vínculo",
+      "locais": [
+        {
+          "arquivo": "src/EscolaAtenta.Application/Alertas/Handlers/ResolverAlertaHandler.cs",
+          "inicio": 20,
+          "fim": 37
+        },
+        {
+          "arquivo": "src/EscolaAtenta.API/Controllers/AlertasController.cs",
+          "inicio": 74,
+          "fim": 81
+        }
+      ],
+      "descricao": "A rota restringe o papel, mas o handler busca qualquer AlertaId e verifica somente se o identificador do chamador é um GUID. Não compara o TurmaId do alerta com UsuarioTurmas.",
+      "condicoes": "Usuário de Supervisão, GUID de um alerta de outra turma e justificativa válida. O GUID deve ser conhecido previamente; não se presume adivinhação de GUIDs.",
+      "impacto": "Encerramento indevido de alertas de evasão e gravação de justificativa/responsável fora da área de atuação. O Monitor é bloqueado pela rota, mas Supervisão não tem acesso global nas consultas protegidas.",
+      "correcao": "Autorizar pela turma persistida no alerta antes de MarcarComoResolvido. Administrador pode ter acesso global; definir tratamento restrito para alertas sem turma.",
+      "verificacao": "Com Supervisor vinculado apenas à A, PATCH de alerta da B retornou 204 no host isolado com SQLite.",
+      "trecho": "var alerta = await _context.AlertasEvasao\n    .FirstOrDefaultAsync(a => a.Id == request.AlertaId, cancellationToken);\nalerta.MarcarComoResolvido(usuarioId, request.Justificativa);",
+      "aceite": [
+        "Reproduzir o cenário descrito e confirmar a rejeição ou segregação esperada.",
+        "Preservar o fluxo legítimo para o papel e os vínculos autorizados.",
+        "Adicionar teste de regressão que use os controles reais e SQLite quando aplicável."
+      ]
+    },
+    {
+      "id": "EA-05",
+      "categoria": 2,
+      "severidade": "média",
+      "titulo": "Troca obrigatória de senha é imposta apenas pela navegação",
+      "locais": [
+        {
+          "arquivo": "src/EscolaAtenta.App/src/navigation/AppNavigator.tsx",
+          "inicio": 45,
+          "fim": 53
+        },
+        {
+          "arquivo": "src/EscolaAtenta.App/src/contexts/AuthContext.tsx",
+          "inicio": 42,
+          "fim": 65
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Application/Auth/LoginHandler.cs",
+          "inicio": 58,
+          "fim": 82
+        },
+        {
+          "arquivo": "src/EscolaAtenta.API/Controllers/AuthController.cs",
+          "inicio": 142,
+          "fim": 150
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Infrastructure/Services/AuthService.cs",
+          "inicio": 48,
+          "fim": 73
+        }
+      ],
+      "descricao": "O login emite JWT com papel completo quando DeveAlterarSenha=true. Nenhuma política do servidor restringe esse token. O app decide mostrar a tela de troca por estado React; a restauração de sessão não restaura essa obrigação e a resposta de refresh usa o valor padrão false.",
+      "condicoes": "Credencial inicial válida de uma conta marcada para troca obrigatória. O atacante não obtém a senha por esta falha; ele contorna a restrição depois de autenticar.",
+      "impacto": "Uso completo da conta com senha inicial, inclusive funções administrativas para uma conta Administrador, sem concluir a troca exigida.",
+      "correcao": "Aplicar bloqueio no servidor para contas com troca pendente, permitindo somente troca e encerramento da sessão. Revalidar a obrigação na restauração/refresh e emitir sessão adequada após a troca.",
+      "verificacao": "Login retornou deveAlterarSenha=true e o JWT foi aceito em GET /usuarios com 200 antes de qualquer troca.",
+      "trecho": "var loginResult = _authService.GerarToken(usuario);\n// DeveAlterarSenha é apenas um campo da resposta.",
+      "aceite": [
+        "Reproduzir o cenário descrito e confirmar a rejeição ou segregação esperada.",
+        "Preservar o fluxo legítimo para o papel e os vínculos autorizados.",
+        "Adicionar teste de regressão que use os controles reais e SQLite quando aplicável."
+      ]
+    },
+    {
+      "id": "EA-06",
+      "categoria": 2,
+      "severidade": "alta",
+      "titulo": "Mudanças de segurança não invalidam sessões existentes",
+      "locais": [
+        {
+          "arquivo": "src/EscolaAtenta.API/Program.cs",
+          "inicio": 112,
+          "fim": 135
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Application/Usuarios/Commands/AlternarStatusUsuarioCommand.cs",
+          "inicio": 23,
+          "fim": 33
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Application/Usuarios/Commands/AtualizarUsuarioCommand.cs",
+          "inicio": 21,
+          "fim": 27
+        },
+        {
+          "arquivo": "src/EscolaAtenta.API/Controllers/AuthController.cs",
+          "inicio": 102,
+          "fim": 107
+        },
+        {
+          "arquivo": "src/EscolaAtenta.API/Controllers/AuthController.cs",
+          "inicio": 123,
+          "fim": 142
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Infrastructure/Services/AuthService.cs",
+          "inicio": 46,
+          "fim": 57
+        }
+      ],
+      "descricao": "A validação JWT verifica assinatura, emissor, público e prazo, mas não o estado/papel atual no banco nem uma versão de sessão. Desativação e rebaixamento alteram apenas Usuario. Troca de senha não revoga refresh tokens.",
+      "condicoes": "Posse de token emitido antes da alteração. O JWT persiste até expirar, por padrão 60 minutos e tolerância de 30 segundos. Refresh anterior à troca de senha permanece utilizável por até seu prazo de 30 dias; login posterior revoga os anteriores.",
+      "impacto": "Conta desativada continua lendo dados; ex-Administrador continua acessando endpoints administrativos até o JWT expirar. Um refresh comprometido pode restabelecer sessão após a vítima trocar a senha.",
+      "correcao": "Introduzir versão de sessão/security stamp validada no servidor; revogar sessões e refresh tokens em desativação, rebaixamento e troca de senha. Manter os fluxos legítimos de refresh e offline conforme política explícita.",
+      "verificacao": "Três reproduções: JWT de usuário inativo aceito; papel Administrador antigo aceito após rebaixamento; refresh anterior aceito após trocar senha. Todos retornaram 200.",
+      "trecho": "usuario.AlterarSenha(novoHash);\nawait _dbContext.SaveChangesAsync(ct);\n// Não revoga RefreshTokens nem invalida JWTs existentes.",
+      "aceite": [
+        "Reproduzir o cenário descrito e confirmar a rejeição ou segregação esperada.",
+        "Preservar o fluxo legítimo para o papel e os vínculos autorizados.",
+        "Adicionar teste de regressão que use os controles reais e SQLite quando aplicável."
+      ]
+    },
+    {
+      "id": "EA-07",
+      "categoria": 4,
+      "severidade": "alta",
+      "titulo": "Fallback JWT conhecido permite forjar Administrador em Development",
+      "locais": [
+        {
+          "arquivo": "src/EscolaAtenta.API/Program.cs",
+          "inicio": 79,
+          "fim": 84
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Infrastructure/Services/AuthService.cs",
+          "inicio": 32,
+          "fim": 40
+        },
+        {
+          "arquivo": "src/EscolaAtenta.API/Properties/launchSettings.json",
+          "inicio": 8,
+          "fim": 10
+        },
+        {
+          "arquivo": "src/EscolaAtenta.API/appsettings.Development.json",
+          "inicio": 33,
+          "fim": 37
+        }
+      ],
+      "descricao": "Quando Jwt:SecretKey está vazia em Development, emissor e validador usam o mesmo literal versionado. A configuração atual de desenvolvimento deixa a chave vazia, e o perfil de execução escuta em 0.0.0.0. Uma pessoa com acesso ao código consegue assinar JWTs com papel Administrador.",
+      "condicoes": "API em Development com chave vazia e alcançável pelo atacante. Este achado é condicional ao modo; produção com chave vazia gera 64 bytes aleatórios, portanto não usa esse fallback.",
+      "impacto": "Autenticação forjada e acesso administrativo sem senha. A assinatura local foi demonstrada com sub sintético e papel Administrador, sem publicar chave ou token.",
+      "correcao": "Remover o literal de ambos os caminhos. Usar segredo local aleatório ou exigir configuração segura; restringir a interface de desenvolvimento a loopback. Rotacionar chaves de instâncias que tenham usado o literal.",
+      "verificacao": "Validação criptográfica local confirmou papel Administrador. Histórico: commit 1fadfb0da5698028b8ac21ca9194e3164b42f3e9, src/EscolaAtenta.API/appsettings.Development.json:34 e build-temp/appsettings.Development.json:34 continham chave literal redigida.",
+      "trecho": "if (builder.Environment.IsDevelopment()) {\n    secretKey = \"[SEGREDO REDIGIDO]\";\n}",
+      "aceite": [
+        "Reproduzir o cenário descrito e confirmar a rejeição ou segregação esperada.",
+        "Preservar o fluxo legítimo para o papel e os vínculos autorizados.",
+        "Adicionar teste de regressão que use os controles reais e SQLite quando aplicável."
+      ]
+    },
+    {
+      "id": "EA-08",
+      "categoria": 4,
+      "severidade": "alta",
+      "titulo": "Instalador concede leitura de segredos locais a usuários comuns",
+      "locais": [
+        {
+          "arquivo": "escolaatenta-installer.iss",
+          "inicio": 66,
+          "fim": 70
+        },
+        {
+          "arquivo": "src/EscolaAtenta.API/Program.cs",
+          "inicio": 87,
+          "fim": 101
+        },
+        {
+          "arquivo": "src/EscolaAtenta.Infrastructure/Data/DatabaseSeeder.cs",
+          "inicio": 100,
+          "fim": 105
+        },
+        {
+          "arquivo": "src/EscolaAtenta.API/appsettings.json",
+          "inicio": 12,
+          "fim": 12
+        }
+      ],
+      "descricao": "O instalador concede users-readexec à pasta base; no Inno Setup essa permissão inclui herança para descendentes. O startup de produção grava a chave JWT em API/appsettings.json e o seed registra a senha inicial em logs sob a pasta base. Não há ACL restritiva específica nesses destinos no instalador.",
+      "condicoes": "Instalação pelo script fornecido, herança padrão mantida e conta Windows comum com acesso à máquina. Chave gerada em arquivo e/ou logs do seed presentes. ACL de uma instalação real não foi inspecionada; é achado condicional do artefato de deploy.",
+      "impacto": "Leitura da chave de assinatura por usuário local permite forjar identidade administrativa; logs podem expor credencial inicial. A aleatoriedade da chave não protege contra sua leitura.",
+      "correcao": "Separar dados, segredos e logs dos binários. Restringir leitura ao serviço/SYSTEM e administradores. Dar ao TrayMonitor somente a informação operacional necessária, sem acesso à chave JWT. Provisionar a senha inicial por canal restrito e temporário.",
+      "verificacao": "Evidência estática do script e dos destinos de gravação; sem instalação, UAC ou alteração de ACL na máquina. Sem comprovação dinâmica de uma instalação específica.",
+      "trecho": "Name: \"{app}\"; Permissions: admins-full system-full users-readexec\njson[\"Jwt\"]![\"SecretKey\"] = secretKey;",
+      "aceite": [
+        "Reproduzir o cenário descrito e confirmar a rejeição ou segregação esperada.",
+        "Preservar o fluxo legítimo para o papel e os vínculos autorizados.",
+        "Adicionar teste de regressão que use os controles reais e SQLite quando aplicável."
+      ]
+    }
+  ],
+  "pontos_fortes": [
+    [
+      "src/EscolaAtenta.API/Controllers/UsuariosController.cs:18",
+      "Gestão de usuários exige Administrador no servidor; Monitor recebeu 403."
+    ],
+    [
+      "src/EscolaAtenta.Application/Chamadas/Handlers/SyncPushHandler.cs:622-639",
+      "Atualização de presença autoriza pela turma real do registro persistido, não pelo TurmaId do cliente."
+    ],
+    [
+      "src/EscolaAtenta.Application/Alunos/Handlers/TransferirAlunoHandler.cs:42-57",
+      "Transferência valida vínculo com origem e destino para usuário não administrador."
+    ],
+    [
+      "src/EscolaAtenta.Application/Turmas/Handlers/MigrarTurmaHandler.cs:29-31",
+      "Migração em lote exige Administrador também no handler."
+    ],
+    [
+      "src/EscolaAtenta.Application/Alunos/Handlers/GetHistoricoPresencasAlunoQueryHandler.cs:54-89",
+      "Histórico de presenças restringe registros às turmas vinculadas."
+    ],
+    [
+      "src/EscolaAtenta.Infrastructure/Services/AuthService.cs:89-108",
+      "Senhas verificadas e armazenadas com BCrypt; não são retornadas nos DTOs de consulta."
+    ],
+    [
+      "src/EscolaAtenta.API/Program.cs:87-101",
+      "Produção sem chave gera segredo aleatório de 64 bytes; ressalva de armazenamento em EA-08."
+    ],
+    [
+      "src/EscolaAtenta.App/src/services/api.ts:105-119",
+      "Tokens são armazenados no SecureStore; o cache escolar exige segregação adicional."
+    ]
+  ],
+  "limitacoes": [
+    "Auditoria das cinco categorias solicitadas, baseada em código e reproduções locais. Não é pentest de produção, auditoria de dependências/CVEs, rede escolar, Android nativo ou OTA completo.",
+    "Estado inicial limpo no Git; commit f7550204891aa6f2914a9280fe26ddb2d55ef793, branch fix/revisao-sync-seguranca-dados. Nenhum arquivo de produto foi corrigido.",
+    "Host de reprodução registra os controllers/handlers reais e autenticação equivalente, com SQLite em memória. Omite rate limiter, workers, startup e middleware global de erros; não é teste do Program.cs completo. Erro 500 de controle negado nesse host não é o status esperado de produção.",
+    "Histórico: 85 commits alcançáveis por refs locais e 1.821 blobs candidatos únicos examinados por heurística; sem fetch, reflog, objetos inalcançáveis ou teste remoto de credenciais. Binários, arquivos grandes e dependências têm cobertura limitada. .env contém exemplo legado; scanner não cobre todas as atribuições sem aspas.",
+    "Sourcemap local: 1.473 fontes e 52 entradas fora de node_modules; sem assinaturas de credenciais no teste limitado. Artefato pode estar desatualizado em relação ao HEAD. APKs e bytecode Hermes localizados não foram decompilados, e nenhum novo bundle foi gerado.",
+    "GetAuditoriaAlertasQueryHandler não filtra vínculos, mas a consulta de detalhes falhou com SQLite devido à ordenação DateTimeOffset. Não foi contado como vazamento comprovado; corrigir autorização junto da compatibilidade do provider. Os testes existentes usam InMemory nesse handler.",
+    "RegistrarPresencaHandler não tem rota nem chamador de produto encontrado. A associação AlunoId/ChamadaId não é validada nesse caminho interno; risco latente fora da contagem de IDOR explorável.",
+    "ObterHistoricoTurmasAlunoHandler permite histórico completo após vínculo com qualquer turma histórica, conforme comentário explícito. A política de negócio dessa abrangência deve ser confirmada; não foi considerada falha comprovada.",
+    "Não há filtro global EscolaId, mas a implementação atual é single-school por banco e CloudEgressWorker é stub. Não foi inventado cenário ativo de isolamento multiescola. AGENTS.md descreve filtros multi-tenant que o código atual não implementa.",
+    "Alguns guards dependem de Guid.TryParse e não negam identidade malformada; o emissor legítimo só emite GUID. Sem caminho independente demonstrado para obter token inválido assinado, não há achado adicional.",
+    "XSS: não foi identificado fluxo de entrada controlada para execução HTML/JavaScript no código atual. A UI usa componentes React Native Text e a API retorna JSON. Menções a WebView em lockfile não provam sink. Nenhum teste em navegador/Android foi executado.",
+    "EA-02 e EA-08 têm comprovação estática; cache não foi executado no Android e ACL não foi testada em instalação real. Transporte HTTP local é configuração declarada; não foi reclassificado como chave hardcoded ou como XSS."
+  ],
+  "handlers": [
+    {
+      "handler": "LoginHandler",
+      "arquivo": "src/EscolaAtenta.Application/Auth/LoginHandler.cs",
+      "linha": 24,
+      "operacao": "POST /auth/login",
+      "origem_ids": "email/senha; sem ID de objeto",
+      "controle_resultado": "BCrypt + usuário ativo; EA-05/EA-06",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "FaltasConsecutivasNormalizadasHandler",
+      "arquivo": "src/EscolaAtenta.Application/EventHandlers/FaltasConsecutivasNormalizadasHandler.cs",
+      "linha": 18,
+      "operacao": "Evento interno",
+      "origem_ids": "AlunoId gerado no domínio",
+      "controle_resultado": "Sem rota; publicado por AppDbContext após gravação",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "LimiteFaltasAtingidoHandler",
+      "arquivo": "src/EscolaAtenta.Application/EventHandlers/LimiteFaltasAtingidoHandler.cs",
+      "linha": 30,
+      "operacao": "Evento interno",
+      "origem_ids": "AlunoId/TurmaId gerados no domínio",
+      "controle_resultado": "Sem rota; publicado por AppDbContext após gravação",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "GetAlertasHandler",
+      "arquivo": "src/EscolaAtenta.Application/Alertas/Handlers/GetAlertasHandler.cs",
+      "linha": 32,
+      "operacao": "GET /alertas",
+      "origem_ids": "Sem ID; filtros query",
+      "controle_resultado": "Administrador ou turmas vinculadas no banco",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "GetAuditoriaAlertasQueryHandler",
+      "arquivo": "src/EscolaAtenta.Application/Alertas/Handlers/GetAuditoriaAlertasQueryHandler.cs",
+      "linha": 26,
+      "operacao": "GET /alertas/auditoria",
+      "origem_ids": "Sem ID; nome/datas query",
+      "controle_resultado": "Papéis na rota; sem filtro de vínculo; SQLite bloqueia detalhes, limitação",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "ResolverAlertaHandler",
+      "arquivo": "src/EscolaAtenta.Application/Alertas/Handlers/ResolverAlertaHandler.cs",
+      "linha": 9,
+      "operacao": "PATCH /alertas/{id}/resolver",
+      "origem_ids": "AlertaId path",
+      "controle_resultado": "Supervisão/Admin; sem vínculo por objeto EA-04",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "AtualizarAlunoHandler",
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/AtualizarAlunoHandler.cs",
+      "linha": 11,
+      "operacao": "PUT /alunos/{id}",
+      "origem_ids": "Id path substitui body",
+      "controle_resultado": "Administrador ou vínculo atual; papel inconsistente EA-03",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "CriarAlunoHandler",
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/CriarAlunoHandler.cs",
+      "linha": 10,
+      "operacao": "POST /alunos",
+      "origem_ids": "TurmaId body",
+      "controle_resultado": "Somente existência da turma; EA-03",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "GetAlunosPorTurmaQueryHandler",
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/GetAlunosPorTurmaQueryHandler.cs",
+      "linha": 12,
+      "operacao": "GET /alunos/turma/{turmaId}",
+      "origem_ids": "TurmaId path",
+      "controle_resultado": "Administrador ou vínculo; bloqueio confirmado",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "GetHistoricoPresencasAlunoQueryHandler",
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/GetHistoricoPresencasAlunoQueryHandler.cs",
+      "linha": 13,
+      "operacao": "GET /alunos/{id}/historico-presencas",
+      "origem_ids": "GUID/ID externo path",
+      "controle_resultado": "Resolve SyncLog; vínculo atual e filtro por turma histórica",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "ObterHistoricoTurmasAlunoHandler",
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/ObterHistoricoTurmasAlunoHandler.cs",
+      "linha": 12,
+      "operacao": "GET /alunos/{id}/historico-turmas",
+      "origem_ids": "GUID/ID externo path",
+      "controle_resultado": "Qualquer vínculo histórico; política ampla documentada, limitação",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "TransferirAlunoHandler",
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Handlers/TransferirAlunoHandler.cs",
+      "linha": 13,
+      "operacao": "POST /alunos/{id}/transferir",
+      "origem_ids": "AlunoId path, NovaTurmaId body",
+      "controle_resultado": "Administrador ou vínculo origem E destino",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "GetAlunosComFaltasHandler",
+      "arquivo": "src/EscolaAtenta.Application/Alunos/Queries/GetAlunosComFaltasQuery.cs",
+      "linha": 34,
+      "operacao": "GET /dashboard/alunos-com-faltas",
+      "origem_ids": "TurmaId opcional query",
+      "controle_resultado": "Somente autenticação; EA-01",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "ObterChamadaPorTurmaEDiaHandler",
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/ObterChamadaPorTurmaEDiaHandler.cs",
+      "linha": 12,
+      "operacao": "GET /chamadas/turma/{turmaId}/dia/{data}",
+      "origem_ids": "GUID/externo e data path",
+      "controle_resultado": "Resolve ID e valida vínculo antes da leitura",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "RealizarChamadaHandler",
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/RealizarChamadaHandler.cs",
+      "linha": 13,
+      "operacao": "POST /chamadas/realizar",
+      "origem_ids": "TurmaId, Alunos[].AlunoId, ResponsavelId body",
+      "controle_resultado": "Vínculo por turma; aluno da turma/registro salvo; responsável JWT",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "RegistrarPresencaHandler",
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/RegistrarPresencaHandler.cs",
+      "linha": 29,
+      "operacao": "Interno; sem rota encontrada",
+      "origem_ids": "ChamadaId e AlunoId command",
+      "controle_resultado": "Vínculo da chamada; associação aluno/chamada não verificada, limitação",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "SyncPullHandler",
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/SyncPullHandler.cs",
+      "linha": 20,
+      "operacao": "GET /sync/pull",
+      "origem_ids": "Timestamp query",
+      "controle_resultado": "Somente autenticação; EA-01",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "SyncPushHandler",
+      "arquivo": "src/EscolaAtenta.Application/Chamadas/Handlers/SyncPushHandler.cs",
+      "linha": 32,
+      "operacao": "POST /sync/push",
+      "origem_ids": "IDs de turma, aluno e presença no body, GUID/externo",
+      "controle_resultado": "Inspeção integral das 1.176 linhas; admin para cadastros, vínculo real para presenças, prazo de edição; deleted ignorados",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "GetTurmasFrequenciaPerfeitaQueryHandler",
+      "arquivo": "src/EscolaAtenta.Application/Dashboard/Handlers/GetTurmasFrequenciaPerfeitaQueryHandler.cs",
+      "linha": 17,
+      "operacao": "GET /dashboard/turmas-frequencia-perfeita",
+      "origem_ids": "Datas query",
+      "controle_resultado": "Filtra chamadas por turmas vinculadas",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "AtualizarTurmaHandler",
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Handlers/AtualizarTurmaHandler.cs",
+      "linha": 11,
+      "operacao": "PUT /turmas/{id}",
+      "origem_ids": "Id path substitui body",
+      "controle_resultado": "Administrador ou vínculo; papel inconsistente EA-03",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "CriarTurmaHandler",
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Handlers/CriarTurmaHandler.cs",
+      "linha": 9,
+      "operacao": "POST /turmas",
+      "origem_ids": "Sem ID alvo; dados body",
+      "controle_resultado": "Sem papel administrativo; EA-03",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "GetTurmasQueryHandler",
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Handlers/GetTurmasQueryHandler.cs",
+      "linha": 9,
+      "operacao": "GET /turmas",
+      "origem_ids": "Sem ID",
+      "controle_resultado": "Sem filtro de vínculo; EA-01",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "MigrarTurmaHandler",
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Handlers/MigrarTurmaHandler.cs",
+      "linha": 14,
+      "operacao": "POST /turmas/{id}/migrar",
+      "origem_ids": "Origem path, destino/AlunosIds body",
+      "controle_resultado": "Administrador em rota e handler; alunos filtrados por origem",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "RelatorioTurmaHandler",
+      "arquivo": "src/EscolaAtenta.Application/Turmas/Handlers/RelatorioTurmaHandler.cs",
+      "linha": 13,
+      "operacao": "GET /turmas/{id}/relatorio",
+      "origem_ids": "GUID/externo path; período query",
+      "controle_resultado": "Supervisão/Admin na rota; vínculo no handler; dados por turma",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "AlternarStatusUsuarioHandler",
+      "arquivo": "src/EscolaAtenta.Application/Usuarios/Commands/AlternarStatusUsuarioCommand.cs",
+      "linha": 10,
+      "operacao": "PATCH /usuarios/{id}/status",
+      "origem_ids": "Id path",
+      "controle_resultado": "Administrador na rota; soft delete; sessão antiga EA-06",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "AtualizarUsuarioHandler",
+      "arquivo": "src/EscolaAtenta.Application/Usuarios/Commands/AtualizarUsuarioCommand.cs",
+      "linha": 10,
+      "operacao": "PUT /usuarios/{id}",
+      "origem_ids": "Id path; papel body",
+      "controle_resultado": "Administrador na rota; sessão antiga não invalidada EA-06",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "CriarUsuarioHandler",
+      "arquivo": "src/EscolaAtenta.Application/Usuarios/Commands/CriarUsuarioCommand.cs",
+      "linha": 15,
+      "operacao": "POST /usuarios",
+      "origem_ids": "Papel e dados body",
+      "controle_resultado": "Administrador na rota; senha aleatória; EA-05",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "GetUsuarioByIdQueryHandler",
+      "arquivo": "src/EscolaAtenta.Application/Usuarios/Queries/GetUsuarioByIdQuery.cs",
+      "linha": 10,
+      "operacao": "GET /usuarios/{id}",
+      "origem_ids": "Id path",
+      "controle_resultado": "Administrador na rota; DTO sem senha",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "GetUsuariosQueryHandler",
+      "arquivo": "src/EscolaAtenta.Application/Usuarios/Queries/GetUsuariosQueryHandler.cs",
+      "linha": 22,
+      "operacao": "GET /usuarios",
+      "origem_ids": "Filtros query",
+      "controle_resultado": "Administrador na rota; DTO sem senha",
+      "cobertura": "fluxo integral revisado"
+    },
+    {
+      "handler": "AuthController.TrocarSenha",
+      "arquivo": "src/EscolaAtenta.API/Controllers/AuthController.cs",
+      "linha": 94,
+      "operacao": "PUT /auth/trocar-senha",
+      "origem_ids": "Identidade JWT; senha body",
+      "controle_resultado": "Consulta usuário ativo pelo sub; EA-06",
+      "cobertura": "integral"
+    },
+    {
+      "handler": "AuthController.Refresh",
+      "arquivo": "src/EscolaAtenta.API/Controllers/AuthController.cs",
+      "linha": 121,
+      "operacao": "POST /auth/refresh",
+      "origem_ids": "RefreshToken body",
+      "controle_resultado": "Token válido e usuário ativo; rotação sequencial; EA-05/EA-06",
+      "cobertura": "integral"
+    },
+    {
+      "handler": "Health/OpenAPI",
+      "arquivo": "src/EscolaAtenta.API/Program.cs",
+      "linha": 342,
+      "operacao": "GET /health; /health/ready; /openapi/{documentName}.json",
+      "origem_ids": "Sem IDs de objetos escolares",
+      "controle_resultado": "Health público; OpenAPI só Development; sem escrita",
+      "cobertura": "integral"
+    },
+    {
+      "handler": "Workers",
+      "arquivo": "src/EscolaAtenta.API/Workers/CloudEgressWorker.cs",
+      "linha": 31,
+      "operacao": "Background: egress, heartbeat, cleanup",
+      "origem_ids": "Configuração local; nenhum ID HTTP",
+      "controle_resultado": "Egress stub, cleanup desativado; heartbeat usa endpoint configurado",
+      "cobertura": "integral nas cinco categorias"
+    }
+  ],
+  "rotas": [
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AlertasController.cs",
+      "linha": 43,
+      "atributo": "[HttpGet]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AlertasController.cs",
+      "linha": 75,
+      "atributo": "[HttpPatch(\"{id}/resolver\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AlertasController.cs",
+      "linha": 98,
+      "atributo": "[HttpGet(\"auditoria\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AlunosController.cs",
+      "linha": 27,
+      "atributo": "[HttpPost]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AlunosController.cs",
+      "linha": 39,
+      "atributo": "[HttpGet(\"turma/{turmaId:guid}\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AlunosController.cs",
+      "linha": 50,
+      "atributo": "[HttpPut(\"{id:guid}\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AlunosController.cs",
+      "linha": 65,
+      "atributo": "[HttpGet(\"{id}/historico-presencas\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AlunosController.cs",
+      "linha": 79,
+      "atributo": "[HttpPost(\"{id:guid}/transferir\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AlunosController.cs",
+      "linha": 99,
+      "atributo": "[HttpGet(\"{id}/historico-turmas\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AuthController.cs",
+      "linha": 47,
+      "atributo": "[HttpPost(\"login\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AuthController.cs",
+      "linha": 89,
+      "atributo": "[HttpPut(\"trocar-senha\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/AuthController.cs",
+      "linha": 117,
+      "atributo": "[HttpPost(\"refresh\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/ChamadasController.cs",
+      "linha": 28,
+      "atributo": "[HttpPost(\"realizar\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/ChamadasController.cs",
+      "linha": 43,
+      "atributo": "[HttpGet(\"turma/{turmaId}/dia/{data}\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/DashboardController.cs",
+      "linha": 31,
+      "atributo": "[HttpGet(\"alunos-com-faltas\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/DashboardController.cs",
+      "linha": 46,
+      "atributo": "[HttpGet(\"turmas-frequencia-perfeita\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/SyncController.cs",
+      "linha": 33,
+      "atributo": "[HttpGet(\"pull\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/SyncController.cs",
+      "linha": 46,
+      "atributo": "[HttpPost(\"push\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/TurmasController.cs",
+      "linha": 30,
+      "atributo": "[HttpPost]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/TurmasController.cs",
+      "linha": 42,
+      "atributo": "[HttpGet]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/TurmasController.cs",
+      "linha": 53,
+      "atributo": "[HttpPut(\"{id}\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/TurmasController.cs",
+      "linha": 68,
+      "atributo": "[HttpPost(\"{id:guid}/migrar\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/TurmasController.cs",
+      "linha": 93,
+      "atributo": "[HttpGet(\"{id}/relatorio\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/UsuariosController.cs",
+      "linha": 39,
+      "atributo": "[HttpGet]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/UsuariosController.cs",
+      "linha": 62,
+      "atributo": "[HttpGet(\"{id:guid}\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/UsuariosController.cs",
+      "linha": 79,
+      "atributo": "[HttpPost]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/UsuariosController.cs",
+      "linha": 108,
+      "atributo": "[HttpPut(\"{id:guid}\")]"
+    },
+    {
+      "arquivo": "src/EscolaAtenta.API/Controllers/UsuariosController.cs",
+      "linha": 137,
+      "atributo": "[HttpPatch(\"{id:guid}/status\")]"
+    }
+  ],
+  "testes": "dotnet test: 63 domínio + 204 aplicação = 267 aprovados; 0 falhas. 15 cenários/controles do projeto isolado confirmados. Avisos existentes CS8604 e CS0618.",
+  "categorias": [
+    {
+      "id": 1,
+      "nome": "Isolamento de dados",
+      "status": "Revisada com achados; cache validado estaticamente"
+    },
+    {
+      "id": 2,
+      "nome": "Permissões no servidor",
+      "status": "Revisada com achados"
+    },
+    {
+      "id": 3,
+      "nome": "IDOR",
+      "status": "Revisada com achados; todos os handlers inventariados"
+    },
+    {
+      "id": 4,
+      "nome": "Segredos expostos",
+      "status": "Parcial: histórico e fonte; APK/bytecode/ACL real não validados"
+    },
+    {
+      "id": 5,
+      "nome": "XSS",
+      "status": "Revisada sem achados no código atual; sem teste dinâmico"
+    }
+  ]
+}

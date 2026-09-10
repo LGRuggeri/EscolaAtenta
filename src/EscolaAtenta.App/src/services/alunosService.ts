@@ -1,5 +1,5 @@
 import { Q } from '@nozbe/watermelondb';
-import database from '../database';
+import { getDatabase } from '../database';
 import Aluno from '../database/models/Aluno';
 import { AlunoDto } from '../types/dtos';
 
@@ -25,15 +25,18 @@ function alunoParaDto(a: Aluno): AlunoDto {
 
 export const alunosService = {
     obterPorTurma: async (turmaId: string): Promise<AlunoDto[]> => {
+        const database = getDatabase();
         const collection = database.get<Aluno>('alunos');
         const alunos = await collection.query(Q.where('turma_id', turmaId)).fetch();
         return alunos.map(alunoParaDto);
     },
 
     criar: async (payload: { nome: string; matricula?: string; turmaId: string }): Promise<AlunoDto> => {
+        const database = getDatabase();
         const collection = database.get<Aluno>('alunos');
         let criado!: Aluno;
         await database.write(async () => {
+        const database = getDatabase();
             criado = await collection.create((a) => {
                 a.nome = payload.nome;
                 a.turmaId = payload.turmaId;
@@ -43,9 +46,11 @@ export const alunosService = {
     },
 
     atualizar: async (id: string, payload: { id: string; nome: string; matricula?: string }): Promise<void> => {
+        const database = getDatabase();
         const collection = database.get<Aluno>('alunos');
         const aluno = await collection.find(id);
         await database.write(async () => {
+        const database = getDatabase();
             await aluno.update((a) => {
                 a.nome = payload.nome;
             });
@@ -54,6 +59,7 @@ export const alunosService = {
 
     // Histórico de presenças ainda precisa de rede — mantido para compatibilidade
     obterHistoricoPresencas: async (id: string): Promise<import('../types/dtos').HistoricoPresencaDto[]> => {
+        const database = getDatabase();
         try {
             const { api } = await import('./api');
             const response = await api.get(`/alunos/${id}/historico-presencas`);

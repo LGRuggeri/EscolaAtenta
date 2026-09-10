@@ -2,9 +2,16 @@ using EscolaAtenta.Application.Alertas.Dtos;
 using EscolaAtenta.Application.Alertas.Queries;
 using EscolaAtenta.Application.Common;
 using EscolaAtenta.Domain.Enums;
+using EscolaAtenta.Domain.Exceptions;
+using EscolaAtenta.Domain.Interfaces;
 using EscolaAtenta.Infrastructure.Data;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace EscolaAtenta.Application.Alertas.Handlers;
 
@@ -25,16 +32,30 @@ namespace EscolaAtenta.Application.Alertas.Handlers;
 public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<AlertaEvasaoDto>>
 {
     private readonly AppDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public GetAlertasHandler(AppDbContext context)
+    public GetAlertasHandler(AppDbContext context, ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     public async Task<PagedResult<AlertaEvasaoDto>> Handle(
         GetAlertasQuery request,
         CancellationToken cancellationToken)
     {
+        // IDOR: Administrador pode consultar qualquer turma; demais papéis precisam de vínculo
+        HashSet<Guid>? turmasPermitidas = null;
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador)
+            && Guid.TryParse(_currentUser.UsuarioId, out var usuarioId))
+        {
+            turmasPermitidas = await _context.UsuarioTurmas
+                .AsNoTracking()
+                .Where(ut => ut.UsuarioId == usuarioId)
+                .Select(ut => ut.TurmaId)
+                .ToHashSetAsync(cancellationToken);
+        }
+
         // ── Bounds guard: proteção contra valores inválidos de paginação ──────
         var pageNumber = Math.Max(1, request.PageNumber);
         var pageSize   = Math.Clamp(request.PageSize, 1, 100);
@@ -47,6 +68,12 @@ public class GetAlertasHandler : IRequestHandler<GetAlertasQuery, PagedResult<Al
             .IgnoreQueryFilters() // Garante que Alunos/Turmas inativos apareçam no histórico
             .AsNoTracking()
             .Where(a => a.Tipo == TipoAlerta.Evasao);
+
+        // IDOR: restringe alertas às turmas vinculadas ao usuário
+        if (turmasPermitidas is not null)
+        {
+            query = query.Where(a => a.TurmaId.HasValue && turmasPermitidas.Contains(a.TurmaId.Value));
+        }
 
         if (request.ApenasNaoResolvidos)
         {

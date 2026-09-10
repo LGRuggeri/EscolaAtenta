@@ -56,15 +56,29 @@ public class LimiteFaltasAtingidoHandler : INotificationHandler<LimiteFaltasAtin
 
         if (alertaPendente is not null)
         {
-            // ── Escalada de Nível ──────────────────────────────────────────────
-            // O alerta já existe: atualizamos o nível ao invés de criar outro.
-            // O método AtualizarNivel() garante a invariante de domínio
-            // (não permite escalar alerta já resolvido).
+            // ── Idempotência de Nível ──────────────────────────────────────────
+            // Se o alerta já está no nível correto, não faz nada para evitar
+            // atualizações desnecessárias e conflitos de sincronização.
+            if (alertaPendente.Nivel == notification.Nivel)
+            {
+                _logger.LogInformation(
+                    "Alerta de evasão para o aluno {AlunoId} ({NomeAluno}) já está no nível {Nivel}. " +
+                    "Nenhuma atualização necessária.",
+                    notification.AlunoId,
+                    notification.NomeAluno,
+                    notification.Nivel);
+
+                return;
+            }
+
+            // ── Escalada/Rebaixamento de Nível ─────────────────────────────────
+            // O alerta já existe: atualizamos o nível se mudou, seja para cima
+            // (escalada) ou para baixo (rebaixamento após correção de presença).
             alertaPendente.AtualizarNivel(notification.Nivel, notification.MotivoExato);
 
             _logger.LogWarning(
                 "Alerta de evasão existente atualizado para o aluno {AlunoId} ({NomeAluno}). " +
-                "Nível escalado para: {Nivel}. Total de faltas consecutivas: {TotalFaltas}.",
+                "Nível alterado para: {Nivel}. Total de faltas consecutivas: {TotalFaltas}.",
                 notification.AlunoId,
                 notification.NomeAluno,
                 notification.Nivel,

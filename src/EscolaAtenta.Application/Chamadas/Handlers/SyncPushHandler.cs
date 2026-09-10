@@ -1,6 +1,7 @@
 using EscolaAtenta.Application.Chamadas.Commands;
 using EscolaAtenta.Domain.Entities;
 using EscolaAtenta.Domain.Enums;
+using EscolaAtenta.Domain.Events;
 using EscolaAtenta.Domain.Exceptions;
 using EscolaAtenta.Domain.Interfaces;
 using EscolaAtenta.Infrastructure.Data;
@@ -50,11 +51,15 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
     public async Task<SyncPushResult> Handle(SyncPushCommand request, CancellationToken cancellationToken)
     {
         var turmasCriadas = request.Changes.Turmas.Created;
+        var turmasAtualizadas = request.Changes.Turmas.Updated;
         var alunosCriados = request.Changes.Alunos.Created;
+        var alunosAtualizados = request.Changes.Alunos.Updated;
         var created = request.Changes.RegistrosPresenca.Created;
         var updated = request.Changes.RegistrosPresenca.Updated;
 
-        if (turmasCriadas.Count == 0 && alunosCriados.Count == 0 && created.Count == 0 && updated.Count == 0)
+        if (turmasCriadas.Count == 0 && turmasAtualizadas.Count == 0 &&
+            alunosCriados.Count == 0 && alunosAtualizados.Count == 0 &&
+            created.Count == 0 && updated.Count == 0)
             return new SyncPushResult(0, 0, []);
 
         // ── Segurança: Responsável extraído do JWT, nunca do cliente ─────────
@@ -69,7 +74,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         var rejeicoes = new List<SyncRejeicao>();
 
         // ── IDOR: verifica se o usuário tem permissão para cada turma envolvida ─
-        await ValidarOwnershipAsync(request, rejeicoes, cancellationToken);
+        var idsRejeitadosPorOwnership = await ValidarOwnershipAsync(request, rejeicoes, cancellationToken);
 
         await _lockProvider.WaitAsync(cancellationToken);
         try
@@ -78,21 +83,31 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             // ── TURMAS CRIADAS OFFLINE ────────────────────────────────────────────
             if (turmasCriadas.Count > 0)
             {
-                totalSincronizados += await ProcessarTurmasCriadas(turmasCriadas, responsavelId, cancellationToken);
-                await _context.SaveChangesAsync(cancellationToken);
+                totalSincronizados += await ProcessarTurmasCriadas(turmasCriadas, responsavelId, rejeicoes, cancellationToken);
+            }
+
+            // ── TURMAS ATUALIZADAS OFFLINE ────────────────────────────────────────
+            if (request.Changes.Turmas.Updated.Count > 0)
+            {
+                totalSincronizados += await ProcessarTurmasAtualizadas(request.Changes.Turmas.Updated, rejeicoes, cancellationToken);
             }
 
             // ── ALUNOS CRIADOS OFFLINE ────────────────────────────────────────────
             if (alunosCriados.Count > 0)
             {
-                totalSincronizados += await ProcessarAlunosCriados(alunosCriados, cancellationToken);
-                await _context.SaveChangesAsync(cancellationToken);
+                totalSincronizados += await ProcessarAlunosCriados(alunosCriados, rejeicoes, cancellationToken);
+            }
+
+            // ── ALUNOS ATUALIZADOS OFFLINE ────────────────────────────────────────
+            if (request.Changes.Alunos.Updated.Count > 0)
+            {
+                totalSincronizados += await ProcessarAlunosAtualizados(request.Changes.Alunos.Updated, rejeicoes, cancellationToken);
             }
 
             // ── CREATED ──────────────────────────────────────────────────────────
             if (created.Count > 0)
             {
-                var (criados, afetados) = await ProcessarCreated(created, responsavelId, rejeicoes, cancellationToken);
+                var (criados, afetados) = await ProcessarCreated(created, responsavelId, idsRejeitadosPorOwnership, rejeicoes, cancellationToken);
                 totalSincronizados += criados;
                 foreach (var id in afetados) alunosAfetados.Add(id);
             }
@@ -100,7 +115,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             // ── UPDATED ──────────────────────────────────────────────────────────
             if (updated.Count > 0)
             {
-                var (atualizados, afetados) = await ProcessarUpdated(updated, rejeicoes, cancellationToken);
+                var (atualizados, afetados) = await ProcessarUpdated(updated, idsRejeitadosPorOwnership, rejeicoes, cancellationToken);
                 totalSincronizados += atualizados;
                 foreach (var id in afetados) alunosAfetados.Add(id);
             }
@@ -110,32 +125,24 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             {
                 await RecalcularEstatisticasDosAlunos(alunosAfetados, cancellationToken);
 
-                // Conta alertas gerados pela recalculagem (antes do SaveChanges limpar os eventos)
+                // Conta alertas gerados pela recalculagem (apenas LimiteFaltasAtingidoEvent)
                 var alunosDb = await _context.Alunos
                     .Where(a => alunosAfetados.Contains(a.Id))
                     .ToDictionaryAsync(a => a.Id, cancellationToken);
 
                 foreach (var alunoId in alunosAfetados)
                 {
-                    if (alunosDb.TryGetValue(alunoId, out var aluno) && aluno.DomainEvents.Count > 0)
+                    if (alunosDb.TryGetValue(alunoId, out var aluno)
+                        && aluno.DomainEvents.OfType<LimiteFaltasAtingidoEvent>().Any())
                     {
                         alertasGerados++;
                     }
                 }
             }
 
-            // Se houver rejeições (prazo expirado ou permissão), descarta toda a transação.
-            // Isso evita que registros válidos sejam commitados e depois fiquem presos em retry infinito
-            // junto com registros rejeitados no WatermelonDB.
-            if (rejeicoes.Count > 0)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                _logger.LogWarning(
-                    "[SYNC-PUSH] Rejeitado — {Rejeicoes} registro(s) rejeitado(s). Transação revertida.",
-                    rejeicoes.Count);
-                return new SyncPushResult(0, 0, rejeicoes);
-            }
-
+            // Rejeições de negócio não abortam o batch: os registros válidos são
+            // persistidos e as rejeições são retornadas para que o app as trate.
+            // O rollback só ocorre em falhas técnicas (exceções do EF/database).
             // ── Persistência atômica (domain events despachados no SaveChanges) ──
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -159,15 +166,33 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
     private async Task<int> ProcessarTurmasCriadas(
         List<TurmaOfflineSyncDto> turmas,
         Guid responsavelId,
+        List<SyncRejeicao> rejeicoes,
         CancellationToken ct)
     {
+        // Apenas Administrador pode criar turmas via sync. Monitores podem usar
+        // turmas existentes, mas não criar novas unidades educacionais no sistema.
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador))
+        {
+            foreach (var dto in turmas)
+            {
+                rejeicoes.Add(new SyncRejeicao(
+                    dto.Id,
+                    "Apenas administradores podem criar turmas offline."));
+            }
+            return 0;
+        }
+
         var idsExternos = turmas.Select(t => t.Id).ToList();
         var idsJaSincronizados = await _context.SyncLogs
             .Where(s => idsExternos.Contains(s.IdExterno))
             .Select(s => s.IdExterno)
             .ToHashSetAsync(ct);
 
-        var novas = turmas.Where(t => !idsJaSincronizados.Contains(t.Id)).ToList();
+        var novas = turmas
+            .GroupBy(t => t.Id)
+            .Select(g => g.First())
+            .Where(t => !idsJaSincronizados.Contains(t.Id))
+            .ToList();
         if (novas.Count == 0) return 0;
 
         int criados = 0;
@@ -201,12 +226,85 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
     }
 
     // ═════════════════════════════════════════════════════════════════════════
+    // TURMAS ATUALIZADAS OFFLINE
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private async Task<int> ProcessarTurmasAtualizadas(
+        List<TurmaOfflineSyncDto> turmas,
+        List<SyncRejeicao> rejeicoes,
+        CancellationToken ct)
+    {
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador))
+        {
+            foreach (var dto in turmas)
+            {
+                rejeicoes.Add(new SyncRejeicao(
+                    dto.Id,
+                    "Apenas administradores podem editar turmas offline."));
+            }
+            return 0;
+        }
+
+        var idsExternos = turmas.Select(t => t.Id).Distinct().ToList();
+
+        // Resolve IDs externos: SyncLog para turmas criadas offline; GUID direto
+        // para turmas que vieram do servidor (o WatermelonDB usa o próprio server_id).
+        var mapeamentos = await _context.SyncLogs
+            .Where(s => idsExternos.Contains(s.IdExterno) && s.TabelaOrigem == "turmas")
+            .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, ct);
+
+        Guid ResolverTurmaId(string idExterno)
+        {
+            if (mapeamentos.TryGetValue(idExterno, out var entidadeId))
+                return entidadeId;
+
+            if (Guid.TryParse(idExterno, out var guid))
+                return guid;
+
+            return Guid.Empty;
+        }
+
+        int atualizadas = 0;
+
+        foreach (var dto in turmas.GroupBy(t => t.Id).Select(g => g.First()))
+        {
+            var entidadeId = ResolverTurmaId(dto.Id);
+            if (entidadeId == Guid.Empty)
+            {
+                rejeicoes.Add(new SyncRejeicao(
+                    dto.Id,
+                    "Turma não encontrada para atualização offline."));
+                continue;
+            }
+
+            var turma = await _context.Turmas.FindAsync([entidadeId], ct);
+            if (turma is null)
+            {
+                rejeicoes.Add(new SyncRejeicao(
+                    dto.Id,
+                    "Turma não encontrada para atualização offline."));
+                continue;
+            }
+
+            var turno = string.IsNullOrWhiteSpace(dto.Turno) ? turma.Turno : dto.Turno;
+            var anoLetivo = dto.AnoLetivo > 0 ? dto.AnoLetivo : turma.AnoLetivo;
+
+            turma.Atualizar(dto.Nome, turno, anoLetivo);
+            atualizadas++;
+        }
+
+        _logger.LogInformation("[SYNC-TURMA] {Count} turma(s) atualizada(s) offline.", atualizadas);
+        return atualizadas;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
     // CREATED: Novos registros de presença gerados offline
     // ═════════════════════════════════════════════════════════════════════════
 
     private async Task<(int Criados, HashSet<Guid> Afetados)> ProcessarCreated(
         List<RegistroPresencaSyncDto> registros,
         Guid responsavelId,
+        HashSet<string> idsRejeitados,
         List<SyncRejeicao> rejeicoes,
         CancellationToken ct)
     {
@@ -217,34 +315,46 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             .ToHashSetAsync(ct);
 
         var registrosNovos = registros
-            .Where(r => !idsJaSincronizados.Contains(r.Id))
+            .Where(r => !idsRejeitados.Contains(r.Id) && !idsJaSincronizados.Contains(r.Id))
+            .GroupBy(r => r.Id)
+            .Select(g => g.First())
             .ToList();
 
         if (registrosNovos.Count == 0)
             return (0, []);
 
-        var todosIdsExternos = registrosNovos
-            .SelectMany(r => new[] { r.AlunoId, r.TurmaId })
+        var idsExternosTurma = registrosNovos
+            .Select(r => r.TurmaId)
             .Where(id => !Guid.TryParse(id, out _))
             .Distinct()
             .ToList();
 
-        var syncLogMap = todosIdsExternos.Count > 0
-            ? await _context.SyncLogs
-                .Where(s => todosIdsExternos.Contains(s.IdExterno))
-                .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, ct)
-            : new Dictionary<string, Guid>();
+        var idsExternosAluno = registrosNovos
+            .Select(r => r.AlunoId)
+            .Where(id => !Guid.TryParse(id, out _))
+            .Distinct()
+            .ToList();
 
-        Guid ResolveGuid(string id)
+        var syncLogTurmas = ResolverMapeamentoSyncLog(idsExternosTurma, "turmas");
+        var syncLogAlunos = ResolverMapeamentoSyncLog(idsExternosAluno, "alunos");
+
+        Guid ResolveGuid(string id, string idExternoRegistro, string campo)
         {
             if (Guid.TryParse(id, out var guid)) return guid;
-            return syncLogMap.TryGetValue(id, out var resolved) ? resolved : Guid.Empty;
+
+            var mapa = campo == "Turma" ? syncLogTurmas : syncLogAlunos;
+            if (mapa.TryGetValue(id, out var resolved)) return resolved;
+
+            rejeicoes.Add(new SyncRejeicao(
+                idExternoRegistro,
+                $"{campo} '{id}' não encontrado no servidor."));
+            return Guid.Empty;
         }
 
         var grupos = registrosNovos
             .GroupBy(r => new
             {
-                TurmaGuid = ResolveGuid(r.TurmaId),
+                TurmaGuid = ResolveGuid(r.TurmaId, r.Id, "Turma"),
                 // DataChamada é DateTime (parte da data UTC). Normaliza para o mesmo tipo
                 // para garantir comparação correta com chamadas existentes.
                 Dia = ConvertTimestamp(r.Data).UtcDateTime.Date
@@ -252,26 +362,20 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             .ToList();
 
         var turmaGuids = grupos.Select(g => g.Key.TurmaGuid).Where(g => g != Guid.Empty).Distinct().ToList();
-        var turmasExistentes = await _context.Turmas
-            .Where(t => turmaGuids.Contains(t.Id))
+        var turmasExistentes = CarregarTurmasComChangeTracker(turmaGuids)
             .Select(t => t.Id)
-            .ToHashSetAsync(ct);
+            .ToHashSet();
 
         var todosAlunoGuids = registrosNovos
-            .Select(r => ResolveGuid(r.AlunoId))
+            .Select(r => ResolveGuid(r.AlunoId, r.Id, "Aluno"))
             .Where(g => g != Guid.Empty)
             .Distinct()
             .ToList();
-        var alunosDb = await _context.Alunos
-            .Where(a => todosAlunoGuids.Contains(a.Id))
-            .ToDictionaryAsync(a => a.Id, ct);
+        var alunosDb = CarregarAlunosComChangeTracker(todosAlunoGuids);
 
         // Carrega chamadas existentes para os grupos (turma + dia)
         // Filtragem por data é feita em memória para compatibilidade com SQLite/DateTimeOffset.
-        var chamadasExistentes = await _context.Chamadas
-            .Include(c => c.RegistrosPresenca)
-            .Where(c => turmaGuids.Contains(c.TurmaId))
-            .ToListAsync(ct);
+        var chamadasExistentes = CarregarChamadasComChangeTracker(turmaGuids);
 
         var datasDosGrupos = grupos.Select(g => g.Key.Dia).ToHashSet();
         var chamadasPorChave = chamadasExistentes
@@ -293,7 +397,8 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 continue;
             }
 
-            var dataHoraChamada = ConvertTimestamp(grupo.Min(r => r.Data));
+            // P2: a chamada representa o dia letivo, não o horário exato do registro.
+            var dataHoraChamada = new DateTimeOffset(grupo.Key.Dia, TimeSpan.Zero);
 
             // P2: rejeita datas futuras — isso criaria presenças antecipadas e
             // poderia mover o ciclo trimestral para frente, corrompendo contadores.
@@ -345,10 +450,9 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
                 foreach (var dto in grupo)
                 {
-                    var alunoGuid = ResolveGuid(dto.AlunoId);
+                    var alunoGuid = ResolveGuid(dto.AlunoId, dto.Id, "Aluno");
                     if (alunoGuid == Guid.Empty || !alunosDb.TryGetValue(alunoGuid, out var aluno))
                     {
-                        _logger.LogWarning("[SYNC] Aluno '{AlunoId}' não encontrado. Registro ignorado.", dto.AlunoId);
                         continue;
                     }
 
@@ -356,6 +460,14 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
                     if (chamadaEstaVazia)
                     {
+                        if (aluno.TurmaId != grupo.Key.TurmaGuid)
+                        {
+                            rejeicoes.Add(new SyncRejeicao(
+                                dto.Id,
+                                "Aluno não pertence à turma da chamada."));
+                            continue;
+                        }
+
                         var registro = chamadaExistente.RegistrarPresenca(aluno.Id, status);
                         afetados.Add(alunoGuid);
 
@@ -374,9 +486,9 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
                     if (!registrosPorAluno.TryGetValue(alunoGuid, out var registroExistente))
                     {
-                        _logger.LogWarning(
-                            "[SYNC] Aluno {AlunoId} não consta na chamada do dia {Data}. Não é permitido adicionar novos alunos.",
-                            alunoGuid, grupo.Key.Dia);
+                        rejeicoes.Add(new SyncRejeicao(
+                            dto.Id,
+                            $"Aluno não consta na chamada do dia {grupo.Key.Dia:dd/MM/yyyy}. Não é permitido adicionar novos alunos."));
                         continue;
                     }
 
@@ -418,10 +530,17 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
                 foreach (var dto in grupo)
                 {
-                    var alunoGuid = ResolveGuid(dto.AlunoId);
+                    var alunoGuid = ResolveGuid(dto.AlunoId, dto.Id, "Aluno");
                     if (alunoGuid == Guid.Empty || !alunosDb.TryGetValue(alunoGuid, out var aluno))
                     {
-                        _logger.LogWarning("[SYNC] Aluno '{AlunoId}' não encontrado. Registro ignorado.", dto.AlunoId);
+                        continue;
+                    }
+
+                    if (aluno.TurmaId != grupo.Key.TurmaGuid)
+                    {
+                        rejeicoes.Add(new SyncRejeicao(
+                            dto.Id,
+                            "Aluno não pertence à turma da chamada."));
                         continue;
                     }
 
@@ -429,8 +548,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
                     var registro = chamada.RegistrarPresenca(aluno.Id, status);
 
-                    var dataPresenca = ConvertTimestamp(dto.Data).UtcDateTime;
-                    aluno.RegistrarPresenca(status, dataPresenca);
+                    aluno.RegistrarPresenca(status, dataHoraChamada.UtcDateTime);
                     afetados.Add(alunoGuid);
 
                     _context.SyncLogs.Add(new SyncLog
@@ -444,6 +562,13 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
                     criados++;
                 }
+
+                // P1: se nenhum registro da nova chamada foi aceito, descarta a chamada
+                // para nao persistir uma chamada vazia que poluiria relatorios e dashboards.
+                if (chamada.RegistrosPresenca.Count == 0)
+                {
+                    _context.Chamadas.Remove(chamada);
+                }
             }
         }
 
@@ -456,10 +581,13 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
     private async Task<(int Atualizados, HashSet<Guid> Afetados)> ProcessarUpdated(
         List<RegistroPresencaSyncDto> registros,
+        HashSet<string> idsRejeitados,
         List<SyncRejeicao> rejeicoes,
         CancellationToken ct)
     {
-        var idsExternos = registros.Select(r => r.Id).ToList();
+        var registrosPermitidos = registros.Where(r => !idsRejeitados.Contains(r.Id)).ToList();
+
+        var idsExternos = registrosPermitidos.Select(r => r.Id).ToList();
         var mapeamentos = await _context.SyncLogs
             .Where(s => idsExternos.Contains(s.IdExterno))
             .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, ct);
@@ -473,7 +601,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         int atualizados = 0;
         var afetados = new HashSet<Guid>();
 
-        foreach (var dto in registros)
+        foreach (var dto in registrosPermitidos)
         {
             if (!mapeamentos.TryGetValue(dto.Id, out var entidadeId))
             {
@@ -551,15 +679,32 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
 
     private async Task<int> ProcessarAlunosCriados(
         List<AlunoOfflineSyncDto> alunos,
+        List<SyncRejeicao> rejeicoes,
         CancellationToken ct)
     {
+        // Apenas Administrador pode criar alunos via sync.
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador))
+        {
+            foreach (var dto in alunos)
+            {
+                rejeicoes.Add(new SyncRejeicao(
+                    dto.Id,
+                    "Apenas administradores podem criar alunos offline."));
+            }
+            return 0;
+        }
+
         var idsExternos = alunos.Select(a => a.Id).ToList();
         var idsJaSincronizados = await _context.SyncLogs
             .Where(s => idsExternos.Contains(s.IdExterno))
             .Select(s => s.IdExterno)
             .ToHashSetAsync(ct);
 
-        var novos = alunos.Where(a => !idsJaSincronizados.Contains(a.Id)).ToList();
+        var novos = alunos
+            .GroupBy(a => a.Id)
+            .Select(g => g.First())
+            .Where(a => !idsJaSincronizados.Contains(a.Id))
+            .ToList();
         if (novos.Count == 0) return 0;
 
         var turmaIdsLocais = novos
@@ -568,11 +713,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             .Distinct()
             .ToList();
 
-        var syncLogsTurma = turmaIdsLocais.Count > 0
-            ? await _context.SyncLogs
-                .Where(s => turmaIdsLocais.Contains(s.IdExterno))
-                .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, ct)
-            : new Dictionary<string, Guid>();
+        var syncLogsTurma = ResolverMapeamentoSyncLog(turmaIdsLocais, "turmas");
 
         var turmaGuidsCandidatos = new HashSet<Guid>();
         foreach (var dto in novos)
@@ -583,11 +724,8 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 turmaGuidsCandidatos.Add(mapped);
         }
 
-        var turmasExistentes = turmaGuidsCandidatos.Count > 0
-            ? await _context.Turmas
-                .Where(t => turmaGuidsCandidatos.Contains(t.Id))
-                .ToDictionaryAsync(t => t.Id, t => t.AnoLetivo, ct)
-            : new Dictionary<Guid, int>();
+        var turmasExistentes = CarregarTurmasComChangeTracker(turmaGuidsCandidatos.ToList())
+            .ToDictionary(t => t.Id, t => t.AnoLetivo);
 
         int criados = 0;
 
@@ -598,14 +736,18 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             {
                 if (!syncLogsTurma.TryGetValue(dto.TurmaId, out turmaGuid))
                 {
-                    _logger.LogWarning("[SYNC-ALUNO] TurmaId {TurmaId} não encontrado. Aluno {Nome} ignorado.", dto.TurmaId, dto.Nome);
+                    rejeicoes.Add(new SyncRejeicao(
+                        dto.Id,
+                        $"Turma '{dto.TurmaId}' não encontrada para criação do aluno."));
                     continue;
                 }
             }
 
             if (!turmasExistentes.TryGetValue(turmaGuid, out var anoLetivo))
             {
-                _logger.LogWarning("[SYNC-ALUNO] Turma {TurmaId} não existe no servidor. Aluno {Nome} ignorado.", turmaGuid, dto.Nome);
+                rejeicoes.Add(new SyncRejeicao(
+                    dto.Id,
+                    $"Turma '{dto.TurmaId}' não existe no servidor."));
                 continue;
             }
 
@@ -637,19 +779,217 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
     }
 
     // ═════════════════════════════════════════════════════════════════════════
+    // ALUNOS ATUALIZADOS OFFLINE
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private async Task<int> ProcessarAlunosAtualizados(
+        List<AlunoOfflineSyncDto> alunos,
+        List<SyncRejeicao> rejeicoes,
+        CancellationToken ct)
+    {
+        if (_currentUser.Papel != nameof(PapelUsuario.Administrador))
+        {
+            foreach (var dto in alunos)
+            {
+                rejeicoes.Add(new SyncRejeicao(
+                    dto.Id,
+                    "Apenas administradores podem editar alunos offline."));
+            }
+            return 0;
+        }
+
+        var idsExternos = alunos.Select(a => a.Id).Distinct().ToList();
+
+        // Resolve IDs externos: SyncLog para alunos criados offline; GUID direto
+        // para alunos que vieram do servidor (o WatermelonDB usa o próprio server_id).
+        var mapeamentos = await _context.SyncLogs
+            .Where(s => idsExternos.Contains(s.IdExterno) && s.TabelaOrigem == "alunos")
+            .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, ct);
+
+        Guid ResolverAlunoId(string idExterno)
+        {
+            if (mapeamentos.TryGetValue(idExterno, out var entidadeId))
+                return entidadeId;
+
+            if (Guid.TryParse(idExterno, out var guid))
+                return guid;
+
+            return Guid.Empty;
+        }
+
+        int atualizados = 0;
+
+        foreach (var dto in alunos.GroupBy(a => a.Id).Select(g => g.First()))
+        {
+            var entidadeId = ResolverAlunoId(dto.Id);
+            if (entidadeId == Guid.Empty)
+            {
+                rejeicoes.Add(new SyncRejeicao(
+                    dto.Id,
+                    "Aluno não encontrado para atualização offline."));
+                continue;
+            }
+
+            var aluno = await _context.Alunos.FindAsync([entidadeId], ct);
+            if (aluno is null)
+            {
+                rejeicoes.Add(new SyncRejeicao(
+                    dto.Id,
+                    "Aluno não encontrado para atualização offline."));
+                continue;
+            }
+
+            aluno.Atualizar(dto.Nome, aluno.Matricula);
+            atualizados++;
+        }
+
+        _logger.LogInformation("[SYNC-ALUNO] {Count} aluno(s) atualizado(s) offline.", atualizados);
+        return atualizados;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
     // Helpers
     // ═════════════════════════════════════════════════════════════════════════
 
-    private async Task ValidarOwnershipAsync(
+    /// <summary>
+    /// Resolve IDs externos (WatermelonDB) para GUIDs do servidor, considerando
+    /// tanto os SyncLogs já persistidos quanto os adicionados no ChangeTracker
+    /// durante o mesmo batch. Isso permite criar turmas, alunos e presenças
+    /// offline no mesmo push sem depender de round-trips ao banco.
+    /// </summary>
+    private Dictionary<string, Guid> ResolverMapeamentoSyncLog(
+        IEnumerable<string> idsExternos,
+        string tabelaOrigem)
+    {
+        var ids = idsExternos
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct()
+            .ToList();
+
+        if (ids.Count == 0)
+            return new Dictionary<string, Guid>();
+
+        // SyncLogs já persistidos no banco.
+        var doBanco = _context.SyncLogs
+            .Where(s => ids.Contains(s.IdExterno) && s.TabelaOrigem == tabelaOrigem)
+            .ToDictionary(s => s.IdExterno, s => s.EntidadeId);
+
+        // SyncLogs adicionados no mesmo batch (ainda não persistidos).
+        var doChangeTracker = _context.ChangeTracker.Entries<SyncLog>()
+            .Where(e => e.State == EntityState.Added
+                     && e.Entity.TabelaOrigem == tabelaOrigem
+                     && ids.Contains(e.Entity.IdExterno))
+            .Select(e => e.Entity)
+            .ToDictionary(s => s.IdExterno, s => s.EntidadeId);
+
+        // Merge: entidades do batch atual prevalecem sobre o banco.
+        foreach (var item in doChangeTracker)
+        {
+            doBanco[item.Key] = item.Value;
+        }
+
+        return doBanco;
+    }
+
+    /// <summary>
+    /// Carrega turmas do banco e do ChangeTracker para permitir que registros
+    /// de presença offline sejam vinculados a turmas criadas no mesmo batch.
+    /// </summary>
+    private List<Turma> CarregarTurmasComChangeTracker(List<Guid> ids)
+    {
+        if (ids.Count == 0)
+            return new List<Turma>();
+
+        var doBanco = _context.Turmas
+            .AsNoTracking()
+            .Where(t => ids.Contains(t.Id))
+            .ToList();
+
+        var doChangeTracker = _context.ChangeTracker.Entries<Turma>()
+            .Where(e => e.State == EntityState.Added && ids.Contains(e.Entity.Id))
+            .Select(e => e.Entity)
+            .ToList();
+
+        return doBanco
+            .Concat(doChangeTracker)
+            .GroupBy(t => t.Id)
+            .Select(g => g.First())
+            .ToList();
+    }
+
+    /// <summary>
+    /// Carrega alunos do banco e do ChangeTracker para permitir que registros
+    /// de presença offline sejam vinculados a alunos criados no mesmo batch.
+    /// </summary>
+    private Dictionary<Guid, Aluno> CarregarAlunosComChangeTracker(List<Guid> ids)
+    {
+        if (ids.Count == 0)
+            return new Dictionary<Guid, Aluno>();
+
+        var doBanco = _context.Alunos
+            .AsNoTracking()
+            .Where(a => ids.Contains(a.Id))
+            .ToDictionary(a => a.Id);
+
+        var doChangeTracker = _context.ChangeTracker.Entries<Aluno>()
+            .Where(e => e.State == EntityState.Added && ids.Contains(e.Entity.Id))
+            .Select(e => e.Entity)
+            .ToDictionary(a => a.Id);
+
+        foreach (var item in doChangeTracker)
+        {
+            doBanco[item.Key] = item.Value;
+        }
+
+        return doBanco;
+    }
+
+    /// <summary>
+    /// Carrega chamadas do banco e do ChangeTracker para permitir que novos
+    /// registros offline sejam agrupados com chamadas criadas no mesmo batch.
+    /// </summary>
+    private List<Chamada> CarregarChamadasComChangeTracker(List<Guid> turmaIds)
+    {
+        if (turmaIds.Count == 0)
+            return new List<Chamada>();
+
+        var doBanco = _context.Chamadas
+            .Include(c => c.RegistrosPresenca)
+            .Where(c => turmaIds.Contains(c.TurmaId))
+            .ToList();
+
+        var doChangeTracker = _context.ChangeTracker.Entries<Chamada>()
+            .Where(e => e.State == EntityState.Added && turmaIds.Contains(e.Entity.TurmaId))
+            .Select(e => e.Entity)
+            .ToList();
+
+        // Eager-load registros de chamadas do ChangeTracker
+        foreach (var chamada in doChangeTracker)
+        {
+            if (!_context.Entry(chamada).Collection(c => c.RegistrosPresenca).IsLoaded)
+            {
+                _context.Entry(chamada).Collection(c => c.RegistrosPresenca).Load();
+            }
+        }
+
+        return doBanco
+            .Concat(doChangeTracker)
+            .GroupBy(c => c.Id)
+            .Select(g => g.First())
+            .ToList();
+    }
+
+    private async Task<HashSet<string>> ValidarOwnershipAsync(
         SyncPushCommand request,
         List<SyncRejeicao> rejeicoes,
         CancellationToken cancellationToken)
     {
+        var idsRejeitados = new HashSet<string>();
         if (_currentUser.Papel == nameof(PapelUsuario.Administrador))
-            return;
+            return idsRejeitados;
 
         if (!Guid.TryParse(_currentUser.UsuarioId, out var usuarioId))
-            return;
+            return idsRejeitados;
 
         // Coleta todos os IDs de turma enviados (GUID ou externo do WatermelonDB)
         var idsTurmasBrutos = request.Changes.RegistrosPresenca.Created
@@ -660,7 +1000,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             .ToList();
 
         if (idsTurmasBrutos.Count == 0)
-            return;
+            return idsRejeitados;
 
         // Separa GUIDs válidos de IDs externos
         var idsGuid = new List<Guid>();
@@ -673,12 +1013,9 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 idsExternos.Add(id);
         }
 
-        // Resolve IDs externos via SyncLog (tabela turmas)
-        var mapaExternos = idsExternos.Count > 0
-            ? await _context.SyncLogs
-                .Where(s => idsExternos.Contains(s.IdExterno) && s.TabelaOrigem == "turmas")
-                .ToDictionaryAsync(s => s.IdExterno, s => s.EntidadeId, cancellationToken)
-            : new Dictionary<string, Guid>();
+        // Resolve IDs externos via SyncLog (tabela turmas), incluindo turmas criadas
+        // no mesmo batch que ainda não foram persistidas no banco.
+        var mapaExternos = ResolverMapeamentoSyncLog(idsExternos, "turmas");
 
         // IDs externos que serão criados neste mesmo batch são permitidos:
         // a turma ainda não existe, mas será criada em ProcessarTurmasCriadas
@@ -697,7 +1034,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         guidsTurmas = guidsTurmas.Distinct().ToList();
 
         if (guidsTurmas.Count == 0 && externosSemMapeamento.Count == 0)
-            return;
+            return idsRejeitados;
 
         var turmasPermitidas = guidsTurmas.Count > 0
             ? await _context.UsuarioTurmas
@@ -709,7 +1046,7 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
         var turmasNegadas = guidsTurmas.Except(turmasPermitidas).ToHashSet();
 
         if (turmasNegadas.Count == 0 && externosSemMapeamento.Count == 0)
-            return;
+            return idsRejeitados;
 
         void RejeitarRegistros(IEnumerable<RegistroPresencaSyncDto> registros)
         {
@@ -719,33 +1056,36 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
                 if (string.IsNullOrWhiteSpace(turmaId))
                     continue;
 
+                bool rejeitar = false;
                 if (Guid.TryParse(turmaId, out var guid))
                 {
                     if (turmasNegadas.Contains(guid))
-                    {
-                        rejeicoes.Add(new SyncRejeicao(
-                            dto.Id,
-                            "Você não tem permissão para alterar registros desta turma."));
-                    }
+                        rejeitar = true;
                 }
                 else if (externosSemMapeamento.Contains(turmaId))
                 {
-                    rejeicoes.Add(new SyncRejeicao(
-                        dto.Id,
-                        "Você não tem permissão para alterar registros desta turma."));
+                    rejeitar = true;
                 }
                 else if (mapaExternos.TryGetValue(turmaId, out var guidResolvido)
                       && turmasNegadas.Contains(guidResolvido))
                 {
+                    rejeitar = true;
+                }
+
+                if (rejeitar)
+                {
                     rejeicoes.Add(new SyncRejeicao(
                         dto.Id,
                         "Você não tem permissão para alterar registros desta turma."));
+                    idsRejeitados.Add(dto.Id);
                 }
             }
         }
 
         RejeitarRegistros(request.Changes.RegistrosPresenca.Created);
         RejeitarRegistros(request.Changes.RegistrosPresenca.Updated);
+
+        return idsRejeitados;
     }
 
     private async Task RecalcularEstatisticasDosAlunos(
@@ -786,13 +1126,25 @@ public class SyncPushHandler : IRequestHandler<SyncPushCommand, SyncPushResult>
             .GroupBy(r => r.AlunoId)
             .ToDictionary(g => g.Key, g => g.AsEnumerable());
 
-        var alunos = await _context.Alunos
+        var alunosDb = await _context.Alunos
             .Where(a => alunosIds.Contains(a.Id))
             .ToDictionaryAsync(a => a.Id, cancellationToken);
 
+        // Alunos criados no mesmo batch ainda nao estao persistidos no banco;
+        // mescla entidades Added do ChangeTracker para garantir recalculo correto.
+        var alunosAdicionados = _context.ChangeTracker.Entries<Aluno>()
+            .Where(e => e.State == EntityState.Added && alunosIds.Contains(e.Entity.Id))
+            .Select(e => e.Entity)
+            .ToDictionary(a => a.Id);
+
+        foreach (var item in alunosAdicionados)
+        {
+            alunosDb[item.Key] = item.Value;
+        }
+
         foreach (var alunoId in alunosIds)
         {
-            if (!alunos.TryGetValue(alunoId, out var aluno))
+            if (!alunosDb.TryGetValue(alunoId, out var aluno))
                 continue;
 
             var historico = registrosPorAluno.TryGetValue(alunoId, out var regs)

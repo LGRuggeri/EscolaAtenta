@@ -1,4 +1,4 @@
-using EscolaAtenta.Application.Alunos.Commands;
+﻿using EscolaAtenta.Application.Alunos.Commands;
 using EscolaAtenta.Application.Alunos.Handlers;
 using EscolaAtenta.Application.Tests.Fakes;
 using EscolaAtenta.Domain.Entities;
@@ -13,7 +13,7 @@ public class AtualizarAlunoHandlerTests
     private static AppDbContext CriarContexto() =>
         new(new DbContextOptionsBuilder<AppDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options,
-            new FakeCurrentUserService(),
+            new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString() },
             new FakeMediator(),
             new FakeTenantProvider());
 
@@ -21,7 +21,7 @@ public class AtualizarAlunoHandlerTests
     public async Task Handle_QuandoAlunoNaoEncontrado_DeveDispararKeyNotFoundException()
     {
         await using var ctx = CriarContexto();
-        var handler = new AtualizarAlunoHandler(ctx, new FakeCurrentUserService(), NullLogger<AtualizarAlunoHandler>.Instance);
+        var handler = new AtualizarAlunoHandler(ctx, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString() }, NullLogger<AtualizarAlunoHandler>.Instance);
 
         Func<Task> act = () => handler.Handle(
             new AtualizarAlunoCommand(Guid.NewGuid(), "Nome", null),
@@ -39,7 +39,7 @@ public class AtualizarAlunoHandlerTests
         ctx.Alunos.Add(aluno);
         await ctx.SaveChangesAsync();
 
-        var handler = new AtualizarAlunoHandler(ctx, new FakeCurrentUserService(), NullLogger<AtualizarAlunoHandler>.Instance);
+        var handler = new AtualizarAlunoHandler(ctx, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString() }, NullLogger<AtualizarAlunoHandler>.Instance);
         await handler.Handle(new AtualizarAlunoCommand(aluno.Id, "Nome Atualizado", "MAT002"), CancellationToken.None);
 
         var salvo = await ctx.Alunos.FindAsync(aluno.Id);

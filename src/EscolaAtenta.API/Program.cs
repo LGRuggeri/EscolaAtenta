@@ -1,4 +1,4 @@
-using EscolaAtenta.API.Middleware;
+﻿using EscolaAtenta.API.Middleware;
 using EscolaAtenta.API.Workers;
 using EscolaAtenta.Application.Chamadas.Handlers;
 using EscolaAtenta.Domain.Interfaces;
@@ -74,33 +74,7 @@ try
     // Configura a API para validar tokens JWT emitidos por um Identity Provider externo.
     // Em produção, configure a seção "Jwt" no appsettings.json ou user-secrets.
     var jwtSettings = builder.Configuration.GetSection("Jwt");
-    var secretKey = jwtSettings["SecretKey"];
-
-    if (string.IsNullOrWhiteSpace(secretKey))
-    {
-        if (builder.Environment.IsDevelopment())
-        {
-            secretKey = "ChaveSecretaDeDesenvolvimentoMuitoLongaParaTestes123456!";
-        }
-        else
-        {
-            // Deploy local (edge): gera uma chave persistente no appsettings se não existir
-            var appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-            secretKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64));
-            Log.Warning("JWT SecretKey não configurada. Gerando chave aleatória e salvando em appsettings.json");
-
-            var json = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.Nodes.JsonObject>(
-                File.ReadAllText(appSettingsPath)) ?? new System.Text.Json.Nodes.JsonObject();
-            json["Jwt"] ??= new System.Text.Json.Nodes.JsonObject();
-            json["Jwt"]!["SecretKey"] = secretKey;
-            File.WriteAllText(appSettingsPath, System.Text.Json.JsonSerializer.Serialize(json,
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
-
-            // Injeta a chave gerada no IConfiguration em memória para que AuthService
-            // a use corretamente sem precisar releitura do arquivo em runtime.
-            builder.Configuration["Jwt:SecretKey"] = secretKey;
-        }
-    }
+    var secretKey = EscolaAtenta.API.Configuration.JwtKeyProvider.Initialize(builder.Configuration, AppContext.BaseDirectory);
 
     builder.Services.AddAuthentication(options =>
     {
@@ -124,6 +98,7 @@ try
         // Permite receber o token via header Authorization: Bearer <token>
         options.Events = new JwtBearerEvents
         {
+            OnTokenValidated = EscolaAtenta.API.Authentication.JwtSessionValidation.ValidarAsync,
             OnAuthenticationFailed = context =>
             {
                 if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
@@ -356,6 +331,7 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseMiddleware<TrocaSenhaObrigatoriaMiddleware>();
 
     app.MapControllers();
 

@@ -36,7 +36,8 @@ public class GetAlertasHandlerTests : IDisposable
         return ctx;
     }
 
-    private static GetAlertasHandler CriarHandler(AppDbContext ctx) => new(ctx);
+    private static GetAlertasHandler CriarHandler(AppDbContext ctx) =>
+        new(ctx, new FakeCurrentUserService { UsuarioId = Guid.NewGuid().ToString(), EstaAutenticado = true, Papel = "Administrador" });
 
     private async Task SeedAlertas(AppDbContext ctx, int quantidade, bool resolvidos = false)
     {

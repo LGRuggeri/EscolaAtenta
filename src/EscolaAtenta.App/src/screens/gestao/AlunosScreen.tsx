@@ -1,3 +1,5 @@
+import { useAuth } from '../../hooks/useAuth';
+import { PapelUsuario } from '../../types/enums';
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { Text, FAB, ActivityIndicator, Card, Surface } from 'react-native-paper';
@@ -8,7 +10,7 @@ import { AlunoDto } from '../../types/dtos';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader, EmptyState } from '../../components/ui';
 import { theme } from '../../theme/colors';
-import database from '../../database';
+import { getDatabase } from '../../database';
 import Aluno from '../../database/models/Aluno';
 import { Q } from '@nozbe/watermelondb';
 
@@ -25,7 +27,9 @@ function StatBadge({ icon, label, value, color }: { icon: keyof typeof MaterialC
 }
 
 export function AlunosScreen() {
+    const database = getDatabase();
     const navigation = useNavigation<AppNavigationProp>();
+    const admin = useAuth().user?.papel === PapelUsuario.Administrador;
     const route = useRoute<AlunosRouteProp>();
     const { turmaId, turmaNome } = route.params;
     const insets = useSafeAreaInsets();
@@ -60,7 +64,7 @@ export function AlunosScreen() {
         <Card
             style={styles.card}
             mode="elevated"
-            onPress={() => navigation.navigate('AlunoForm', { turmaId, aluno: item })}
+            onPress={admin ? () => navigation.navigate('AlunoForm', { turmaId, aluno: item }) : undefined}
         >
             <Card.Content>
                 <View style={styles.cardTop}>
@@ -90,7 +94,7 @@ export function AlunosScreen() {
                 title="Alunos"
                 subtitle={turmaNome}
                 onBack={() => navigation.goBack()}
-                rightActions={[{ icon: 'account-plus', onPress: () => navigation.navigate('AlunoForm', { turmaId }), label: 'Novo aluno' }]}
+                rightActions={admin ? [{ icon: 'account-plus', onPress: () => navigation.navigate('AlunoForm', { turmaId }), label: 'Novo aluno' }] : []}
             />
 
             {loading ? (
@@ -107,7 +111,7 @@ export function AlunosScreen() {
                         <EmptyState
                             icon="account-school"
                             title="Nenhum aluno cadastrado"
-                            subtitle="Toque no + para adicionar alunos"
+                            subtitle={admin ? "Toque no + para adicionar alunos" : "Aguarde o cadastro pela administração"}
                         />
                     }
                 />

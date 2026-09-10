@@ -1,0 +1,97 @@
+[
+  {
+    "arquivo": "docs/security-audit/.gitignore",
+    "bytes": 45,
+    "sha256": "11f5f9cc1c9fa2d66e47960dd2c3729d855c5e7961e6b1f314d36a35b161bdc9"
+  },
+  {
+    "arquivo": "docs/security-audit/bundle.json",
+    "bytes": 2540,
+    "sha256": "f2286e41a093c6e3fc3c974b56f5194d730f5ce84bd586921219fb6b6cedc3c7"
+  },
+  {
+    "arquivo": "docs/security-audit/cobertura.md",
+    "bytes": 14344,
+    "sha256": "1e0dfffea27e86745eefeafe16d58aa4befcfde85629bd98df57b1a40489d7fc"
+  },
+  {
+    "arquivo": "docs/security-audit/consolidar.py",
+    "bytes": 25609,
+    "sha256": "7e3ed7d8001c2273efdcba997fa8d5dbf2fbde58f9bfc6d218da609c9448e16a"
+  },
+  {
+    "arquivo": "docs/security-audit/dados.json",
+    "bytes": 43335,
+    "sha256": "79eb5587bc8e1279eb27971fbfc8c3df07763c60e89d69048b44002df1a41f7b"
+  },
+  {
+    "arquivo": "docs/security-audit/fontes/LICENSE.txt",
+    "bytes": 5954,
+    "sha256": "3361d054759a2fc686a2c058be82deaf9c2e6fe549be9004d7935a6c1736315d"
+  },
+  {
+    "arquivo": "docs/security-audit/fontes/Vera.ttf",
+    "bytes": 65932,
+    "sha256": "c4c45690b345435b2cba52ecabe275f05e49b389b39fe68ad03afbb551288d3d"
+  },
+  {
+    "arquivo": "docs/security-audit/fontes/VeraBd.ttf",
+    "bytes": 58716,
+    "sha256": "cc037385e4d55bfde89b13e03091ee93bf40c0c52ddd391ff031ab276f13b8e9"
+  },
+  {
+    "arquivo": "docs/security-audit/gerar_relatorio.py",
+    "bytes": 11716,
+    "sha256": "83f9f59fb81d546a749ba212a14ca46061a0c31fc9ce019c2a851812eb908e13"
+  },
+  {
+    "arquivo": "docs/security-audit/inventariar.py",
+    "bytes": 3977,
+    "sha256": "e97f9a9521aaa17e06d9b328daf2579acaaf98dc90cae28c8706f67ec12bfe06"
+  },
+  {
+    "arquivo": "docs/security-audit/inventario.json",
+    "bytes": 169247,
+    "sha256": "d2a2d2bb39c7f6de8f176878a2cf52e1132c77859ac957e0beec2c5224f15787"
+  },
+  {
+    "arquivo": "docs/security-audit/issues.md",
+    "bytes": 17267,
+    "sha256": "ac3cb847180375d061f6cbc22185f55969486907b6e8dce682f7137f3a368867"
+  },
+  {
+    "arquivo": "docs/security-audit/README.md",
+    "bytes": 2497,
+    "sha256": "56902b02c5380dbd663ff66db9fbd97f5b48eeb6dff57d5b731f8b511f7d72be"
+  },
+  {
+    "arquivo": "docs/security-audit/relatorio-auditoria-seguranca.pdf",
+    "bytes": 92945,
+    "sha256": "b14147c321ea4d2942c8a52e2daf647177695e8e65e4696e88ba2bd8567e3dc2"
+  },
+  {
+    "arquivo": "docs/security-audit/repro/Auditoria.csproj",
+    "bytes": 301,
+    "sha256": "55e72a19b4072e6fab450d6aafc0ac79b90cadcc42493db021b43d07f0cf56ff"
+  },
+  {
+    "arquivo": "docs/security-audit/repro/Program.cs",
+    "bytes": 10463,
+    "sha256": "248ce09d93b463e53b2b445cc11f1531648385bdb7f42ca23b6af0603c79b498"
+  },
+  {
+    "arquivo": "docs/security-audit/reproducoes.json",
+    "bytes": 2013,
+    "sha256": "ed8a9d950c155fb9825675371379fdae82be3adeb83f9138780d87d38473a77a"
+  },
+  {
+    "arquivo": "docs/security-audit/verificacao-pdf.json",
+    "bytes": 715,
+    "sha256": "7da2032afb34b0ecfaec32a66ddc255fafcae4b8b0a1340d804b2e79ed09ad35"
+  },
+  {
+    "arquivo": "docs/security-audit/verificar_entrega.py",
+    "bytes": 1783,
+    "sha256": "b1569be18a1752800000b675f7c6068684a47a6fa331c244f605d57971e7264c"
+  }
+]
