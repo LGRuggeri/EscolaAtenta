@@ -392,8 +392,8 @@ interface ReverterPayload {
  *
  * Estratégia:
  * - Created rejeitado: destrói o registro local (o servidor nunca o aceitou).
- * - Updated rejeitado: marca como sincronizado para não reenviar; o próximo
- *   pull trará o estado atual do servidor e sobrescreverá o status local.
+ * - Updated rejeitado: busca o estado autoritativo antes de limpar a pendência;
+ *   falhas temporárias mantêm a linha para nova tentativa.
  */
 async function reverterAlteracoesRejeitadas(database: Database, payload: ReverterPayload): Promise<void> {
   const { turmasCreated, turmasUpdated, alunosCreated, presencasCreated, presencasUpdated, rejeicoes } = payload;
@@ -420,7 +420,7 @@ async function reverterAlteracoesRejeitadas(database: Database, payload: Reverte
       }
 
       // Updated rejeitado: restaura o status autoritativo do servidor consultando
-      // a chamada do dia. Se não for possível recuperar, destrói o registro local.
+      // a chamada do dia. Em falha temporária, mantém a pendência para nova tentativa.
       if (idsPresencasUpdated.has(id)) {
         await restaurarPresencaDoServidor(database, id);
         continue;
@@ -437,12 +437,25 @@ async function reverterAlteracoesRejeitadas(database: Database, payload: Reverte
 
       if (idsTurmasUpdated.has(id)) {
         const turma = await database.get<Turma>('turmas').find(id);
-        await database.write(async () => {
-          // Não alteramos os dados localmente; apenas marcamos como sincronizado
-          // para que o próximo pull do servidor restaure o estado autoritativo.
-          marcarComoSincronizado(turma);
-        });
-        console.log('[SYNC-RECOVERY] Turma updated marcada como sincronizada:', id);
+        // A edição rejeitada não avança DataAtualizacao no servidor. Um delta
+        // normal não a restaura; consulta completa preserva também IDs offline.
+        const response = await api.get<SyncPullResponse>('/sync/pull', { params: { lastPulledAt: 0 } });
+        const changes = response.data.changes.turmas;
+        const oficial = [...changes.created, ...changes.updated].find(t => t.id === id);
+        if (!oficial) {
+          // Ausência no snapshot autorizado: a turma foi removida ou o vínculo revogado.
+          await database.write(async () => { await turma.destroyPermanently(); });
+        } else {
+          const normalizada = normalizarTurma(oficial);
+          await database.write(async () => {
+            await turma.update(t => {
+              t.nome = normalizada.nome;
+              t.turno = normalizada.turno;
+              t.anoLetivo = normalizada.ano_letivo;
+            });
+            marcarComoSincronizado(turma);
+          });
+        }
         continue;
       }
 
@@ -517,18 +530,9 @@ async function restaurarPresencaDoServidor(database: Database, idExterno: string
     console.log('[SYNC-RECOVERY] Presença updated restaurada do servidor:', idExterno, statusServidor);
   } catch (erro) {
     console.warn('[SYNC-RECOVERY] Falha ao restaurar presença do servidor:', idExterno, erro);
-    // Se não foi possível obter o estado autoritativo do servidor (por exemplo,
-    // por falta de permissão na turma), destrói o registro local para evitar
-    // reenvio infinito de uma alteração rejeitada.
-    try {
-      const registro = await database.get<RegistroPresenca>('registros_presenca').find(idExterno);
-      await database.write(async () => {
-        await registro.destroyPermanently();
-      });
-      console.log('[SYNC-RECOVERY] Presença updated destruída após falha de recuperação:', idExterno);
-    } catch (erroDestruicao) {
-      console.warn('[SYNC-RECOVERY] Falha ao destruir presença após erro de recuperação:', idExterno, erroDestruicao);
-    }
+    // Sem resposta autoritativa, preserva a linha e sua pendência para uma
+    // nova tentativa. Isso inclui falhas de rede, timeout, 5xx e sessão expirada.
+
   }
 }
 

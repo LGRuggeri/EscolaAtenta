@@ -33,3 +33,15 @@ Atualize API e aplicativo em conjunto: o novo app exige snapshot de autorizaçã
 O banco legado mobile sem identificação de dono fica preservado, mas não é aberto pela nova versão. Não há atribuição automática dessas pendências a uma conta: antes de atualizar dispositivos antigos, sincronize as pendências com a conta correta na versão anterior, ou faça recuperação administrativa identificando a origem. Os novos bancos por conta preservam suas próprias pendências entre logins.
 
 Para instalações antigas: parar a API, aplicar o instalador atualizado e rotacionar chaves anteriormente expostas conforme INSTALACAO.txt. O código não revoga cópias já obtidas de chaves, logs ou dados. Não incluir Secrets, SQLite ou logs nos pacotes. Nenhuma migration foi necessária.
+## Correção posterior — quatro comentários da PR #7
+
+Os quatro problemas reproduzidos em `verificacao-pr7/README.md` foram corrigidos:
+
+- AppDbContext reaplica auditoria, EscolaId, soft delete e invalidação de CloudSyncedAt antes de cada gravação em cascata.
+- A gravação inicial e o despacho de eventos compartilham uma transação. Quando o chamador já possui transação, o método usa savepoint e não confirma a transação externa. Em falha, reverte e limpa o tracking para permitir recarga e nova tentativa. O limite de eventos em cascata agora falha com rollback em vez de descartar eventos silenciosamente.
+- Turma com edição rejeitada é recuperada por pull completo autorizado, incluindo IDs offline, antes de limpar a pendência. Falha de rede conserva a edição pendente.
+- Erros de recuperação de presença preservam a linha; remoção continua permitida quando o servidor confirma que não há chamada/registro correspondente.
+
+Validação: os novos testes falharam antes das mudanças; depois, passaram quatro cenários SQLite de auditoria/atomicidade (com e sem transação externa) e sete cenários mobile de recuperação, incluindo offline, timeout, HTTP 500 e controles positivos. Os testes mobile executam as funções reais com adaptadores simulados. TypeScript sem erros.
+
+Essas alterações são posteriores à geração dos pacotes 1.4.2. Os instaladores/APKs já gerados não foram recompilados nesta etapa.

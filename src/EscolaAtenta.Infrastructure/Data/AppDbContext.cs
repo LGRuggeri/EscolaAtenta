@@ -88,6 +88,56 @@ public class AppDbContext : DbContext
     /// </summary>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        // O provider InMemory usado em testes não oferece transações.
+        var externa = Database.CurrentTransaction;
+        await using var propria = Database.IsRelational() && externa is null
+            ? await Database.BeginTransactionAsync(cancellationToken) : null;
+        var savepoint = externa?.SupportsSavepoints == true ? "eventos_" + Guid.NewGuid().ToString("N") : null;
+        if (savepoint is not null)
+            await externa!.CreateSavepointAsync(savepoint, cancellationToken);
+
+        try
+        {
+            PrepararAlteracoes();
+            var eventos = ColetarEDedupDomainEvents();
+            var resultado = await base.SaveChangesAsync(cancellationToken);
+            const int maxIteracoes = 5;
+            for (var i = 0; eventos.Count > 0; i++)
+            {
+                if (i >= maxIteracoes)
+                    throw new InvalidOperationException("Limite de eventos em cascata excedido; operação cancelada.");
+                foreach (var evento in eventos)
+                    await _mediator.Publish(evento, cancellationToken);
+
+                // Entidades criadas/alteradas por eventos recebem as mesmas regras
+                // de auditoria, escola, soft delete e sincronização da gravação inicial.
+                PrepararAlteracoes();
+                eventos = ColetarEDedupDomainEvents();
+                if (ChangeTracker.HasChanges())
+                    await base.SaveChangesAsync(cancellationToken);
+            }
+            if (savepoint is not null)
+                await externa!.ReleaseSavepointAsync(savepoint, cancellationToken);
+            if (propria is not null)
+                await propria.CommitAsync(cancellationToken);
+            return resultado;
+        }
+        catch
+        {
+            // O cancelamento da requisição não deve impedir a reversão.
+            if (propria is not null)
+                await propria.RollbackAsync(CancellationToken.None);
+            else if (savepoint is not null)
+                await externa!.RollbackToSavepointAsync(savepoint, CancellationToken.None);
+            // As entidades já aceitas pelo EF não representam mais o estado do banco.
+            // Uma nova tentativa deve recarregar os registros e gerar novos eventos.
+            ChangeTracker.Clear();
+            throw;
+        }
+    }
+
+    private void PrepararAlteracoes()
+    {
         var agora = DateTimeOffset.UtcNow;
         var usuarioAtual = _currentUserService.UsuarioId;
 
@@ -152,50 +202,6 @@ public class AppDbContext : DbContext
             }
         }
 
-        // ── Coleta de Domain Events ────────────────────────────────────────────────
-        // Coletamos e limpamos os eventos ANTES do commit, mas publicamos APÓS o
-        // SaveChanges. Isso garante que os handlers leiam o estado persistido,
-        // evitando duplicatas e decisões em cima de dados ainda não commitados.
-        var domainEvents = ColetarEDedupDomainEvents();
-
-        // ── Persistência Atômica ───────────────────────────────────────────────────────
-        var resultado = await base.SaveChangesAsync(cancellationToken);
-
-        // ── Despacho de Domain Events após commit ────────────────────────────────
-        // Se handlers criarem novas entidades, salvamos em iterações subsequentes
-        // com um limite máximo para evitar loops infinitos.
-        if (domainEvents.Count > 0)
-        {
-            const int maxIteracoes = 5;
-            for (int i = 0; i < maxIteracoes; i++)
-            {
-                foreach (var domainEvent in domainEvents)
-                {
-                    await _mediator.Publish(domainEvent, cancellationToken);
-                }
-
-                // Os handlers podem ter criado/modificado entidades (ex: AlertaEvasao)
-                // sem gerar novos Domain Events. Persistimos qualquer mudança pendente.
-                if (!ChangeTracker.HasChanges())
-                {
-                    var eventosCascata = ColetarEDedupDomainEvents();
-                    if (eventosCascata.Count == 0)
-                        break;
-
-                    domainEvents = eventosCascata;
-                    continue;
-                }
-
-                await base.SaveChangesAsync(cancellationToken);
-
-                // Coleta novos eventos gerados durante o SaveChanges cascata.
-                domainEvents = ColetarEDedupDomainEvents();
-                if (domainEvents.Count == 0)
-                    break;
-            }
-        }
-
-        return resultado;
     }
 
     private List<INotification> ColetarEDedupDomainEvents()
